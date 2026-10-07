@@ -17,6 +17,20 @@ describe('resolveConfig', () => {
     },
   );
 
+  it('allows 0.0.0.0 only inside the container image', () => {
+    expect(() =>
+      resolveConfig({ CANDLEDRILL_HOST: '0.0.0.0', CANDLEDRILL_CONTAINER: '0' }),
+    ).toThrow(/container/);
+    expect(resolveConfig({ CANDLEDRILL_HOST: '0.0.0.0', CANDLEDRILL_CONTAINER: '1' }).host).toBe(
+      '0.0.0.0',
+    );
+    // The container flag does not open up arbitrary addresses.
+    expect(() =>
+      resolveConfig({ CANDLEDRILL_HOST: '192.168.1.10', CANDLEDRILL_CONTAINER: '1' }),
+    ).toThrow(/127\.0\.0\.1/);
+    expect(resolveConfig({ CANDLEDRILL_CONTAINER: '1' }).host).toBe(LOOPBACK_HOST);
+  });
+
   it('validates the port', () => {
     expect(() => resolveConfig({ CANDLEDRILL_PORT: 'abc' })).toThrow();
     expect(() => resolveConfig({ CANDLEDRILL_PORT: '70000' })).toThrow();

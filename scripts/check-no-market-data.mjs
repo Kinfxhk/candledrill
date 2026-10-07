@@ -51,6 +51,19 @@ const CHART = 'packages/web/src/chart.ts';
 if (existsSync(CHART) && /attributionLogo:\s*false/.test(readFileSync(CHART, 'utf8')))
   problems.push(`${CHART} disables the lightweight-charts attribution logo`);
 
+// Container files must never publish the unauthenticated UI beyond the host loopback.
+if (existsSync('compose.yaml')) {
+  const compose = readFileSync('compose.yaml', 'utf8');
+  const ports = [...compose.matchAll(/^\s*-\s*['"]?([0-9.:]+)['"]?\s*$/gm)].map((m) => m[1]);
+  if (ports.length === 0 || ports.some((p) => !p.startsWith('127.0.0.1:')))
+    problems.push('compose.yaml must publish ports on 127.0.0.1 only');
+}
+if (
+  existsSync('Dockerfile') &&
+  !readFileSync('Dockerfile', 'utf8').includes('CANDLEDRILL_CONTAINER=1')
+)
+  problems.push('Dockerfile must set CANDLEDRILL_CONTAINER=1 (container-only bind exception)');
+
 if (problems.length) {
   console.error('Repository hygiene check FAILED:');
   for (const p of problems) console.error(`  - ${p}`);

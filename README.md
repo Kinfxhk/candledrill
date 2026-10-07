@@ -1,14 +1,17 @@
 # CandleDrill
 
 **CandleDrill** (Chinese name: **K線操練場**) is a free, open-source, self-hosted
-candlestick **replay practice tool**. You load price bars, step through them one
-candle at a time without seeing the future, place simulated orders, and review
-your results, all on your own computer, with no account, no subscription and no
-telemetry.
+candlestick **replay practice tool**. Load price bars, step through them one candle
+at a time without seeing the future, place simulated orders, and review your
+results. Everything runs on your own computer, with no account, no subscription and
+no telemetry.
 
-> **Status: pre-alpha (milestone M0).** The engine foundation, synthetic data
-> generator, local server and project tooling exist. There is no usable replay UI
-> yet. See the [roadmap](#roadmap).
+> **Status: v0.1.0, first public release.** Usable end to end. Expect rough edges;
+> please report bugs in the issue tracker.
+
+![CandleDrill practice screen with synthetic demo data: two synchronised timeframes, an open bracket position, order ticket and trade log](docs/screenshot.png)
+
+<sub>Screenshot uses generated `SYNTH-` demo data, not real market prices.</sub>
 
 ## Risk notice
 
@@ -37,68 +40,148 @@ respective owners and appear here only for plain factual comparison.
 - **No telemetry.** No analytics, no tracking, no phoning home.
 - **No bundled market data.** The demo uses a deterministic **synthetic** data
   generator (symbols always start with `SYNTH-`). You import data you are
-  entitled to use (CSV import arrives in M1).
+  entitled to use.
 - **No broker connections, no real orders.** Practice only.
 - **Clean-room.** Built from written feature descriptions only; no code, UI,
   icons or text copied from any commercial product. See
   [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Quick start (developers)
+## Features (v0.1)
 
-Requirements: Node.js 22+, npm.
+- **Data library**: CSV import with a column-mapping dialog (delimiter, header,
+  timestamp format and time zone detection, preview), strict validation (OHLC
+  consistency, duplicates, ordering) with a row-level report. A deterministic
+  synthetic generator makes demo data in one click.
+- **Replay without look-ahead**: step one bar, ten bars, play at 1–120 bars/s,
+  jump forward to a date. The server keeps the full series and the browser only
+  ever receives bars up to the replay cursor.
+- **Timeframes**: 1m, 5m, 15m, 1h and daily, aggregated from the revealed bars
+  only (a forming higher-timeframe bar never shows the future). Two-chart split
+  view for multi-timeframe practice.
+- **Simulated orders**: market, limit, stop; bracket orders with stop-loss and
+  take-profit (OCO); modify and cancel; flatten all. Commission per contract and
+  slippage in ticks.
+- **Positions and P&L**: average price, open and closed P&L, equity, trade log,
+  fills, markers and order lines on the chart.
+- **Statistics**: win rate, expectancy, profit factor, average R-multiple, max
+  drawdown, streaks and more. Export trades to CSV, a self-contained HTML report,
+  or session JSON.
+- **Practice rules** (optional): daily loss limit, trailing drawdown, profit
+  target. A breach or target hit closes positions and locks trading for that
+  session, so you can rehearse a rule-based routine.
+- **Drawings**: horizontal and trend lines, saved with the session.
+- **Sessions** are saved automatically in a local SQLite file; resume any time.
+- **UI**: English and 繁體中文, dark and light themes, keyboard shortcuts
+  (Space play/pause, → next bar, Shift+→ ten bars, B buy, S sell, F flatten,
+  Esc cancel drawing).
+
+## How fills are simulated
+
+Bar data cannot tell what happened inside a bar, so CandleDrill uses fixed,
+conservative rules and shows them in the app:
+
+- Orders only fill on bars revealed **after** they were placed.
+- Market orders fill at the next bar's open plus slippage.
+- Limit orders fill at their price, or at the open if price gaps through it.
+- Stop orders fill at their price, or at the open if gapped, plus slippage.
+- If one bar touches both the stop-loss and the take-profit, the **stop-loss is
+  assumed to fill first**.
+- Drawdown and practice rules are evaluated on each bar's close.
+
+## Quick start
+
+Requirements: [Node.js](https://nodejs.org/) 22 or newer and npm.
 
 ```bash
+git clone https://github.com/Kinfxhk/candledrill.git
+cd candledrill
 npm ci
-npm run check          # lint, format, typecheck, tests, licence, data and secret checks
-npm run dev:server     # http://127.0.0.1:4870/api/health
-npm run dev:web        # http://127.0.0.1:4871 (placeholder page)
+npm start            # builds the UI and serves it at http://127.0.0.1:4870/
 ```
 
-Create a synthetic demo dataset:
+Then open <http://127.0.0.1:4870/>, click **Generate demo data** (or **Import
+CSV**), fill in the session form and press **Start practising**.
+
+Your data is stored in `~/.candledrill/candledrill.db`. Settings via environment
+variables: `CANDLEDRILL_PORT` (default 4870), `CANDLEDRILL_DATA_DIR`,
+`CANDLEDRILL_DB`, `CANDLEDRILL_LOG_LEVEL` (default `warn`). `CANDLEDRILL_HOST` may
+only be `127.0.0.1`. No C++ build tools are needed: the repository's `.npmrc` skips
+install scripts and the SQLite driver ships prebuilt binaries.
+
+### Docker
 
 ```bash
-curl -s -X POST http://127.0.0.1:4870/api/datasets/synthetic \
-  -H 'content-type: application/json' \
-  -d '{"seed": 42, "startDate": "2026-10-05", "days": 5}'
+docker compose up --build    # http://127.0.0.1:4870/
 ```
 
-Environment variables: `CANDLEDRILL_PORT` (default 4870),
-`CANDLEDRILL_DATA_DIR`, `CANDLEDRILL_DB`. `CANDLEDRILL_HOST` may only be
-`127.0.0.1`.
+`compose.yaml` publishes the port on the host's **127.0.0.1 only** and keeps data
+in the `candledrill-data` volume. With plain Docker, always bind to loopback:
+`docker run -p 127.0.0.1:4870:4870 -v candledrill:/data candledrill`. CandleDrill
+has no login, so never expose it to a network.
+
+### CSV format
+
+One row per bar with a timestamp, open, high, low, close and (optional) volume.
+Column names, order and delimiter are flexible: the import dialog guesses the
+mapping and lets you correct it. Timestamps may be ISO 8601 (with or without a
+zone), `YYYYMMDD HHMMSS`, day- or month-first dates, or Unix seconds/milliseconds.
+Times without a zone are interpreted with the UTC offset you choose. Only import
+data you are entitled to use; CandleDrill ships no market data.
+
+## Development
+
+```bash
+npm run check          # lint, format, typecheck, unit/property/golden tests,
+                       # licence allowlist, no-market-data + attribution, secret scan
+npm run dev:server     # API on http://127.0.0.1:4870
+npm run dev:web        # Vite dev server on http://127.0.0.1:4871 (proxies /api)
+npm run test:e2e       # headless browser smoke test (Playwright)
+```
+
+`npm run test:e2e` needs a Chromium: run `npx playwright install chromium` once,
+or point to an installed browser with `PW_CHROMIUM_PATH=/usr/bin/google-chrome`.
+`npm run screenshot` regenerates `docs/screenshot.png` against a running server.
 
 ## Repository layout
 
 ```
-packages/core     Pure TypeScript engine (no I/O): data model, seeded RNG,
-                  session calendar, synthetic OHLCV generator, bar validation
+packages/core     Pure TypeScript engine (no I/O, no clock): data model, CSV import,
+                  aggregation, replay, order matching, accounting, stats, rules, export
 packages/server   Fastify + SQLite local server (127.0.0.1 only)
-packages/web      Browser UI (placeholder in M0)
-scripts/          Licence allowlist check, secret scan, no-market-data check
-docs/             Licensing record
+packages/web      Browser UI (vanilla TypeScript + Lightweight Charts™)
+e2e/              Playwright smoke test
+scripts/          Licence allowlist, secret scan, no-market-data/attribution checks
+docs/             Licensing record, screenshot
 ```
 
 ## Synthetic data
 
-`generateSyntheticBars({ seed, startDate, days, ... })` produces 1-minute OHLCV
-bars that look like an intraday market (volatility clustering, busier open and
-close, gaps between sessions, tick-rounded prices, optional missing minutes) but
-are **entirely made up**. Same seed and options give byte-identical output; a
-golden snapshot test guards this. Session calendars use a fixed UTC offset
-(daylight-saving time is not modelled yet).
+The demo generator produces 1-minute bars that look like an intraday market
+(volatility clustering, busier open and close, session gaps, tick-rounded prices)
+but are **entirely made up**; symbols always start with `SYNTH-`. Same seed gives
+byte-identical output, guarded by a golden snapshot test.
 
 ## Roadmap
 
-| Milestone | Scope                                                                                       |
-| --------- | ------------------------------------------------------------------------------------------- |
-| M0        | Repo, licence, tooling, data model, synthetic generator (this release)                      |
-| M1        | CSV import with column mapping and validation; static chart                                 |
-| M2        | Replay clock (step, play, speed, jump to date) without future leakage; timeframe resampling |
-| M3        | Simulated orders: market, limit, stop, OCO brackets, fees, slippage                         |
-| M4        | Positions and P&L panel, trade log, save/resume sessions                                    |
-| M5        | Statistics report, CSV/HTML export                                                          |
-| M6        | User-defined practice rules (daily loss limit, trailing drawdown, target)                   |
-| M7        | Multi-timeframe view, basic drawing tools, shortcuts, zh-Hant/en UI                         |
-| M8        | Packaging (npx, Docker), docs, v0.1.0                                                       |
+v0.1 covers the core practice loop. Planned for v0.2 (see [CHANGELOG](CHANGELOG.md)):
+crosshair and time-scale sync between charts, drag-to-modify orders on the chart,
+intrabar rule checks, daylight-saving-aware session calendars, session JSON
+import, an optional "limit must trade through" fill mode, and an `npx` package.
+
+## Privacy and security
+
+- The server binds to `127.0.0.1` only and refuses other addresses; it also
+  rejects requests whose `Host` header is not loopback (DNS-rebinding defence).
+- Strict Content-Security-Policy, no third-party requests, no analytics.
+- CSV exports are protected against spreadsheet formula injection.
+- See [SECURITY.md](SECURITY.md) to report a vulnerability.
+
+## Third-party attribution
+
+Charts are rendered with [TradingView Lightweight Charts™](https://www.tradingview.com/lightweight-charts/)
+(Apache-2.0), Copyright (с) 2025 TradingView, Inc. The required NOTICE and a link to
+<https://www.tradingview.com/> are shown in the app footer and About dialog (and
+the library's logo link is kept). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## 繁體中文簡介
 
@@ -106,8 +189,10 @@ golden snapshot test guards this. Session calendars use a fixed UTC offset
 匯入K線後逐根前進（看不到未來K線），進行模擬落單，再檢討成績。毋須帳戶、毋須訂閱、
 不收集任何使用數據。
 
-- **現階段**：M0（開發初期），已有核心引擎基礎、合成數據產生器、本機伺服器及開發工具；
-  回放介面尚未完成。
+- **現階段**：v0.1.0 首個公開版本：CSV 匯入、無未來數據回放、多時間框架、市價／限價／
+  止蝕單及括號單（止蝕＋止賺）、持倉與盈虧、統計報告及匯出、自訂練習規則（每日虧損、
+  移動回撤、盈利目標）、畫線、中英介面及深淺色主題。
+- **快速開始**：安裝 Node.js 22 後執行 `npm ci && npm start`，打開 http://127.0.0.1:4870/ 。
 - **只在本機運行**：伺服器只綁定 `127.0.0.1`，數據存於本機 SQLite 檔。
 - **不附帶真實行情**：示範數據全部由程式合成（代號以 `SYNTH-` 開頭）；用戶須自行匯入
   有權使用之數據。

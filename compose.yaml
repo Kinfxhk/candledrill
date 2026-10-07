@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# docker compose up --build   ->   http://127.0.0.1:4870/
+services:
+  candledrill:
+    build: .
+    image: candledrill:0.1.0
+    ports:
+      # Host loopback only. CandleDrill has no authentication; do not expose it to a network.
+      - '127.0.0.1:4870:4870'
+    volumes:
+      - candledrill-data:/data
+    restart: unless-stopped
+
+volumes:
+  candledrill-data:

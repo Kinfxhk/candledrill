@@ -1,6 +1,6 @@
 {
   "name": "@candledrill/server",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "CandleDrill local server (Fastify + SQLite). Binds to 127.0.0.1 only.",
   "license": "AGPL-3.0-or-later",
@@ -13,7 +13,7 @@
     "start": "tsx src/main.ts"
   },
   "dependencies": {
-    "@candledrill/core": "^0.0.0",
+    "@candledrill/core": "^0.1.0",
     "@fastify/static": "^10.1.5",
     "better-sqlite3": "^13.0.3",
     "fastify": "^5.12.5"

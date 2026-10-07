@@ -4,3 +4,5 @@ dist
 coverage
 package-lock.json
 **/__snapshots__/**
+test-results
+playwright-report

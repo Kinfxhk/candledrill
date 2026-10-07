@@ -2,7 +2,7 @@
 
 /**
  * One OHLCV bar. `time` is the bar's OPEN time in Unix seconds (UTC).
- * For M0 every bar is exactly one minute long.
+ * The bar length is the dataset timeframe (synthetic data is always one minute).
  */
 export interface Bar {
   readonly time: number;
@@ -41,7 +41,7 @@ export interface SessionWindow {
 
 /**
  * Session calendar with a FIXED UTC offset. Daylight-saving rules are
- * intentionally out of scope for M0 (documented limitation).
+ * out of scope for v0.1 (documented limitation).
  */
 export interface SessionCalendar {
   readonly utcOffsetMinutes: number;

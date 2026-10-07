@@ -13,7 +13,7 @@ import { deleteDataset, getBars, getDataset, insertDataset, listDatasets, type D
 import { BarCache, registerSessionRoutes } from './sessions.js';
 
 export const APP_NAME = 'CandleDrill';
-export const APP_VERSION = '0.0.0';
+export const APP_VERSION = '0.1.0';
 export const MAX_BARS_PER_REQUEST = 50_000;
 /** Synthetic datasets created through the API are capped to keep the local DB small. */
 export const MAX_SYNTHETIC_DAYS = 366;
@@ -22,7 +22,8 @@ export interface AppOptions {
   readonly db: Db;
   /** Injected clock for testability. */
   readonly now?: () => Date;
-  readonly logger?: boolean;
+  /** `true` for info-level logs, or a pino level name such as 'warn'. */
+  readonly logger?: boolean | string;
   /** Directory with the built web UI. Served at "/" when it exists. */
   readonly staticDir?: string;
 }
@@ -54,7 +55,8 @@ function hostnameOf(hostHeader: string | undefined): string | undefined {
 export function buildApp(opts: AppOptions): FastifyInstance {
   const { db } = opts;
   const now = opts.now ?? (() => new Date());
-  const app = Fastify({ logger: opts.logger ?? false, bodyLimit: 64 * 1024 });
+  const logger = typeof opts.logger === 'string' ? { level: opts.logger } : (opts.logger ?? false);
+  const app = Fastify({ logger, bodyLimit: 64 * 1024 });
 
   // Defence against DNS-rebinding: only answer requests addressed to the loopback host.
   app.addHook('onRequest', async (req, reply) => {

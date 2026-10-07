@@ -1,8 +1,8 @@
 {
   "name": "@candledrill/web",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "CandleDrill browser UI (M0 placeholder).",
+  "description": "CandleDrill browser UI.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
