@@ -32,6 +32,19 @@ const MIGRATIONS: readonly string[] = [
    ) WITHOUT ROWID;`,
   // v2: exchange-local UTC offset recorded at import time (used as the session default)
   `ALTER TABLE datasets ADD COLUMN utc_offset_minutes INTEGER NOT NULL DEFAULT 0;`,
+  // v3: practice sessions (settings + engine state as JSON, drawings for the UI)
+  `CREATE TABLE sessions (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     dataset_id INTEGER NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,
+     name TEXT NOT NULL,
+     start_time INTEGER NOT NULL,
+     settings_json TEXT NOT NULL,
+     state_json TEXT NOT NULL,
+     drawings_json TEXT NOT NULL DEFAULT '[]',
+     created_at TEXT NOT NULL,
+     updated_at TEXT NOT NULL
+   );
+   CREATE INDEX sessions_dataset ON sessions(dataset_id);`,
 ];
 
 export function openDatabase(path: string): Db {
@@ -190,4 +203,94 @@ export function getAllBars(db: Db, datasetId: number): Bar[] {
       `SELECT time, open, high, low, close, volume FROM bars WHERE dataset_id = ? ORDER BY time`,
     )
     .all(datasetId) as Bar[];
+}
+
+export interface SessionRow<S = unknown, T = unknown> {
+  readonly id: number;
+  readonly datasetId: number;
+  readonly name: string;
+  readonly startTime: number;
+  readonly settings: S;
+  readonly state: T;
+  readonly drawings: unknown[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+interface RawSessionRow {
+  id: number;
+  dataset_id: number;
+  name: string;
+  start_time: number;
+  settings_json: string;
+  state_json: string;
+  drawings_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function toSession<S, T>(r: RawSessionRow): SessionRow<S, T> {
+  return {
+    id: r.id,
+    datasetId: r.dataset_id,
+    name: r.name,
+    startTime: r.start_time,
+    settings: JSON.parse(r.settings_json) as S,
+    state: JSON.parse(r.state_json) as T,
+    drawings: JSON.parse(r.drawings_json) as unknown[],
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+export function insertSession<S, T>(
+  db: Db,
+  v: { datasetId: number; name: string; startTime: number; settings: S; state: T; now: string },
+): SessionRow<S, T> {
+  const info = db
+    .prepare(
+      `INSERT INTO sessions (dataset_id, name, start_time, settings_json, state_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      v.datasetId,
+      v.name,
+      v.startTime,
+      JSON.stringify(v.settings),
+      JSON.stringify(v.state),
+      v.now,
+      v.now,
+    );
+  return getSession<S, T>(db, Number(info.lastInsertRowid))!;
+}
+
+export function getSession<S, T>(db: Db, id: number): SessionRow<S, T> | undefined {
+  const r = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id) as RawSessionRow | undefined;
+  return r ? toSession<S, T>(r) : undefined;
+}
+
+export function listSessions<S, T>(db: Db): SessionRow<S, T>[] {
+  return (
+    db.prepare('SELECT * FROM sessions ORDER BY updated_at DESC, id DESC').all() as RawSessionRow[]
+  ).map((r) => toSession<S, T>(r));
+}
+
+export function updateSessionState<T>(db: Db, id: number, state: T, now: string): void {
+  db.prepare('UPDATE sessions SET state_json = ?, updated_at = ? WHERE id = ?').run(
+    JSON.stringify(state),
+    now,
+    id,
+  );
+}
+
+export function updateSessionDrawings(db: Db, id: number, drawings: unknown[], now: string): void {
+  db.prepare('UPDATE sessions SET drawings_json = ?, updated_at = ? WHERE id = ?').run(
+    JSON.stringify(drawings),
+    now,
+    id,
+  );
+}
+
+export function deleteSession(db: Db, id: number): boolean {
+  return db.prepare('DELETE FROM sessions WHERE id = ?').run(id).changes > 0;
 }

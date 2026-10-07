@@ -10,6 +10,7 @@ import {
   type CsvImportOptions,
 } from '@candledrill/core';
 import { deleteDataset, getBars, getDataset, insertDataset, listDatasets, type Db } from './db.js';
+import { BarCache, registerSessionRoutes } from './sessions.js';
 
 export const APP_NAME = 'CandleDrill';
 export const APP_VERSION = '0.0.0';
@@ -78,6 +79,9 @@ export function buildApp(opts: AppOptions): FastifyInstance {
     telemetry: false,
     notice: CANDLEDRILL_RISK_NOTICE_EN,
   }));
+
+  const cache = new BarCache(db);
+  registerSessionRoutes(app, { db, cache, now });
 
   app.get('/api/datasets', async () => ({ datasets: listDatasets(db) }));
 
@@ -209,6 +213,7 @@ export function buildApp(opts: AppOptions): FastifyInstance {
     },
     async (req, reply) => {
       if (!deleteDataset(db, req.params.id)) return reply.code(404).send({ error: 'not found' });
+      cache.invalidate(req.params.id);
       return reply.code(204).send();
     },
   );

@@ -62,3 +62,71 @@ export const api = {
   previewBars: (id: number, limit = 5000) =>
     request<{ bars: Bar[] }>('GET', `/api/datasets/${id}/bars?limit=${limit}&last=true`),
 };
+
+export interface SessionSettings {
+  symbol: string;
+  tickSize: number;
+  pointValue: number;
+  commissionPerContract: number;
+  slippageTicks: number;
+  startingBalance: number;
+  dailyLossLimit: number | null;
+  trailingDrawdown: number | null;
+  profitTarget: number | null;
+  utcOffsetMinutes: number;
+  dayStartMinutes: number;
+}
+
+export interface SessionMeta {
+  id: number;
+  datasetId: number;
+  name: string;
+  startTime: number;
+  settings: SessionSettings;
+  drawings: unknown[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SessionSummary {
+  id: number;
+  datasetId: number;
+  name: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Engine state as sent by the server (fields grow with later milestones). */
+export interface SessionStateDto {
+  cursor: number;
+  status: 'active' | 'breached' | 'passed' | 'finished';
+  statusReason: string | null;
+  [k: string]: unknown;
+}
+
+export interface SessionViewDto {
+  session: SessionMeta;
+  state: SessionStateDto;
+  cursorTime: number;
+}
+
+export const sessionsApi = {
+  list: () => request<{ sessions: SessionSummary[] }>('GET', '/api/sessions'),
+  create: (body: {
+    datasetId: number;
+    name: string;
+    startTime: number;
+    settings: Omit<SessionSettings, 'symbol'>;
+  }) => request<SessionViewDto>('POST', '/api/sessions', body),
+  open: (id: number) => request<SessionViewDto & { bars: Bar[] }>('GET', `/api/sessions/${id}`),
+  step: (id: number, count: number) =>
+    request<SessionViewDto & { revealed: Bar[] }>('POST', `/api/sessions/${id}/step`, { count }),
+  jump: (id: number, time: number) =>
+    request<SessionViewDto & { revealed: Bar[]; truncated: boolean }>(
+      'POST',
+      `/api/sessions/${id}/jump`,
+      { time },
+    ),
+  remove: (id: number) => request<void>('DELETE', `/api/sessions/${id}`),
+};

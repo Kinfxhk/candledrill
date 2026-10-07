@@ -57,6 +57,19 @@ export {
   type AggregateOptions,
 } from './aggregate.js';
 
+export { initialCursor, visibleBars, stepsUntil } from './replay.js';
+export {
+  createSession,
+  stepSession,
+  jumpSession,
+  validateSettings,
+  MAX_STEPS_PER_ACTION,
+  type SessionSettings,
+  type SessionState,
+  type SessionStatus,
+  type StepResult,
+} from './session.js';
+
 export const CANDLEDRILL_RISK_NOTICE_EN =
   'CandleDrill is an educational practice tool. It is not investment advice. ' +
   'Simulated or practice results do not predict real trading results.';
