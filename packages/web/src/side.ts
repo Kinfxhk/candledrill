@@ -3,6 +3,7 @@
 
 import {
   roundToTick,
+  unrealizedPnl,
   workingOrders,
   type OrderRequest,
   type OrderType,
@@ -10,7 +11,7 @@ import {
 } from '@candledrill/core';
 import type { SessionSettings, SessionStateDto } from './api.js';
 import { t, type MessageKey } from './i18n.js';
-import { el, fmtNum } from './format.js';
+import { el, fmtMoney, fmtNum, signClass } from './format.js';
 
 export interface SideActions {
   place(req: OrderRequest): Promise<void>;
@@ -27,6 +28,7 @@ export class SidePanel {
   private readonly tp: HTMLInputElement;
   private readonly priceRow: HTMLElement;
   private readonly ordersBox: HTMLElement;
+  private readonly positionBox: HTMLElement;
   readonly extra: HTMLElement;
   private settings: SessionSettings | undefined;
   private state: SessionStateDto | undefined;
@@ -119,6 +121,13 @@ export class SidePanel {
       el('div', { style: 'margin-top:6px' }, this.flattenBtn),
     );
     this.flattenBtn.style.width = '100%';
+    this.positionBox = el('dl', { class: 'kv', 'data-testid': 'position' });
+    const position = el(
+      'section',
+      { class: 'card' },
+      el('h3', { 'data-i18n': 'pr.position' }, t('pr.position')),
+      this.positionBox,
+    );
     this.extra = el('div', { style: 'display:flex;flex-direction:column;gap:10px' });
     this.ordersBox = el('div', { 'data-testid': 'orders' });
     const orders = el(
@@ -127,7 +136,7 @@ export class SidePanel {
       el('h3', { 'data-i18n': 'pr.orders' }, t('pr.orders')),
       this.ordersBox,
     );
-    this.root.replaceChildren(ticket, this.extra, orders);
+    this.root.replaceChildren(ticket, position, this.extra, orders);
     this.setType('market');
   }
 
@@ -173,6 +182,25 @@ export class SidePanel {
     const locked = state.status !== 'active';
     this.buyBtn.disabled = locked;
     this.sellBtn.disabled = locked;
+    const tr = state.trading;
+    const upnl = unrealizedPnl(tr, settings.pointValue);
+    const equity = settings.startingBalance + tr.realizedPnl + upnl;
+    const pos = tr.position;
+    const kv = (k: MessageKey, v: string, cls = '') => [
+      el('dt', {}, t(k)),
+      el('dd', { class: cls }, v),
+    ];
+    this.positionBox.replaceChildren(
+      ...kv(
+        'pr.position',
+        pos ? `${t(pos.qty > 0 ? 'pr.long' : 'pr.short')} ${Math.abs(pos.qty)}` : t('pr.flat'),
+        pos ? (pos.qty > 0 ? 'up' : 'down') : '',
+      ),
+      ...kv('pr.avg', pos ? fmtPrice(pos.avgPrice, settings.tickSize) : '–'),
+      ...kv('pr.unrealized', fmtMoney(upnl), signClass(upnl)),
+      ...kv('pr.realized', fmtMoney(tr.realizedPnl), signClass(tr.realizedPnl)),
+      ...kv('pr.equity', fmtMoney(equity)),
+    );
     const working = workingOrders(state.trading);
     if (working.length === 0) {
       this.ordersBox.replaceChildren(el('p', { class: 'muted' }, t('pr.noOrders')));
@@ -207,6 +235,13 @@ export class SidePanel {
       this.ordersBox.replaceChildren(table);
     }
   }
+}
+
+/** Price with the tick's decimals, or two more when the value is off-grid (e.g. averages). */
+export function fmtPrice(v: number, tick: number): string {
+  const d = decimals(tick);
+  const onGrid = Math.abs(v / tick - Math.round(v / tick)) < 1e-6;
+  return v.toFixed(onGrid ? d : Math.min(10, d + 2));
 }
 
 export function decimals(tick: number): number {

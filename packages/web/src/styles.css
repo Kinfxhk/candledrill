@@ -583,3 +583,6 @@ label.field > select {
 .side .card {
   padding: 10px;
 }
+[hidden] {
+  display: none !important;
+}

@@ -12,7 +12,7 @@ import {
   type SessionSettings,
 } from '../src/index.js';
 
-export const SETTINGS: SessionSettings = {
+const SETTINGS: SessionSettings = {
   symbol: 'SYNTH-DEMO',
   tickSize: 0.25,
   pointValue: 50,

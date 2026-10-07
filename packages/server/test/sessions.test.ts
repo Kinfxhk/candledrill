@@ -3,22 +3,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { openDatabase, type Db } from '../src/db.js';
+import { SETTINGS } from './helpers.js';
 
 let app: FastifyInstance | undefined;
 let db: Db | undefined;
-
-export const SETTINGS = {
-  tickSize: 0.25,
-  pointValue: 50,
-  commissionPerContract: 2,
-  slippageTicks: 1,
-  startingBalance: 50_000,
-  dailyLossLimit: null,
-  trailingDrawdown: null,
-  profitTarget: null,
-  utcOffsetMinutes: 0,
-  dayStartMinutes: 0,
-};
 
 async function setup(): Promise<{
   a: FastifyInstance;

@@ -15,6 +15,7 @@ import {
 import { sessionsApi, type SessionMeta, type SessionStateDto, type SessionViewDto } from './api.js';
 import { PriceChart, readTheme, type MarkerSpec, type PriceLineSpec } from './chart.js';
 import { SidePanel } from './side.js';
+import { BottomPanel, fillsTab, tradesTab, type BottomTab } from './bottom.js';
 import { t, type MessageKey } from './i18n.js';
 import { el, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 
@@ -44,6 +45,9 @@ export class PracticeView {
   private root = document.getElementById('practice-root')!;
   private els: Record<string, HTMLElement> = {};
   private side: SidePanel | undefined;
+  private bottom: BottomPanel | undefined;
+  /** Extra bottom tabs registered by later features (statistics, export). */
+  static extraTabs: BottomTab[] = [];
 
   constructor(private readonly onChanged: () => void = () => {}) {
     document.addEventListener('keydown', (e) => this.onKey(e));
@@ -77,6 +81,7 @@ export class PracticeView {
     this.resetCharts();
     document.getElementById('practice-empty')!.hidden = true;
     this.root.hidden = false;
+    localStorage.setItem('candledrill.lastSession', String(id));
   }
 
   close(): void {
@@ -162,6 +167,7 @@ export class PracticeView {
       cancel: (oid) => this.mutate(() => sessionsApi.cancelOrder(m.id, oid)),
       flatten: () => this.mutate(() => sessionsApi.flatten(m.id)),
     });
+    this.bottom = new BottomPanel(bottom, [tradesTab, ...PracticeView.extraTabs, fillsTab]);
 
     play.addEventListener('click', () => (this.playing ? this.pause() : this.play()));
     step.addEventListener('click', () => void this.step(1));
@@ -363,6 +369,7 @@ export class PracticeView {
     (this.els.play as HTMLButtonElement).disabled = ended;
     this.decorate();
     this.side?.render(this.meta.settings, this.state);
+    this.bottom?.render(this.meta.settings, this.state, this.meta.id);
     this.onChanged();
   }
 

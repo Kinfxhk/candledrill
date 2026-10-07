@@ -157,6 +157,12 @@ document.getElementById('about-open')!.addEventListener('click', () => about.sho
 try {
   await api.health();
   await library.reload();
+  // Resume the last practice session (state is persisted server-side in SQLite).
+  const last = Number(localStorage.getItem('candledrill.lastSession'));
+  if (last > 0) {
+    const { sessions } = await sessionsApi.list();
+    if (sessions.some((s) => s.id === last)) await openSession(last);
+  }
 } catch {
   toast(t('err.network'), 'error');
 }
