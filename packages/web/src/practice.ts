@@ -8,12 +8,19 @@ import {
   BarAggregator,
   aggregateBars,
   bucketStart,
+  roundToTick,
   workingOrders,
   type Bar,
   type OrderRequest,
 } from '@candledrill/core';
 import { sessionsApi, type SessionMeta, type SessionStateDto, type SessionViewDto } from './api.js';
-import { PriceChart, readTheme, type MarkerSpec, type PriceLineSpec } from './chart.js';
+import {
+  PriceChart,
+  readTheme,
+  type Drawing,
+  type MarkerSpec,
+  type PriceLineSpec,
+} from './chart.js';
 import { SidePanel } from './side.js';
 import { BottomPanel, exportTab, fillsTab, statsTab, tradesTab, type BottomTab } from './bottom.js';
 import { t, type MessageKey } from './i18n.js';
@@ -46,6 +53,9 @@ export class PracticeView {
   private els: Record<string, HTMLElement> = {};
   private side: SidePanel | undefined;
   private bottom: BottomPanel | undefined;
+  private drawings: Drawing[] = [];
+  private drawMode: 'hline' | 'tline' | null = null;
+  private pendingPoint: { time: number; price: number } | null = null;
   /** Extra bottom tabs registered by later features (statistics, export). */
   static extraTabs: BottomTab[] = [];
 
@@ -76,6 +86,7 @@ export class PracticeView {
     const view = await sessionsApi.open(id);
     this.meta = view.session;
     this.bars = view.bars;
+    this.drawings = (view.session.drawings as Drawing[]) ?? [];
     this.build();
     this.applyView(view);
     this.resetCharts();
@@ -130,6 +141,13 @@ export class PracticeView {
     });
     const jumpBtn = btn('pr.go', '', 'btn-jump');
     const clock = el('span', { class: 'clock', 'data-testid': 'clock' });
+    const split = btn('pr.split', '', 'btn-split');
+    split.setAttribute('aria-pressed', 'false');
+    const hline = btn('pr.hline', '', 'btn-hline');
+    const tline = btn('pr.tline', '', 'btn-tline');
+    const clearDraw = btn('pr.clearDrawings', 'ghost', 'btn-clear-drawings');
+    hline.setAttribute('aria-pressed', 'false');
+    tline.setAttribute('aria-pressed', 'false');
     const toolbar = el(
       'div',
       { class: 'toolbar' },
@@ -153,6 +171,11 @@ export class PracticeView {
         jumpInput,
       ),
       jumpBtn,
+      el('span', { class: 'sep' }),
+      split,
+      hline,
+      tline,
+      clearDraw,
       el('span', { class: 'spacer' }),
       clock,
     );
@@ -161,7 +184,29 @@ export class PracticeView {
     const workspace = el('div', { class: 'workspace' }, charts, side);
     const bottom = el('div', { class: 'bottom', 'data-testid': 'bottom' });
     this.root.replaceChildren(banner, toolbar, workspace, bottom);
-    this.els = { banner, play, step, step10, clock, charts, side, bottom, jumpInput, jumpBtn };
+    this.els = {
+      banner,
+      play,
+      step,
+      step10,
+      clock,
+      charts,
+      side,
+      bottom,
+      jumpInput,
+      jumpBtn,
+      split,
+      hline,
+      tline,
+    };
+    split.addEventListener('click', () => this.toggleSplit());
+    hline.addEventListener('click', () =>
+      this.setDrawMode(this.drawMode === 'hline' ? null : 'hline'),
+    );
+    tline.addEventListener('click', () =>
+      this.setDrawMode(this.drawMode === 'tline' ? null : 'tline'),
+    );
+    clearDraw.addEventListener('click', () => void this.saveDrawings([]));
     this.side = new SidePanel(side, {
       place: (req) => this.mutate(() => sessionsApi.placeOrder(m.id, req)),
       cancel: (oid) => this.mutate(() => sessionsApi.cancelOrder(m.id, oid)),
@@ -182,6 +227,48 @@ export class PracticeView {
     jumpBtn.addEventListener('click', () => void this.jump());
 
     this.addPane(this.baseTf);
+    if (localStorage.getItem('candledrill.split') === '1') this.toggleSplit();
+  }
+
+  private toggleSplit(): void {
+    const charts = this.els.charts!;
+    if (this.panes.length === 1) {
+      const higher = TIMEFRAMES.find((x) => x > this.panes[0]!.tf * 4) ?? TIMEFRAMES.at(-1)!;
+      this.addPane(higher);
+      this.resetPane(this.panes[1]!);
+    } else {
+      const p = this.panes.pop()!;
+      p.chart.destroy();
+      p.cell.remove();
+    }
+    const on = this.panes.length > 1;
+    charts.classList.toggle('split', on);
+    this.els.split!.setAttribute('aria-pressed', String(on));
+    localStorage.setItem('candledrill.split', on ? '1' : '0');
+  }
+
+  private setDrawMode(mode: 'hline' | 'tline' | null): void {
+    this.drawMode = mode;
+    this.pendingPoint = null;
+    this.els.hline?.setAttribute('aria-pressed', String(mode === 'hline'));
+    this.els.tline?.setAttribute('aria-pressed', String(mode === 'tline'));
+    this.els.charts?.classList.toggle('drawing', mode !== null);
+    if (mode) toast(t('pr.drawHint'));
+  }
+
+  private renderDrawings(): void {
+    for (const p of this.panes) p.chart.setDrawings(this.drawings, (time) => this.snap(p, time));
+  }
+
+  private async saveDrawings(next: Drawing[]): Promise<void> {
+    if (!this.meta) return;
+    try {
+      const r = await sessionsApi.saveDrawings(this.meta.id, next);
+      this.drawings = r.drawings as Drawing[];
+      this.renderDrawings();
+    } catch (err) {
+      toast((err as Error).message, 'error');
+    }
   }
 
   private addPane(tf: number): void {
@@ -216,6 +303,7 @@ export class PracticeView {
     for (const b of this.bars) p.agg.push(b);
     p.chart.setBars(aggregateBars(this.bars, p.tf, this.aggOpts()));
     requestAnimationFrame(() => p.chart.showRecent(150));
+    p.chart.setDrawings(this.drawings, (time) => this.snap(p, time));
     this.decorate();
   }
 
@@ -228,8 +316,32 @@ export class PracticeView {
     return bucketStart(time, p.tf, this.aggOpts());
   }
 
-  protected onChartClick(_p: ChartPane, _time: number | null, price: number | null): void {
-    if (price !== null) this.side?.setPrice(price);
+  protected onChartClick(_p: ChartPane, time: number | null, price: number | null): void {
+    if (price === null) return;
+    const tick = this.meta!.settings.tickSize;
+    const px = roundToTick(price, tick);
+    const id = `d${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+    if (this.drawMode === 'hline') {
+      this.setDrawMode(null);
+      void this.saveDrawings([...this.drawings, { kind: 'hline', id, price: px }]);
+      return;
+    }
+    if (this.drawMode === 'tline') {
+      if (time === null) return;
+      if (!this.pendingPoint) {
+        this.pendingPoint = { time, price: px };
+        return;
+      }
+      const a = this.pendingPoint;
+      this.setDrawMode(null);
+      if (a.time === time) return;
+      void this.saveDrawings([
+        ...this.drawings,
+        { kind: 'tline', id, t1: a.time, p1: a.price, t2: time, p2: px },
+      ]);
+      return;
+    }
+    this.side?.setPrice(price);
   }
 
   private async mutate(fn: () => Promise<SessionViewDto>): Promise<void> {
@@ -398,7 +510,9 @@ export class PracticeView {
       document.querySelector('dialog[open]')
     )
       return;
-    if (e.key === ' ') {
+    if (e.key === 'Escape') {
+      this.setDrawMode(null);
+    } else if (e.key === ' ') {
       e.preventDefault();
       if (this.playing) this.pause();
       else this.play();

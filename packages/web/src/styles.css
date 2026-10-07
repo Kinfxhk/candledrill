@@ -350,12 +350,14 @@ table.data th.num {
   min-width: 0;
 }
 .charts.split {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 .chart-cell {
   position: relative;
   background: var(--bg);
   min-height: 200px;
+  min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -594,4 +596,11 @@ a.badge {
 }
 a.badge:hover {
   border-color: var(--accent);
+}
+.charts.drawing .chart-body {
+  cursor: crosshair;
+}
+.toolbar button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
 }

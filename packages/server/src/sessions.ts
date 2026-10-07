@@ -32,6 +32,7 @@ import {
   getSession,
   insertSession,
   listSessions,
+  updateSessionDrawings,
   updateSessionState,
   type Db,
   type SessionRow,
@@ -39,6 +40,7 @@ import {
 
 /** Max visible bars sent when a session is opened (older history is trimmed). */
 export const MAX_HISTORY_BARS = 50_000;
+export const MAX_DRAWINGS = 200;
 
 type Row = SessionRow<SessionSettings, SessionState>;
 
@@ -440,6 +442,59 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
         null,
         2,
       ),
+  );
+
+  app.put<{ Params: { id: number }; Body: { drawings: unknown[] } }>(
+    '/api/sessions/:id/drawings',
+    {
+      schema: {
+        params: idParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['drawings'],
+          properties: {
+            drawings: {
+              type: 'array',
+              maxItems: MAX_DRAWINGS,
+              items: {
+                oneOf: [
+                  {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['kind', 'id', 'price'],
+                    properties: {
+                      kind: { const: 'hline' },
+                      id: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,40}$' },
+                      price: { type: 'number', exclusiveMinimum: 0 },
+                    },
+                  },
+                  {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['kind', 'id', 't1', 'p1', 't2', 'p2'],
+                    properties: {
+                      kind: { const: 'tline' },
+                      id: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,40}$' },
+                      t1: { type: 'integer' },
+                      p1: { type: 'number', exclusiveMinimum: 0 },
+                      t2: { type: 'integer' },
+                      p2: { type: 'number', exclusiveMinimum: 0 },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const loaded = load(req.params.id, reply);
+      if (!loaded) return reply;
+      updateSessionDrawings(db, loaded.row.id, req.body.drawings, now().toISOString());
+      return { drawings: req.body.drawings };
+    },
   );
 
   app.delete<{ Params: { id: number } }>(

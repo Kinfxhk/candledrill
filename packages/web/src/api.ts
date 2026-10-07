@@ -137,4 +137,6 @@ export const sessionsApi = {
   modifyOrder: (id: number, orderId: number, price: number) =>
     request<SessionViewDto>('PATCH', `/api/sessions/${id}/orders/${orderId}`, { price }),
   flatten: (id: number) => request<SessionViewDto>('POST', `/api/sessions/${id}/flatten`, {}),
+  saveDrawings: (id: number, drawings: unknown[]) =>
+    request<{ drawings: unknown[] }>('PUT', `/api/sessions/${id}/drawings`, { drawings }),
 };

@@ -224,3 +224,35 @@ describe('export API', () => {
     expect(JSON.stringify(json)).not.toContain('"open":');
   });
 });
+
+describe('drawings API', () => {
+  it('stores validated drawings with the session', async () => {
+    const { a, ds } = await setup();
+    const id = (
+      await a.inject({
+        method: 'POST',
+        url: '/api/sessions',
+        payload: { datasetId: ds.id, name: 'd', startTime: ds.firstTime + 600, settings: SETTINGS },
+      })
+    ).json().session.id;
+    const drawings = [
+      { kind: 'hline', id: 'a1', price: 4000.25 },
+      { kind: 'tline', id: 'b2', t1: ds.firstTime, p1: 4000, t2: ds.firstTime + 300, p2: 4010 },
+    ];
+    const put = await a.inject({
+      method: 'PUT',
+      url: `/api/sessions/${id}/drawings`,
+      payload: { drawings },
+    });
+    expect(put.statusCode).toBe(200);
+    expect(
+      (await a.inject({ method: 'GET', url: `/api/sessions/${id}` })).json().session.drawings,
+    ).toEqual(drawings);
+    const bad = await a.inject({
+      method: 'PUT',
+      url: `/api/sessions/${id}/drawings`,
+      payload: { drawings: [{ kind: 'circle', id: 'x', price: 1 }] },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+});

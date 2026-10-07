@@ -5,6 +5,7 @@
 // the NOTICE text is shown in the page footer and About dialog. Do not disable either.
 
 import {
+  MismatchDirection,
   CandlestickSeries,
   ColorType,
   CrosshairMode,
@@ -243,11 +244,24 @@ export class PriceChart {
   }
 
   onClick(handler: (c: ChartClick) => void): void {
-    this.chart.subscribeClick((param: MouseEventParams<Time>) => {
+    // Two quick clicks are reported as a double-click (the second `click` is swallowed),
+    // so both are routed to the handler; drawing a trend line needs two separate points.
+    const route = (param: MouseEventParams<Time>): void => {
       const price = param.point ? this.candles.coordinateToPrice(param.point.y) : null;
-      const time = typeof param.time === 'number' ? param.time - this.timeShiftSeconds : null;
+      let shown = typeof param.time === 'number' ? param.time : null;
+      if (shown === null && param.logical !== undefined) {
+        // Clicked right of the last bar (or in a gap): snap to the nearest bar on the left.
+        const d = this.candles.dataByIndex(
+          Math.round(param.logical),
+          MismatchDirection.NearestLeft,
+        );
+        if (d && typeof d.time === 'number') shown = d.time;
+      }
+      const time = shown === null ? null : shown - this.timeShiftSeconds;
       handler({ time, price: price === null ? null : Number(price) });
-    });
+    };
+    this.chart.subscribeClick(route);
+    this.chart.subscribeDblClick(route);
   }
 
   applyTheme(): void {
