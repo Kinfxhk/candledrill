@@ -15,6 +15,7 @@ import {
   OrderError,
   placeOrder,
   processBar,
+  forceClose,
   type CostModel,
   type OrderRequest,
   type TradingState,
@@ -54,8 +55,79 @@ export interface SessionState {
   /** Largest peak-to-trough fall of closing equity, in currency and as a fraction of the peak. */
   readonly maxDrawdown: number;
   readonly maxDrawdownPct: number;
+  /** Trading day (exchange-local, from dayStartMinutes) of the cursor bar. */
+  readonly dayKey: number;
+  /** Closing equity at the end of the previous trading day (basis of the daily loss rule). */
+  readonly dayStartEquity: number;
 }
 
+export function dayKeyOf(time: number, settings: SessionSettings): number {
+  return Math.floor(
+    (time + settings.utcOffsetMinutes * 60 - settings.dayStartMinutes * 60) / 86_400,
+  );
+}
+
+export interface RuleStatus {
+  readonly dailyLossUsed: number | null;
+  readonly trailingUsed: number | null;
+  readonly targetProgress: number | null;
+}
+
+/** Fractions (0..1+) of each practice rule currently used; null when the rule is off. */
+export function ruleStatus(settings: SessionSettings, state: SessionState): RuleStatus {
+  const eq = sessionEquity(settings, state);
+  return {
+    dailyLossUsed: settings.dailyLossLimit
+      ? Math.max(0, state.dayStartEquity - eq) / settings.dailyLossLimit
+      : null,
+    trailingUsed: settings.trailingDrawdown
+      ? Math.max(0, state.equityPeak - eq) / settings.trailingDrawdown
+      : null,
+    targetProgress: settings.profitTarget
+      ? Math.max(0, eq - settings.startingBalance) / settings.profitTarget
+      : null,
+  };
+}
+
+/** Fill in fields added after a state was first stored (pre-1.0 forward compatibility). */
+export function upgradeState(
+  bars: readonly Bar[],
+  settings: SessionSettings,
+  raw: SessionState,
+): SessionState {
+  const time = bars[Math.min(raw.cursor, bars.length - 1)]!.time;
+  return {
+    ...raw,
+    equityPeak: raw.equityPeak ?? settings.startingBalance,
+    maxDrawdown: raw.maxDrawdown ?? 0,
+    maxDrawdownPct: raw.maxDrawdownPct ?? 0,
+    dayKey: raw.dayKey ?? dayKeyOf(time, settings),
+    dayStartEquity: raw.dayStartEquity ?? settings.startingBalance,
+  };
+}
+
+function applyRules(settings: SessionSettings, s: SessionState, bar: Bar): SessionState {
+  if (s.status !== 'active') return s;
+  const eq = sessionEquity(settings, s);
+  let status: SessionStatus | null = null;
+  let reason: string | null = null;
+  if (settings.dailyLossLimit !== null && s.dayStartEquity - eq >= settings.dailyLossLimit) {
+    status = 'breached';
+    reason = `daily loss limit ${settings.dailyLossLimit}`;
+  } else if (settings.trailingDrawdown !== null && s.equityPeak - eq >= settings.trailingDrawdown) {
+    status = 'breached';
+    reason = `trailing drawdown ${settings.trailingDrawdown}`;
+  } else if (
+    settings.profitTarget !== null &&
+    eq - settings.startingBalance >= settings.profitTarget
+  ) {
+    status = 'passed';
+    reason = `profit target ${settings.profitTarget}`;
+  }
+  if (!status) return s;
+  const trading = forceClose(s.trading, costModel(settings), bar.close, bar.time);
+  return markEquity(settings, { ...s, trading, status, statusReason: reason });
+}
 export const FILL_MODEL_NOTE =
   'Orders only fill on bars revealed after they were placed. Market orders fill at the next open; ' +
   'limit orders at their price (or the open if it gaps through); stop orders at their price or the ' +
@@ -134,6 +206,8 @@ export function createSession(
     equityPeak: settings.startingBalance,
     maxDrawdown: 0,
     maxDrawdownPct: 0,
+    dayKey: dayKeyOf(bars[cursor]!.time, settings),
+    dayStartEquity: settings.startingBalance,
   };
 }
 
@@ -214,7 +288,10 @@ export function stepSession(
     const cursor = s.cursor + 1;
     const bar = bars[cursor]!;
     revealed.push(bar);
+    const key = dayKeyOf(bar.time, settings);
+    if (key !== s.dayKey) s = { ...s, dayKey: key, dayStartEquity: sessionEquity(settings, s) };
     s = markEquity(settings, { ...s, cursor, trading: processBar(s.trading, costs, bar, cursor) });
+    s = applyRules(settings, s, bar);
   }
   if (s.cursor >= bars.length - 1 && s.status === 'active') {
     s = { ...s, status: 'finished', statusReason: 'end of data' };

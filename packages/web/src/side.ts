@@ -3,6 +3,7 @@
 
 import {
   roundToTick,
+  ruleStatus,
   unrealizedPnl,
   workingOrders,
   type OrderRequest,
@@ -29,6 +30,7 @@ export class SidePanel {
   private readonly priceRow: HTMLElement;
   private readonly ordersBox: HTMLElement;
   private readonly positionBox: HTMLElement;
+  private readonly rulesBox: HTMLElement;
   readonly extra: HTMLElement;
   private settings: SessionSettings | undefined;
   private state: SessionStateDto | undefined;
@@ -128,7 +130,14 @@ export class SidePanel {
       el('h3', { 'data-i18n': 'pr.position' }, t('pr.position')),
       this.positionBox,
     );
-    this.extra = el('div', { style: 'display:flex;flex-direction:column;gap:10px' });
+    this.rulesBox = el('div', { 'data-testid': 'rules' });
+    const rules = el(
+      'section',
+      { class: 'card' },
+      el('h3', { 'data-i18n': 'pr.rules' }, t('pr.rules')),
+      this.rulesBox,
+    );
+    this.extra = el('div', { style: 'display:flex;flex-direction:column;gap:10px' }, rules);
     this.ordersBox = el('div', { 'data-testid': 'orders' });
     const orders = el(
       'section',
@@ -200,6 +209,43 @@ export class SidePanel {
       ...kv('pr.unrealized', fmtMoney(upnl), signClass(upnl)),
       ...kv('pr.realized', fmtMoney(tr.realizedPnl), signClass(tr.realizedPnl)),
       ...kv('pr.equity', fmtMoney(equity)),
+    );
+    const rs = ruleStatus(settings, state);
+    const meter = (key: MessageKey, frac: number | null, limit: number | null) => {
+      if (frac === null || limit === null) return [];
+      const pct = Math.min(100, Math.max(0, frac * 100));
+      const bar = el(
+        'div',
+        {
+          class: 'meter',
+          role: 'meter',
+          'aria-valuemin': '0',
+          'aria-valuemax': '100',
+          'aria-valuenow': pct.toFixed(0),
+          'aria-label': t(key),
+        },
+        el('span', { style: `width:${pct}%` }),
+      );
+      const fill = bar.firstElementChild as HTMLElement;
+      if (key !== 'pr.target' && frac >= 0.8) fill.style.background = 'var(--down)';
+      if (key === 'pr.target') fill.style.background = 'var(--up)';
+      return [
+        el(
+          'div',
+          { class: 'row muted', style: 'justify-content:space-between;margin-top:6px' },
+          el('span', {}, t(key)),
+          el('span', {}, `${pct.toFixed(0)}% · ${fmtMoney(limit)}`),
+        ),
+        bar,
+      ];
+    };
+    const meters = [
+      ...meter('pr.dailyLoss', rs.dailyLossUsed, settings.dailyLossLimit),
+      ...meter('pr.trailing', rs.trailingUsed, settings.trailingDrawdown),
+      ...meter('pr.target', rs.targetProgress, settings.profitTarget),
+    ];
+    this.rulesBox.replaceChildren(
+      ...(meters.length ? meters : [el('p', { class: 'muted' }, t('pr.noRules'))]),
     );
     const working = workingOrders(state.trading);
     if (working.length === 0) {

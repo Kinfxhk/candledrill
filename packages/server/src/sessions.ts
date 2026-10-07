@@ -13,6 +13,7 @@ import {
   sessionModifyOrder,
   sessionPlaceOrder,
   sessionStats,
+  upgradeState,
   tradesToCsv,
   reportHtml,
   FILL_MODEL_NOTE,
@@ -133,7 +134,8 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
       void reply.code(404).send({ error: 'session not found' });
       return undefined;
     }
-    return { row, bars: cache.get(row.datasetId) };
+    const bars = cache.get(row.datasetId);
+    return { row: { ...row, state: upgradeState(bars, row.settings, row.state) }, bars };
   };
 
   const save = (row: Row, state: SessionState) =>
