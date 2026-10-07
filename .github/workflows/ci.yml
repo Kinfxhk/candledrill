@@ -82,3 +82,35 @@ jobs:
 
       - name: Headless smoke test (replay + bracket order flow)
         run: npm run test:e2e
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build container image
+        run: docker build --pull -t candledrill:ci .
+
+      - name: Run container and wait for health endpoint
+        run: |
+          set -euo pipefail
+          docker run -d --name candledrill-ci -p 127.0.0.1:4870:4870 candledrill:ci
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4870/api/health; then
+              echo
+              echo "Container is healthy."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not become healthy in time." >&2
+          docker logs candledrill-ci >&2
+          exit 1
+
+      - name: UI is served on loopback
+        run: curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4870/
+
+      - name: Container logs
+        if: always()
+        run: docker logs candledrill-ci || true
