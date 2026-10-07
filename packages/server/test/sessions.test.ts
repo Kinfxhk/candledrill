@@ -122,3 +122,65 @@ describe('session API', () => {
     expect((await a.inject({ method: 'GET', url: `/api/sessions/${id}` })).statusCode).toBe(404);
   });
 });
+
+describe('order API', () => {
+  it('places, modifies, cancels, fills and flattens', async () => {
+    const { a, ds } = await setup();
+    const created = (
+      await a.inject({
+        method: 'POST',
+        url: '/api/sessions',
+        payload: {
+          datasetId: ds.id,
+          name: 'o',
+          startTime: ds.firstTime + 3600,
+          settings: SETTINGS,
+        },
+      })
+    ).json();
+    const id = created.session.id;
+    const last = created.state.trading.lastClose as number;
+    const lim = await a.inject({
+      method: 'POST',
+      url: `/api/sessions/${id}/orders`,
+      payload: { side: 'buy', type: 'limit', qty: 1, price: last - 50 },
+    });
+    expect(lim.statusCode).toBe(200);
+    const orderId = lim.json().state.trading.orders[0].id;
+    const mod = await a.inject({
+      method: 'PATCH',
+      url: `/api/sessions/${id}/orders/${orderId}`,
+      payload: { price: last - 40 },
+    });
+    expect(mod.json().state.trading.orders[0].price).toBe(last - 40);
+    const del = await a.inject({ method: 'DELETE', url: `/api/sessions/${id}/orders/${orderId}` });
+    expect(del.json().state.trading.orders[0].status).toBe('cancelled');
+
+    const badSl = await a.inject({
+      method: 'POST',
+      url: `/api/sessions/${id}/orders`,
+      payload: { side: 'buy', type: 'market', qty: 1, stopLoss: last + 10 },
+    });
+    expect(badSl.statusCode).toBe(400);
+    expect(badSl.json().error).toMatch(/below/);
+
+    await a.inject({
+      method: 'POST',
+      url: `/api/sessions/${id}/orders`,
+      payload: { side: 'buy', type: 'market', qty: 2, stopLoss: last - 20, takeProfit: last + 20 },
+    });
+    const stepped = (
+      await a.inject({ method: 'POST', url: `/api/sessions/${id}/step`, payload: {} })
+    ).json();
+    expect(stepped.state.trading.position.qty).toBe(2);
+    const flat = (await a.inject({ method: 'POST', url: `/api/sessions/${id}/flatten` })).json();
+    expect(
+      flat.state.trading.orders.filter((o: { status: string }) => o.status === 'working'),
+    ).toHaveLength(1);
+    const after = (
+      await a.inject({ method: 'POST', url: `/api/sessions/${id}/step`, payload: {} })
+    ).json();
+    expect(after.state.trading.position).toBeNull();
+    expect(after.state.trading.trades).toHaveLength(1);
+  });
+});

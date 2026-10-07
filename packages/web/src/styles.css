@@ -576,3 +576,10 @@ footer.app a {
 .practice-root[hidden] {
   display: none;
 }
+label.field > input,
+label.field > select {
+  width: 100%;
+}
+.side .card {
+  padding: 10px;
+}

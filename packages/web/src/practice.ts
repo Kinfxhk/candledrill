@@ -4,9 +4,17 @@
 // higher timeframes are aggregated locally from those bars, so a forming bar never
 // contains future data.
 
-import { BarAggregator, aggregateBars, bucketStart, type Bar } from '@candledrill/core';
+import {
+  BarAggregator,
+  aggregateBars,
+  bucketStart,
+  workingOrders,
+  type Bar,
+  type OrderRequest,
+} from '@candledrill/core';
 import { sessionsApi, type SessionMeta, type SessionStateDto, type SessionViewDto } from './api.js';
-import { PriceChart } from './chart.js';
+import { PriceChart, readTheme, type MarkerSpec, type PriceLineSpec } from './chart.js';
+import { SidePanel } from './side.js';
 import { t, type MessageKey } from './i18n.js';
 import { el, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 
@@ -35,6 +43,7 @@ export class PracticeView {
   private carry = 0;
   private root = document.getElementById('practice-root')!;
   private els: Record<string, HTMLElement> = {};
+  private side: SidePanel | undefined;
 
   constructor(private readonly onChanged: () => void = () => {}) {
     document.addEventListener('keydown', (e) => this.onKey(e));
@@ -148,6 +157,11 @@ export class PracticeView {
     const bottom = el('div', { class: 'bottom', 'data-testid': 'bottom' });
     this.root.replaceChildren(banner, toolbar, workspace, bottom);
     this.els = { banner, play, step, step10, clock, charts, side, bottom, jumpInput, jumpBtn };
+    this.side = new SidePanel(side, {
+      place: (req) => this.mutate(() => sessionsApi.placeOrder(m.id, req)),
+      cancel: (oid) => this.mutate(() => sessionsApi.cancelOrder(m.id, oid)),
+      flatten: () => this.mutate(() => sessionsApi.flatten(m.id)),
+    });
 
     play.addEventListener('click', () => (this.playing ? this.pause() : this.play()));
     step.addEventListener('click', () => void this.step(1));
@@ -177,6 +191,7 @@ export class PracticeView {
     const chart = new PriceChart(body, this.meta!.settings.utcOffsetMinutes * 60);
     chart.setTickSize(this.meta!.settings.tickSize);
     const pane: ChartPane = { tf, chart, agg: new BarAggregator(tf, this.aggOpts()), select, cell };
+    chart.onClick((c) => this.onChartClick(pane, c.time, c.price));
     select.addEventListener('change', () => {
       pane.tf = Number(select.value);
       this.resetPane(pane);
@@ -188,7 +203,7 @@ export class PracticeView {
     p.agg = new BarAggregator(p.tf, this.aggOpts());
     for (const b of this.bars) p.agg.push(b);
     p.chart.setBars(aggregateBars(this.bars, p.tf, this.aggOpts()));
-    p.chart.showRecent(120);
+    requestAnimationFrame(() => p.chart.showRecent(150));
     this.decorate();
   }
 
@@ -199,6 +214,22 @@ export class PracticeView {
   /** Snap a real time to the bar start of a pane's timeframe. */
   protected snap(p: ChartPane, time: number): number {
     return bucketStart(time, p.tf, this.aggOpts());
+  }
+
+  protected onChartClick(_p: ChartPane, _time: number | null, price: number | null): void {
+    if (price !== null) this.side?.setPrice(price);
+  }
+
+  private async mutate(fn: () => Promise<SessionViewDto>): Promise<void> {
+    try {
+      this.applyView(await fn());
+    } catch (err) {
+      toast((err as Error).message, 'error');
+    }
+  }
+
+  async placeOrder(req: OrderRequest): Promise<void> {
+    if (this.meta) await this.mutate(() => sessionsApi.placeOrder(this.meta!.id, req));
   }
 
   // ---------------------------------------------------------------- state
@@ -278,7 +309,34 @@ export class PracticeView {
 
   // ---------------------------------------------------------------- render
   protected decorate(): void {
-    // Markers, order lines and drawings are added in later milestones.
+    if (!this.state || !this.meta) return;
+    const theme = readTheme();
+    const tr = this.state.trading;
+    const lines: PriceLineSpec[] = workingOrders(tr)
+      .filter((o) => o.price !== null)
+      .map((o) => ({
+        price: o.price!,
+        color:
+          o.role === 'stop-loss' ? theme.down : o.role === 'take-profit' ? theme.up : theme.accent,
+        title: `${o.role === 'entry' ? o.type : o.role === 'stop-loss' ? 'SL' : 'TP'} ${o.side === 'buy' ? '+' : '-'}${o.qty}`,
+        dashed: true,
+      }));
+    if (tr.position) {
+      lines.push({
+        price: tr.position.avgPrice,
+        color: theme.text,
+        title: `${tr.position.qty > 0 ? '+' : ''}${tr.position.qty}`,
+      });
+    }
+    for (const p of this.panes) {
+      const markers: MarkerSpec[] = tr.fills.map((f) => ({
+        time: this.snap(p, f.time),
+        side: f.side,
+        text: `${f.side === 'buy' ? 'B' : 'S'}${f.qty}@${f.price}`,
+      }));
+      p.chart.setMarkers(markers);
+      p.chart.setPriceLines(lines);
+    }
   }
 
   render(): void {
@@ -304,6 +362,7 @@ export class PracticeView {
     (this.els.step10 as HTMLButtonElement).disabled = ended;
     (this.els.play as HTMLButtonElement).disabled = ended;
     this.decorate();
+    this.side?.render(this.meta.settings, this.state);
     this.onChanged();
   }
 
@@ -333,6 +392,12 @@ export class PracticeView {
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       void this.step(e.shiftKey ? 10 : 1);
+    } else if (e.key === 'b' || e.key === 'B') {
+      void this.side?.submit('buy');
+    } else if (e.key === 's' || e.key === 'S') {
+      void this.side?.submit('sell');
+    } else if (e.key === 'f' || e.key === 'F') {
+      if (this.meta) void this.mutate(() => sessionsApi.flatten(this.meta!.id));
     }
   }
 }

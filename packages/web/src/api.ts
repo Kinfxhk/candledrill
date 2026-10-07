@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Thin client for the local CandleDrill server. Same-origin only; no third-party requests.
 
-import type { Bar, CsvImportOptions, CsvImportReport } from '@candledrill/core';
+import type {
+  Bar,
+  CsvImportOptions,
+  CsvImportReport,
+  OrderRequest,
+  SessionState,
+} from '@candledrill/core';
 
 export interface DatasetRow {
   id: number;
@@ -97,13 +103,8 @@ export interface SessionSummary {
   updatedAt: string;
 }
 
-/** Engine state as sent by the server (fields grow with later milestones). */
-export interface SessionStateDto {
-  cursor: number;
-  status: 'active' | 'breached' | 'passed' | 'finished';
-  statusReason: string | null;
-  [k: string]: unknown;
-}
+/** Engine state as sent by the server. */
+export type SessionStateDto = SessionState;
 
 export interface SessionViewDto {
   session: SessionMeta;
@@ -129,4 +130,11 @@ export const sessionsApi = {
       { time },
     ),
   remove: (id: number) => request<void>('DELETE', `/api/sessions/${id}`),
+  placeOrder: (id: number, req: OrderRequest) =>
+    request<SessionViewDto>('POST', `/api/sessions/${id}/orders`, req),
+  cancelOrder: (id: number, orderId: number) =>
+    request<SessionViewDto>('DELETE', `/api/sessions/${id}/orders/${orderId}`),
+  modifyOrder: (id: number, orderId: number, price: number) =>
+    request<SessionViewDto>('PATCH', `/api/sessions/${id}/orders/${orderId}`, { price }),
+  flatten: (id: number) => request<SessionViewDto>('POST', `/api/sessions/${id}/flatten`, {}),
 };

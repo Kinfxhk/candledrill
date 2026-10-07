@@ -60,6 +60,11 @@ export {
 export { initialCursor, visibleBars, stepsUntil } from './replay.js';
 export {
   createSession,
+  costModel,
+  sessionPlaceOrder,
+  sessionCancelOrder,
+  sessionModifyOrder,
+  sessionFlatten,
   stepSession,
   jumpSession,
   validateSettings,
@@ -69,6 +74,36 @@ export {
   type SessionStatus,
   type StepResult,
 } from './session.js';
+
+export {
+  placeOrder,
+  cancelOrder,
+  modifyOrder,
+  flattenAll,
+  processBar,
+  applyFill,
+  forceClose,
+  triggerOf,
+  roundToTick,
+  emptyTrading,
+  unrealizedPnl,
+  workingOrders,
+  OrderError,
+  MAX_ORDER_QTY,
+  type Order,
+  type OrderRequest,
+  type OrderType,
+  type OrderRole,
+  type OrderStatus,
+  type Side,
+  type Fill,
+  type Position,
+  type Trade,
+  type OpenTrade,
+  type TradingState,
+  type CostModel,
+  type ExitReason,
+} from './orders.js';
 
 export const CANDLEDRILL_RISK_NOTICE_EN =
   'CandleDrill is an educational practice tool. It is not investment advice. ' +

@@ -105,3 +105,96 @@ describe('session stepping', () => {
     );
   });
 });
+
+describe('session trading', () => {
+  it('orders go through the session and lock when finished', async () => {
+    const { sessionPlaceOrder, sessionFlatten } = await import('../src/index.js');
+    let s = createSession(bars, SETTINGS, bars[10]!.time);
+    s = sessionPlaceOrder(bars, SETTINGS, s, { side: 'buy', type: 'market', qty: 1 });
+    s = stepSession(bars, SETTINGS, s, 1).state;
+    expect(s.trading.position?.qty).toBe(1);
+    s = sessionFlatten(bars, s);
+    s = stepSession(bars, SETTINGS, s, 1).state;
+    expect(s.trading.trades).toHaveLength(1);
+    s = stepSession(bars, SETTINGS, s, 500_000).state;
+    expect(() =>
+      sessionPlaceOrder(bars, SETTINGS, s, { side: 'buy', type: 'market', qty: 1 }),
+    ).toThrow(/locked/);
+  });
+
+  it('property: trading results never depend on unrevealed bars', async () => {
+    const { sessionPlaceOrder, sessionFlatten } = await import('../src/index.js');
+    type Act =
+      | { kind: 'step'; n: number }
+      | {
+          kind: 'order';
+          side: 'buy' | 'sell';
+          type: 'market' | 'limit' | 'stop';
+          off: number;
+          sl: number;
+          tp: number;
+        }
+      | { kind: 'flatten' };
+    const act = fc.oneof(
+      fc.record({ kind: fc.constant('step' as const), n: fc.integer({ min: 1, max: 30 }) }),
+      fc.record({
+        kind: fc.constant('order' as const),
+        side: fc.constantFrom('buy' as const, 'sell' as const),
+        type: fc.constantFrom('market' as const, 'limit' as const, 'stop' as const),
+        off: fc.integer({ min: 1, max: 12 }),
+        sl: fc.integer({ min: 0, max: 16 }),
+        tp: fc.integer({ min: 0, max: 24 }),
+      }),
+      fc.record({ kind: fc.constant('flatten' as const) }),
+    );
+    const apply = (series: typeof bars, start: number, acts: Act[]) => {
+      let s = createSession(series, SETTINGS, series[start + 1]!.time);
+      for (const a of acts) {
+        if (a.kind === 'step') s = stepSession(series, SETTINGS, s, a.n).state;
+        else if (a.kind === 'flatten') s = sessionFlatten(series, s);
+        else if (s.status === 'active') {
+          const last = series[s.cursor]!.close;
+          const tick = SETTINGS.tickSize;
+          const dir = a.side === 'buy' ? 1 : -1;
+          // Limit below (buy) / stop above (buy) the last close.
+          const price =
+            a.type === 'market'
+              ? null
+              : a.type === 'limit'
+                ? last - dir * a.off * tick
+                : last + dir * a.off * tick;
+          const ref = price ?? last;
+          try {
+            s = sessionPlaceOrder(series, SETTINGS, s, {
+              side: a.side,
+              type: a.type,
+              qty: 1,
+              price,
+              stopLoss: a.sl ? ref - dir * a.sl * tick : null,
+              takeProfit: a.tp ? ref + dir * a.tp * tick : null,
+            });
+          } catch {
+            /* invalid combos are fine to skip */
+          }
+        }
+      }
+      return s;
+    };
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 600 }),
+        fc.array(act, { minLength: 1, maxLength: 25 }),
+        (start, acts) => {
+          const full = apply(bars, start, acts);
+          if (full.cursor >= bars.length - 1) return; // reached the end; nothing unrevealed
+          const cut = bars.slice(0, full.cursor + 1);
+          cut.push({ ...bars[full.cursor + 1]!, high: 1e9, low: 0.25 }); // garbage "future"
+          const trunc = apply(cut, start, acts);
+          expect(trunc.trading).toEqual(full.trading);
+          expect(trunc.cursor).toBe(full.cursor);
+        },
+      ),
+      { numRuns: 150 },
+    );
+  });
+});

@@ -7,6 +7,18 @@
 
 import type { Bar } from './types.js';
 import { initialCursor, stepsUntil } from './replay.js';
+import {
+  cancelOrder,
+  emptyTrading,
+  flattenAll,
+  modifyOrder,
+  OrderError,
+  placeOrder,
+  processBar,
+  type CostModel,
+  type OrderRequest,
+  type TradingState,
+} from './orders.js';
 
 export interface SessionSettings {
   readonly symbol: string;
@@ -34,6 +46,7 @@ export interface SessionState {
   readonly cursor: number;
   readonly status: SessionStatus;
   readonly statusReason: string | null;
+  readonly trading: TradingState;
 }
 
 export const MAX_STEPS_PER_ACTION = 500_000;
@@ -66,12 +79,64 @@ export function createSession(
 ): SessionState {
   const errors = validateSettings(settings);
   if (errors.length) throw new RangeError(errors.join('; '));
+  const cursor = initialCursor(bars, startTime);
   return {
     version: 1,
-    cursor: initialCursor(bars, startTime),
+    cursor,
     status: 'active',
     statusReason: null,
+    trading: emptyTrading(bars[cursor]!.close),
   };
+}
+
+export function costModel(s: SessionSettings): CostModel {
+  return {
+    tickSize: s.tickSize,
+    pointValue: s.pointValue,
+    commissionPerContract: s.commissionPerContract,
+    slippageTicks: s.slippageTicks,
+  };
+}
+
+function assertCanTrade(state: SessionState): void {
+  if (state.status !== 'active') {
+    throw new OrderError(`trading is locked: session is ${state.status}`);
+  }
+}
+
+export function sessionPlaceOrder(
+  bars: readonly Bar[],
+  settings: SessionSettings,
+  state: SessionState,
+  req: OrderRequest,
+): SessionState {
+  assertCanTrade(state);
+  const { trading } = placeOrder(
+    state.trading,
+    costModel(settings),
+    req,
+    state.cursor,
+    bars[state.cursor]!.time,
+  );
+  return { ...state, trading };
+}
+
+export function sessionCancelOrder(state: SessionState, orderId: number): SessionState {
+  return { ...state, trading: cancelOrder(state.trading, orderId) };
+}
+
+export function sessionModifyOrder(
+  settings: SessionSettings,
+  state: SessionState,
+  orderId: number,
+  price: number,
+): SessionState {
+  assertCanTrade(state);
+  return { ...state, trading: modifyOrder(state.trading, costModel(settings), orderId, price) };
+}
+
+export function sessionFlatten(bars: readonly Bar[], state: SessionState): SessionState {
+  return { ...state, trading: flattenAll(state.trading, state.cursor, bars[state.cursor]!.time) };
 }
 
 export interface StepResult {
@@ -83,7 +148,7 @@ export interface StepResult {
 /** Reveal up to `count` more bars. */
 export function stepSession(
   bars: readonly Bar[],
-  _settings: SessionSettings,
+  settings: SessionSettings,
   state: SessionState,
   count = 1,
 ): StepResult {
@@ -91,6 +156,7 @@ export function stepSession(
     throw new RangeError(`count must be an integer 1-${MAX_STEPS_PER_ACTION}`);
   }
   let s = state;
+  const costs = costModel(settings);
   const revealed: Bar[] = [];
   for (let i = 0; i < count; i++) {
     if (s.cursor >= bars.length - 1) {
@@ -98,8 +164,9 @@ export function stepSession(
       break;
     }
     const cursor = s.cursor + 1;
-    revealed.push(bars[cursor]!);
-    s = { ...s, cursor };
+    const bar = bars[cursor]!;
+    revealed.push(bar);
+    s = { ...s, cursor, trading: processBar(s.trading, costs, bar, cursor) };
   }
   if (s.cursor >= bars.length - 1 && s.status === 'active') {
     s = { ...s, status: 'finished', statusReason: 'end of data' };

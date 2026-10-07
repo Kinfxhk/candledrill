@@ -7,6 +7,11 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import {
   createSession,
   jumpSession,
+  OrderError,
+  sessionCancelOrder,
+  sessionFlatten,
+  sessionModifyOrder,
+  sessionPlaceOrder,
   stepSession,
   validateSettings,
   visibleBars,
@@ -261,6 +266,102 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
         truncated: revealed.length < r.revealed.length,
       };
     },
+  );
+
+  const mutate = async (
+    id: number,
+    reply: FastifyReply,
+    fn: (row: Row, bars: Bar[]) => SessionState,
+  ): Promise<unknown> => {
+    const loaded = load(id, reply);
+    if (!loaded) return reply;
+    const { row, bars } = loaded;
+    let state: SessionState;
+    try {
+      state = fn(row, bars);
+    } catch (err) {
+      if (err instanceof OrderError) return reply.code(400).send({ error: err.message });
+      throw err;
+    }
+    save(row, state);
+    return sessionView(row, bars, state);
+  };
+
+  const priceOrNull = { type: ['number', 'null'], exclusiveMinimum: 0 } as const;
+
+  app.post<{
+    Params: { id: number };
+    Body: {
+      side: 'buy' | 'sell';
+      type: 'market' | 'limit' | 'stop';
+      qty: number;
+      price?: number | null;
+      stopLoss?: number | null;
+      takeProfit?: number | null;
+    };
+  }>(
+    '/api/sessions/:id/orders',
+    {
+      schema: {
+        params: idParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['side', 'type', 'qty'],
+          properties: {
+            side: { type: 'string', enum: ['buy', 'sell'] },
+            type: { type: 'string', enum: ['market', 'limit', 'stop'] },
+            qty: { type: 'integer', minimum: 1, maximum: 10000 },
+            price: priceOrNull,
+            stopLoss: priceOrNull,
+            takeProfit: priceOrNull,
+          },
+        },
+      },
+    },
+    async (req, reply) =>
+      mutate(req.params.id, reply, (row, bars) =>
+        sessionPlaceOrder(bars, row.settings, row.state, req.body),
+      ),
+  );
+
+  const orderParams = {
+    type: 'object',
+    required: ['id', 'orderId'],
+    properties: { id: { type: 'integer', minimum: 1 }, orderId: { type: 'integer', minimum: 1 } },
+  } as const;
+
+  app.delete<{ Params: { id: number; orderId: number } }>(
+    '/api/sessions/:id/orders/:orderId',
+    { schema: { params: orderParams } },
+    async (req, reply) =>
+      mutate(req.params.id, reply, (row) => sessionCancelOrder(row.state, req.params.orderId)),
+  );
+
+  app.patch<{ Params: { id: number; orderId: number }; Body: { price: number } }>(
+    '/api/sessions/:id/orders/:orderId',
+    {
+      schema: {
+        params: orderParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['price'],
+          properties: { price: { type: 'number', exclusiveMinimum: 0 } },
+        },
+      },
+    },
+    async (req, reply) =>
+      mutate(req.params.id, reply, (row) =>
+        sessionModifyOrder(row.settings, row.state, req.params.orderId, req.body.price),
+      ),
+  );
+
+  app.post<{ Params: { id: number } }>(
+    '/api/sessions/:id/flatten',
+    { schema: { params: idParams } },
+    async (req, reply) =>
+      mutate(req.params.id, reply, (row, bars) => sessionFlatten(bars, row.state)),
   );
 
   app.delete<{ Params: { id: number } }>(
