@@ -172,3 +172,55 @@ describe('order API', () => {
     expect(after.state.trading.trades).toHaveLength(1);
   });
 });
+
+describe('export API', () => {
+  it('exports trades CSV, an HTML report and session JSON without price bars', async () => {
+    const { a, ds } = await setup();
+    const s = (
+      await a.inject({
+        method: 'POST',
+        url: '/api/sessions',
+        payload: {
+          datasetId: ds.id,
+          name: 'Export me',
+          startTime: ds.firstTime + 3600,
+          settings: SETTINGS,
+        },
+      })
+    ).json();
+    const id = s.session.id;
+    await a.inject({
+      method: 'POST',
+      url: `/api/sessions/${id}/orders`,
+      payload: { side: 'sell', type: 'market', qty: 1 },
+    });
+    await a.inject({ method: 'POST', url: `/api/sessions/${id}/step`, payload: { count: 3 } });
+    await a.inject({ method: 'POST', url: `/api/sessions/${id}/flatten` });
+    await a.inject({ method: 'POST', url: `/api/sessions/${id}/step`, payload: {} });
+
+    const csv = await a.inject({ method: 'GET', url: `/api/sessions/${id}/export/trades.csv` });
+    expect(csv.statusCode).toBe(200);
+    expect(csv.headers['content-type']).toContain('text/csv');
+    expect(csv.headers['content-disposition']).toContain(
+      'attachment; filename="candledrill-1-trades.csv"',
+    );
+    expect(csv.body.trim().split('\n')).toHaveLength(2);
+    expect(csv.body).toContain(',SYNTH-DEMO,short,1,');
+
+    const html = await a.inject({ method: 'GET', url: `/api/sessions/${id}/export/report.html` });
+    expect(html.body).toContain('Export me');
+    expect(html.body).toContain('not investment advice');
+    expect(html.body).toContain('(synthetic data)');
+
+    const json = (
+      await a.inject({ method: 'GET', url: `/api/sessions/${id}/export/session.json` })
+    ).json();
+    expect(json).toMatchObject({
+      format: 'candledrill-session',
+      formatVersion: 1,
+      name: 'Export me',
+    });
+    expect(json.stats.trades).toBe(1);
+    expect(JSON.stringify(json)).not.toContain('"open":');
+  });
+});

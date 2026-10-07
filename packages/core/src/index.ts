@@ -65,6 +65,9 @@ export {
   sessionCancelOrder,
   sessionModifyOrder,
   sessionFlatten,
+  sessionEquity,
+  sessionStats,
+  FILL_MODEL_NOTE,
   stepSession,
   jumpSession,
   validateSettings,
@@ -104,6 +107,15 @@ export {
   type CostModel,
   type ExitReason,
 } from './orders.js';
+
+export { computeStats, type SessionStats, type StatsInput } from './stats.js';
+export {
+  tradesToCsv,
+  reportHtml,
+  escapeHtml,
+  TRADE_CSV_COLUMNS,
+  type ReportInput,
+} from './export.js';
 
 export const CANDLEDRILL_RISK_NOTICE_EN =
   'CandleDrill is an educational practice tool. It is not investment advice. ' +

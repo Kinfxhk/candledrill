@@ -18,7 +18,9 @@ import {
   type CostModel,
   type OrderRequest,
   type TradingState,
+  unrealizedPnl,
 } from './orders.js';
+import { computeStats, type SessionStats } from './stats.js';
 
 export interface SessionSettings {
   readonly symbol: string;
@@ -47,6 +49,49 @@ export interface SessionState {
   readonly status: SessionStatus;
   readonly statusReason: string | null;
   readonly trading: TradingState;
+  /** Highest closing equity seen (starts at the starting balance). */
+  readonly equityPeak: number;
+  /** Largest peak-to-trough fall of closing equity, in currency and as a fraction of the peak. */
+  readonly maxDrawdown: number;
+  readonly maxDrawdownPct: number;
+}
+
+export const FILL_MODEL_NOTE =
+  'Orders only fill on bars revealed after they were placed. Market orders fill at the next open; ' +
+  'limit orders at their price (or the open if it gaps through); stop orders at their price or the ' +
+  'open if gapped, plus slippage. When one bar touches both the stop-loss and the take-profit, the ' +
+  'stop-loss is assumed to fill first. Drawdown and practice rules use closing prices of each bar.';
+
+export function sessionEquity(settings: SessionSettings, state: SessionState): number {
+  return (
+    settings.startingBalance +
+    state.trading.realizedPnl +
+    unrealizedPnl(state.trading, settings.pointValue)
+  );
+}
+
+export function sessionStats(settings: SessionSettings, state: SessionState): SessionStats {
+  return computeStats({
+    trades: state.trading.trades,
+    startingBalance: settings.startingBalance,
+    commissionPaid: state.trading.commissionPaid,
+    equity: sessionEquity(settings, state),
+    maxDrawdown: state.maxDrawdown,
+    maxDrawdownPct: state.maxDrawdownPct,
+  });
+}
+
+function markEquity(settings: SessionSettings, s: SessionState): SessionState {
+  const equity = sessionEquity(settings, s);
+  const peak = Math.max(s.equityPeak, equity);
+  const dd = peak - equity;
+  if (peak === s.equityPeak && dd <= s.maxDrawdown) return s;
+  return {
+    ...s,
+    equityPeak: peak,
+    maxDrawdown: Math.max(s.maxDrawdown, dd),
+    maxDrawdownPct: Math.max(s.maxDrawdownPct, peak > 0 ? dd / peak : 0),
+  };
 }
 
 export const MAX_STEPS_PER_ACTION = 500_000;
@@ -86,6 +131,9 @@ export function createSession(
     status: 'active',
     statusReason: null,
     trading: emptyTrading(bars[cursor]!.close),
+    equityPeak: settings.startingBalance,
+    maxDrawdown: 0,
+    maxDrawdownPct: 0,
   };
 }
 
@@ -166,7 +214,7 @@ export function stepSession(
     const cursor = s.cursor + 1;
     const bar = bars[cursor]!;
     revealed.push(bar);
-    s = { ...s, cursor, trading: processBar(s.trading, costs, bar, cursor) };
+    s = markEquity(settings, { ...s, cursor, trading: processBar(s.trading, costs, bar, cursor) });
   }
   if (s.cursor >= bars.length - 1 && s.status === 'active') {
     s = { ...s, status: 'finished', statusReason: 'end of data' };

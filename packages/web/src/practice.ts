@@ -15,7 +15,7 @@ import {
 import { sessionsApi, type SessionMeta, type SessionStateDto, type SessionViewDto } from './api.js';
 import { PriceChart, readTheme, type MarkerSpec, type PriceLineSpec } from './chart.js';
 import { SidePanel } from './side.js';
-import { BottomPanel, fillsTab, tradesTab, type BottomTab } from './bottom.js';
+import { BottomPanel, exportTab, fillsTab, statsTab, tradesTab, type BottomTab } from './bottom.js';
 import { t, type MessageKey } from './i18n.js';
 import { el, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 
@@ -167,7 +167,13 @@ export class PracticeView {
       cancel: (oid) => this.mutate(() => sessionsApi.cancelOrder(m.id, oid)),
       flatten: () => this.mutate(() => sessionsApi.flatten(m.id)),
     });
-    this.bottom = new BottomPanel(bottom, [tradesTab, ...PracticeView.extraTabs, fillsTab]);
+    this.bottom = new BottomPanel(bottom, [
+      tradesTab,
+      statsTab,
+      fillsTab,
+      exportTab,
+      ...PracticeView.extraTabs,
+    ]);
 
     play.addEventListener('click', () => (this.playing ? this.pause() : this.play()));
     step.addEventListener('click', () => void this.step(1));

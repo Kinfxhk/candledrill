@@ -12,6 +12,11 @@ import {
   sessionFlatten,
   sessionModifyOrder,
   sessionPlaceOrder,
+  sessionStats,
+  tradesToCsv,
+  reportHtml,
+  FILL_MODEL_NOTE,
+  CANDLEDRILL_RISK_NOTICE_EN,
   stepSession,
   validateSettings,
   visibleBars,
@@ -362,6 +367,77 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     { schema: { params: idParams } },
     async (req, reply) =>
       mutate(req.params.id, reply, (row, bars) => sessionFlatten(bars, row.state)),
+  );
+
+  const exportRoute = (
+    path: string,
+    type: string,
+    filename: (row: Row) => string,
+    body: (row: Row, bars: Bar[]) => string,
+  ) =>
+    app.get<{ Params: { id: number } }>(
+      path,
+      { schema: { params: idParams } },
+      async (req, reply) => {
+        const loaded = load(req.params.id, reply);
+        if (!loaded) return reply;
+        const safe = filename(loaded.row).replace(/[^A-Za-z0-9._-]+/g, '_');
+        return reply
+          .header('content-type', type)
+          .header('content-disposition', `attachment; filename="${safe}"`)
+          .header('cache-control', 'no-store')
+          .send(body(loaded.row, loaded.bars));
+      },
+    );
+
+  exportRoute(
+    '/api/sessions/:id/export/trades.csv',
+    'text/csv; charset=utf-8',
+    (row) => `candledrill-${row.id}-trades.csv`,
+    (row) => tradesToCsv(row.state.trading.trades, row.settings.symbol),
+  );
+
+  exportRoute(
+    '/api/sessions/:id/export/report.html',
+    'text/html; charset=utf-8',
+    (row) => `candledrill-${row.id}-report.html`,
+    (row) => {
+      const ds = getDataset(db, row.datasetId);
+      const { symbol, ...rest } = row.settings;
+      return reportHtml({
+        title: row.name,
+        symbol,
+        synthetic: ds?.synthetic ?? false,
+        generatedAt: now().toISOString(),
+        settings: rest,
+        stats: sessionStats(row.settings, row.state),
+        trades: row.state.trading.trades,
+        riskNotice: CANDLEDRILL_RISK_NOTICE_EN,
+        fillModel: FILL_MODEL_NOTE,
+      });
+    },
+  );
+
+  exportRoute(
+    '/api/sessions/:id/export/session.json',
+    'application/json; charset=utf-8',
+    (row) => `candledrill-${row.id}-session.json`,
+    (row) =>
+      JSON.stringify(
+        {
+          format: 'candledrill-session',
+          formatVersion: 1,
+          note: 'Practice session without price data. ' + CANDLEDRILL_RISK_NOTICE_EN,
+          name: row.name,
+          startTime: row.startTime,
+          settings: row.settings,
+          state: row.state,
+          drawings: row.drawings,
+          stats: sessionStats(row.settings, row.state),
+        },
+        null,
+        2,
+      ),
   );
 
   app.delete<{ Params: { id: number } }>(

@@ -586,3 +586,12 @@ label.field > select {
 [hidden] {
   display: none !important;
 }
+a.badge {
+  text-decoration: none;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text);
+}
+a.badge:hover {
+  border-color: var(--accent);
+}

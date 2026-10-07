@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Bottom panel: tabs for trades, fills and (later) statistics and export.
 
+import { sessionStats } from '@candledrill/core';
 import type { SessionSettings, SessionStateDto } from './api.js';
 import { t, type MessageKey } from './i18n.js';
-import { el, fmtMoney, fmtNum, fmtTime, signClass } from './format.js';
+import { el, fmtMoney, fmtNum, fmtPct, fmtTime, signClass } from './format.js';
 import { fmtPrice } from './side.js';
 
 export interface BottomTab {
@@ -109,6 +110,74 @@ export const fillsTab: BottomTab = {
         ),
       );
     panel.replaceChildren(el('table', { class: 'data' }, head, ...rows));
+  },
+};
+
+export const statsTab: BottomTab = {
+  key: 'pr.stats',
+  id: 'stats',
+  render(panel, s, state) {
+    const st = sessionStats(s, state);
+    const items: [MessageKey, string, number | null][] = [
+      ['stat.trades', String(st.trades), null],
+      ['stat.winRate', fmtPct(st.winRate), null],
+      ['stat.netPnl', fmtMoney(st.netPnl), st.netPnl],
+      ['stat.expectancy', fmtMoney(st.expectancy), st.expectancy],
+      ['stat.avgWin', fmtMoney(st.avgWin), st.avgWin],
+      ['stat.avgLoss', fmtMoney(st.avgLoss), st.avgLoss],
+      ['stat.profitFactor', fmtNum(st.profitFactor, 2), null],
+      ['stat.avgR', st.avgR === null ? '–' : `${fmtNum(st.avgR, 2)} (${st.tradesWithR})`, st.avgR],
+      ['stat.maxDd', fmtMoney(st.maxDrawdown), null],
+      ['stat.maxDdPct', fmtPct(st.maxDrawdownPct), null],
+      ['stat.largestWin', fmtMoney(st.largestWin), st.largestWin],
+      ['stat.largestLoss', fmtMoney(st.largestLoss), st.largestLoss],
+      ['stat.streakW', String(st.longestWinStreak), null],
+      ['stat.streakL', String(st.longestLossStreak), null],
+      ['stat.commission', fmtMoney(st.commissionPaid), null],
+    ];
+    panel.replaceChildren(
+      el(
+        'div',
+        { class: 'stats-grid', 'data-testid': 'stats' },
+        ...items.map(([k, v, sign]) =>
+          el(
+            'div',
+            { class: 'stat' },
+            el('div', { class: 'k' }, t(k)),
+            el('div', { class: `v ${signClass(sign)}` }, v),
+          ),
+        ),
+      ),
+      el('p', { class: 'muted' }, t('pr.assumption')),
+    );
+  },
+};
+
+export const exportTab: BottomTab = {
+  key: 'pr.export',
+  id: 'export',
+  render(panel, _s, _state, id) {
+    const link = (key: MessageKey, file: string) =>
+      el(
+        'a',
+        {
+          href: `/api/sessions/${id}/export/${file}`,
+          download: '',
+          class: 'badge',
+          'data-testid': `export-${file}`,
+        },
+        t(key),
+      );
+    panel.replaceChildren(
+      el(
+        'div',
+        { class: 'row' },
+        link('pr.exportTrades', 'trades.csv'),
+        link('pr.exportReport', 'report.html'),
+        link('pr.exportSession', 'session.json'),
+      ),
+      el('p', { class: 'muted' }, t('pr.exportNote')),
+    );
   },
 };
 
