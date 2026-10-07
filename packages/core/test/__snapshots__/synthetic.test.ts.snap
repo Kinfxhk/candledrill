@@ -1,0 +1,56 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden output (seed 20261007, 2026-10-05, 5 days) > matches the recorded snapshot 1`] = `
+{
+  "count": 2550,
+  "first": [
+    {
+      "close": 3999.75,
+      "high": 4002,
+      "low": 3997.5,
+      "open": 4000,
+      "time": 1791187200,
+      "volume": 454,
+    },
+    {
+      "close": 3994.5,
+      "high": 3999.75,
+      "low": 3993.25,
+      "open": 3999.75,
+      "time": 1791187260,
+      "volume": 303,
+    },
+    {
+      "close": 3991.5,
+      "high": 3995,
+      "low": 3991.5,
+      "open": 3994.5,
+      "time": 1791187320,
+      "volume": 124,
+    },
+  ],
+  "high": 4107.5,
+  "last": {
+    "close": 4041.25,
+    "high": 4041.25,
+    "low": 4037,
+    "open": 4037,
+    "time": 1791563340,
+    "volume": 409,
+  },
+  "low": 3907.5,
+  "meta": {
+    "generator": {
+      "name": "candledrill-synthetic",
+      "seed": 20261007,
+      "version": 1,
+    },
+    "source": "synthetic",
+    "symbol": "SYNTH-DEMO",
+    "synthetic": true,
+    "tickSize": 0.25,
+    "timeframeSeconds": 60,
+  },
+  "sha256": "d2c9df2a223badfd6aab02a17b61838eac2afeef258312270a1471a62bb0046f",
+}
+`;
