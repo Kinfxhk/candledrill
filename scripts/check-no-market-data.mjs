@@ -37,6 +37,20 @@ if (existsSync('THIRD_PARTY_NOTICES.md')) {
     problems.push('THIRD_PARTY_NOTICES.md lacks lightweight-charts entry');
 }
 
+// lightweight-charts (Apache-2.0) attribution must stay visible in the UI.
+const UI = 'packages/web/index.html';
+if (existsSync(UI)) {
+  const html = readFileSync(UI, 'utf8');
+  if (
+    !html.includes('TradingView Lightweight Charts™') ||
+    !html.includes('href="https://www.tradingview.com/"')
+  )
+    problems.push(`${UI} lacks the lightweight-charts NOTICE attribution or tradingview.com link`);
+}
+const CHART = 'packages/web/src/chart.ts';
+if (existsSync(CHART) && /attributionLogo:\s*false/.test(readFileSync(CHART, 'utf8')))
+  problems.push(`${CHART} disables the lightweight-charts attribution logo`);
+
 if (problems.length) {
   console.error('Repository hygiene check FAILED:');
   for (const p of problems) console.error(`  - ${p}`);

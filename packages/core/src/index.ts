@@ -32,6 +32,31 @@ export {
   type SyntheticDataset,
 } from './synthetic.js';
 
+export {
+  importCsv,
+  parseCsv,
+  parseTimestamp,
+  detectDelimiter,
+  detectTimeframe,
+  guessMapping,
+  MAX_IMPORT_BARS,
+  type CsvMapping,
+  type CsvImportOptions,
+  type CsvImportResult,
+  type CsvImportReport,
+  type CsvRowIssue,
+  type CsvTimeFormat,
+  type CsvDateOrder,
+} from './csv.js';
+export {
+  aggregateBars,
+  bucketStart,
+  BarAggregator,
+  DAY_SECONDS,
+  STANDARD_TIMEFRAMES,
+  type AggregateOptions,
+} from './aggregate.js';
+
 export const CANDLEDRILL_RISK_NOTICE_EN =
   'CandleDrill is an educational practice tool. It is not investment advice. ' +
   'Simulated or practice results do not predict real trading results.';

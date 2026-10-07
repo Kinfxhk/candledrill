@@ -5,19 +5,21 @@ components under their own licences. The full dependency list (with licences) is
 produced by `npm run check:licenses`, which also enforces an AGPL-3.0-compatible
 allowlist in CI.
 
-## Runtime dependencies (M0)
+## Runtime dependencies
 
-| Package        | Licence | Notes                                                |
-| -------------- | ------- | ---------------------------------------------------- |
-| fastify        | MIT     | Local HTTP server                                    |
-| better-sqlite3 | MIT     | Local SQLite storage (bundles SQLite, public domain) |
+| Package            | Licence    | Notes                                                |
+| ------------------ | ---------- | ---------------------------------------------------- |
+| fastify            | MIT        | Local HTTP server                                    |
+| @fastify/static    | MIT        | Serves the built web UI from the local server        |
+| better-sqlite3     | MIT        | Local SQLite storage (bundles SQLite, public domain) |
+| lightweight-charts | Apache-2.0 | Chart rendering in the browser UI (see below)        |
 
-Transitive runtime dependencies are MIT, ISC or BSD-3-Clause at the time of M0
-(see the licence check output).
+Transitive runtime dependencies are MIT, ISC, BSD or Apache-2.0 (see the licence
+check output).
 
-## Planned: TradingView Lightweight Charts™ (not yet included)
+## TradingView Lightweight Charts™
 
-The chart UI planned for M1+ will use
+The chart UI uses
 [lightweight-charts](https://github.com/tradingview/lightweight-charts)
 (Apache-2.0). Its README states:
 
@@ -33,15 +35,17 @@ TradingView Lightweight Charts™
 Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/
 ```
 
-**Obligations when the library is added (tracked for M1):**
+**How CandleDrill complies:**
 
-1. Show the attribution notice above and a link to https://www.tradingview.com/ on
-   the user-visible page (the `attributionLogo` chart option satisfies the link
-   requirement; keep the text notice in the About/footer as well).
-2. Ship the Apache-2.0 licence text and upstream NOTICE with any distribution.
-3. Do not use the TradingView name or logo as CandleDrill branding; the attribution
-   is credit, not endorsement.
-4. Update the CI hygiene check to verify the attribution is present in the UI.
+1. The attribution notice and a link to https://www.tradingview.com/ are shown in
+   the page footer and in the About dialog, and the chart's `attributionLogo` option
+   stays enabled.
+2. The Apache-2.0 licence text and the upstream NOTICE are shipped with the UI in
+   `packages/web/public/licenses/` (served at `/licenses/`).
+3. The TradingView name and logo are not used as CandleDrill branding; the
+   attribution is credit, not endorsement.
+4. `packages/web/test/attribution.test.ts` and `scripts/check-no-market-data.mjs`
+   fail CI if the attribution, link or logo option is removed.
 
 Apache-2.0 is compatible with GPLv3/AGPLv3 (one-way: Apache-2.0 code may be
 included in an (A)GPLv3 work). See `docs/LICENSING.md` for sources.

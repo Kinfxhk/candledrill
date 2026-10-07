@@ -1,32 +1,262 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CandleDrill</title>
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>CandleDrill · K線操練場</title>
   </head>
   <body>
+    <header class="app">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>CandleDrill
+        <small lang="zh-Hant">K線操練場</small>
+      </div>
+      <nav class="tabs" aria-label="Main">
+        <button type="button" data-view="library" data-i18n="nav.library" aria-current="page">
+          Library
+        </button>
+        <button type="button" data-view="practice" data-i18n="nav.practice">Practice</button>
+      </nav>
+      <div class="spacer"></div>
+      <button type="button" class="ghost" id="lang-toggle" data-i18n="lang.toggle">中文</button>
+      <button
+        type="button"
+        class="ghost"
+        id="theme-toggle"
+        data-i18n-title="theme.toggle"
+        data-i18n-aria="theme.toggle"
+      >
+        ◐
+      </button>
+      <button type="button" class="ghost" id="about-open" data-i18n="nav.about">About</button>
+    </header>
+
     <main>
-      <h1>CandleDrill <small lang="zh-Hant">K線操練場</small></h1>
-      <p>
-        M0 placeholder. The replay chart arrives in a later milestone. This page only checks that
-        the local server is running.
-      </p>
-      <p id="status" role="status">Checking local server…</p>
-      <p id="notice">
-        <strong>Risk notice:</strong> educational practice tool only; not investment advice;
-        practice results do not predict real results.
-      </p>
-      <p lang="zh-Hant">只作教育及練習用途，並不構成投資建議；練習成績不能預示真實交易結果。</p>
-      <footer>
-        <p>
-          Free software under AGPL-3.0-or-later. No telemetry. Not affiliated with any trading
-          platform or charting vendor.
-        </p>
-        <!-- When lightweight-charts is added (M1+), its NOTICE attribution and a link to
-             https://www.tradingview.com/ MUST be shown on this page. See THIRD_PARTY_NOTICES.md. -->
-      </footer>
+      <section class="view library active" id="view-library" aria-labelledby="h-datasets">
+        <div class="left">
+          <div class="card">
+            <h2 id="h-datasets" data-i18n="lib.datasets">Datasets</h2>
+            <div class="row" style="margin-bottom: 8px">
+              <button type="button" class="primary" id="btn-demo" data-i18n="lib.demo">
+                Generate demo data
+              </button>
+              <button type="button" id="btn-import" data-i18n="lib.import">Import CSV</button>
+            </div>
+            <ul
+              class="dataset-list"
+              id="dataset-list"
+              role="listbox"
+              aria-labelledby="h-datasets"
+            ></ul>
+            <p class="muted" id="dataset-empty" data-i18n="lib.empty" hidden></p>
+          </div>
+          <div class="card">
+            <h2 data-i18n="lib.sessions">Practice sessions</h2>
+            <table class="data" id="session-table">
+              <tbody></tbody>
+            </table>
+            <p class="muted" id="session-empty" data-i18n="lib.noSessions" hidden></p>
+          </div>
+        </div>
+        <div class="right">
+          <div class="card">
+            <h2 data-i18n="lib.preview">Preview</h2>
+            <p class="muted" id="preview-hint" data-i18n="lib.previewHint"></p>
+            <div class="preview-chart" id="preview-chart"></div>
+          </div>
+          <form class="card" id="new-session-form" hidden>
+            <h2 data-i18n="lib.newSession">New practice session</h2>
+            <div class="grid3">
+              <label class="field"
+                ><span data-i18n="ns.name">Session name</span
+                ><input name="name" required maxlength="80"
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.start">Start</span
+                ><input name="start" type="datetime-local" required
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.balance">Starting balance</span
+                ><input name="balance" type="number" min="1" step="any" value="50000" required
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.tickSize">Tick size</span
+                ><input name="tickSize" type="number" min="0" step="any" required
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.pointValue">Point value</span
+                ><input name="pointValue" type="number" min="0" step="any" value="50" required
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.commission">Commission</span
+                ><input name="commission" type="number" min="0" step="any" value="2.5" required
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.slippage">Slippage</span
+                ><input name="slippage" type="number" min="0" step="1" value="1" required
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.utcOffset">UTC offset</span
+                ><input
+                  name="utcOffset"
+                  type="number"
+                  min="-840"
+                  max="840"
+                  step="1"
+                  value="0"
+                  required
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.dayStart">Day start</span
+                ><input name="dayStart" type="time" value="00:00" required
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.dailyLoss">Daily loss</span
+                ><input name="dailyLoss" type="number" min="0" step="any"
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.trailing">Trailing drawdown</span
+                ><input name="trailing" type="number" min="0" step="any"
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.target">Profit target</span
+                ><input name="target" type="number" min="0" step="any"
+              /></label>
+            </div>
+            <p class="muted" data-i18n="ns.rulesNote"></p>
+            <button type="submit" class="primary" data-i18n="ns.create">Start practising</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="view practice" id="view-practice" aria-label="Practice">
+        <div class="empty" id="practice-empty" data-i18n="pr.none"></div>
+        <div id="practice-root" hidden style="display: contents"></div>
+      </section>
     </main>
+
+    <footer class="app">
+      <span id="footer-notice" data-i18n="footer.notice"
+        >Educational practice tool only. Not investment advice.</span
+      >
+      <span data-i18n="footer.license">AGPL-3.0-or-later · No telemetry</span>
+      <span id="chart-attribution"
+        >Charts: TradingView Lightweight Charts™ · Copyright (с) 2025 TradingView, Inc.
+        <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer"
+          >https://www.tradingview.com/</a
+        >
+        · <a href="/licenses/lightweight-charts-LICENSE.txt" target="_blank">Apache-2.0</a></span
+      >
+    </footer>
+
+    <dialog id="about-dialog" aria-labelledby="about-title">
+      <h2 id="about-title" data-i18n="about.title">About CandleDrill</h2>
+      <p data-i18n="about.body"></p>
+      <p data-i18n="about.notAffiliated"></p>
+      <p data-i18n="footer.notice"></p>
+      <h3>Third-party notice</h3>
+      <pre id="about-attribution">
+TradingView Lightweight Charts™
+Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/</pre>
+      <p>
+        <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer"
+          >https://www.tradingview.com/</a
+        >
+        ·
+        <a href="/licenses/lightweight-charts-LICENSE.txt" target="_blank">Apache License 2.0</a> ·
+        <a href="/licenses/lightweight-charts-NOTICE.txt" target="_blank">NOTICE</a>
+      </p>
+      <p>
+        Source code (AGPL-3.0-or-later):
+        <a href="https://github.com/Kinfxhk/candledrill" target="_blank" rel="noopener noreferrer"
+          >github.com/Kinfxhk/candledrill</a
+        >
+      </p>
+      <p class="muted" data-i18n="shortcuts"></p>
+      <form method="dialog"><button class="primary" data-i18n="about.close">Close</button></form>
+    </dialog>
+
+    <dialog id="import-dialog" aria-labelledby="import-title">
+      <form id="import-form" method="dialog">
+        <h2 id="import-title" data-i18n="imp.title">Import CSV</h2>
+        <p class="muted" data-i18n="imp.rights"></p>
+        <div class="grid3">
+          <label class="field"
+            ><span data-i18n="imp.file">CSV file</span
+            ><input type="file" name="file" accept=".csv,.txt,text/csv" required
+          /></label>
+          <label class="field"
+            ><span data-i18n="imp.delimiter">Delimiter</span
+            ><select name="delimiter">
+              <option value="">auto</option>
+              <option value=",">,</option>
+              <option value=";">;</option>
+              <option value="&#9;">Tab</option>
+              <option value="|">|</option>
+            </select></label
+          >
+          <label class="row" style="align-self: end"
+            ><input type="checkbox" name="hasHeader" checked />
+            <span data-i18n="imp.header">Header</span></label
+          >
+        </div>
+        <div class="preview-table" id="import-preview" hidden></div>
+        <h3 data-i18n="imp.mapping">Column mapping</h3>
+        <div class="grid3" id="import-mapping"></div>
+        <div class="grid3" style="margin-top: 8px">
+          <label class="field"
+            ><span data-i18n="imp.timeFormat">Time format</span
+            ><select name="timeFormat">
+              <option value="auto">auto</option>
+              <option value="datetime">YYYY-MM-DD HH:MM[:SS]</option>
+              <option value="unix-s">Unix seconds</option>
+              <option value="unix-ms">Unix milliseconds</option>
+            </select></label
+          >
+          <label class="field"
+            ><span data-i18n="imp.dateOrder">Date order</span
+            ><select name="dateOrder">
+              <option value="ymd">Y-M-D</option>
+              <option value="dmy">D/M/Y</option>
+              <option value="mdy">M/D/Y</option>
+            </select></label
+          >
+          <label class="field"
+            ><span data-i18n="imp.utcOffset">UTC offset</span
+            ><input name="utcOffset" type="number" min="-840" max="840" step="1" value="0"
+          /></label>
+          <label class="field"
+            ><span data-i18n="imp.timeframe">Bar length</span
+            ><input name="timeframe" type="number" min="1" step="1"
+          /></label>
+          <label class="field"
+            ><span data-i18n="imp.tickSize">Tick size</span
+            ><input name="tickSize" type="number" min="0" step="any" value="0.01" required
+          /></label>
+          <label class="field"
+            ><span data-i18n="imp.symbol">Symbol</span
+            ><input name="symbol" pattern="[A-Za-z0-9._\-]{1,32}" required
+          /></label>
+          <label class="field"
+            ><span data-i18n="imp.name">Name</span><input name="name" maxlength="80" required
+          /></label>
+          <label class="row" style="align-self: end"
+            ><input type="checkbox" name="skipInvalid" />
+            <span data-i18n="imp.skip">Skip invalid rows</span></label
+          >
+        </div>
+        <div id="import-result" aria-live="polite"></div>
+        <div class="row" style="margin-top: 12px; justify-content: flex-end">
+          <button type="button" id="import-cancel" data-i18n="imp.cancel">Cancel</button>
+          <button type="submit" class="primary" id="import-submit" data-i18n="imp.submit">
+            Import
+          </button>
+        </div>
+      </form>
+    </dialog>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

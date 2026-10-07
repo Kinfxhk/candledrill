@@ -97,3 +97,74 @@ describe('HTTP API', () => {
     expect(addrs.every((x) => x.address === LOOPBACK_HOST)).toBe(true);
   });
 });
+
+describe('CSV import API', () => {
+  const csv = [
+    'Date,Time,Open,High,Low,Close,Volume',
+    '2026-01-05,09:30,100,101,99.5,100.5,10',
+    '2026-01-05,09:31,100.5,102,100,101.75,12',
+    '2026-01-05,09:32,101.75,102.25,101,101.25,8',
+  ].join('\n');
+  const options = {
+    mapping: { time: 0, timeOfDay: 1, open: 2, high: 3, low: 4, close: 5, volume: 6 },
+  };
+
+  it('imports a valid file and serves it', async () => {
+    const a = setup();
+    const res = await a.inject({
+      method: 'POST',
+      url: '/api/datasets/import',
+      payload: {
+        name: 'My data',
+        symbol: 'TEST',
+        tickSize: 0.25,
+        csv,
+        options: { ...options, utcOffsetMinutes: -300 },
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const { dataset, report } = res.json();
+    expect(dataset).toMatchObject({
+      symbol: 'TEST',
+      synthetic: false,
+      source: 'user-import',
+      barCount: 3,
+      utcOffsetMinutes: -300,
+    });
+    expect(report.timeframeSeconds).toBe(60);
+    expect(dataset.firstTime).toBe(Date.UTC(2026, 0, 5, 14, 30) / 1000);
+    const bars = await a.inject({
+      method: 'GET',
+      url: `/api/datasets/${dataset.id}/bars?limit=2&last=true`,
+    });
+    expect(bars.json().bars.map((b: { close: number }) => b.close)).toEqual([101.75, 101.25]);
+    const del = await a.inject({ method: 'DELETE', url: `/api/datasets/${dataset.id}` });
+    expect(del.statusCode).toBe(204);
+    expect((await a.inject({ method: 'GET', url: '/api/datasets' })).json().datasets).toHaveLength(
+      0,
+    );
+  });
+
+  it('returns a report for invalid data and rejects reserved symbols', async () => {
+    const a = setup();
+    const bad = await a.inject({
+      method: 'POST',
+      url: '/api/datasets/import',
+      payload: { name: 'x', symbol: 'TEST', tickSize: 1, csv, options },
+    });
+    expect(bad.statusCode).toBe(422);
+    expect(bad.json().report.barIssues[0].code).toBe('off-tick-grid');
+    const reserved = await a.inject({
+      method: 'POST',
+      url: '/api/datasets/import',
+      payload: { name: 'x', symbol: 'synth-x', tickSize: 0.25, csv, options },
+    });
+    expect(reserved.statusCode).toBe(400);
+  });
+
+  it('sends a strict Content-Security-Policy', async () => {
+    const res = await setup().inject({ method: 'GET', url: '/api/health' });
+    expect(res.headers['content-security-policy']).toContain("default-src 'self'");
+    expect(res.headers['content-security-policy']).toContain("connect-src 'self'");
+  });
+});

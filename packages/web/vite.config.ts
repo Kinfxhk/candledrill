@@ -2,6 +2,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  build: { target: 'es2022', sourcemap: false, chunkSizeWarningLimit: 800 },
   server: {
     host: '127.0.0.1',
     strictPort: true,
