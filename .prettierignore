@@ -1,0 +1,6 @@
+LICENSE
+node_modules
+dist
+coverage
+package-lock.json
+**/__snapshots__/**

@@ -1,0 +1,12 @@
+# gitleaks configuration: use the default ruleset; skip dependency and build folders.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Non-source paths"
+paths = [
+  '''node_modules/''',
+  '''dist/''',
+  '''coverage/''',
+  '''package-lock\.json''',
+]

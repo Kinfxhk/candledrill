@@ -1,0 +1,23 @@
+{
+  "name": "@candledrill/server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "CandleDrill local server (Fastify + SQLite). Binds to 127.0.0.1 only.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/app.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@candledrill/core": "^0.0.0",
+    "better-sqlite3": "^13.0.3",
+    "fastify": "^5.12.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0"
+  }
+}

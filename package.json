@@ -1,0 +1,43 @@
+{
+  "name": "candledrill-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "CandleDrill (K線操練場): free, self-hosted candlestick replay practice tool. Educational only.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "workspaces": [
+    "packages/core",
+    "packages/server",
+    "packages/web"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:server": "npm run dev -w @candledrill/server",
+    "dev:web": "npm run dev -w @candledrill/web",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:licenses": "node scripts/check-licenses.mjs",
+    "check:secrets": "bash scripts/secret-scan.sh",
+    "check:no-market-data": "node scripts/check-no-market-data.mjs",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run check:licenses && npm run check:no-market-data && npm run check:secrets"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.4",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "fast-check": "^4.10.2",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  }
+}
