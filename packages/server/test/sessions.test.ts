@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { openDatabase, type Db } from '../src/db.js';
-import { SETTINGS } from './helpers.js';
+import { SETTINGS, TEST_TOKEN, withToken } from './helpers.js';
 
 let app: FastifyInstance | undefined;
 let db: Db | undefined;
@@ -13,7 +13,9 @@ async function setup(): Promise<{
   ds: { id: number; firstTime: number; lastTime: number };
 }> {
   db = openDatabase(':memory:');
-  app = buildApp({ db, now: () => new Date('2026-10-07T12:00:00Z') });
+  app = withToken(
+    buildApp({ db, apiToken: TEST_TOKEN, now: () => new Date('2026-10-07T12:00:00Z') }),
+  );
   const res = await app.inject({
     method: 'POST',
     url: '/api/datasets/synthetic',

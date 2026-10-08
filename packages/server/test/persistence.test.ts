@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { openDatabase } from '../src/db.js';
-import { SETTINGS } from './helpers.js';
+import { SETTINGS, TEST_TOKEN, withToken } from './helpers.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'candledrill-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -14,7 +14,7 @@ describe('session persistence', () => {
   it('resumes exactly where the user stopped after a restart', async () => {
     const file = join(dir, 'test.db');
     let db = openDatabase(file);
-    let app = buildApp({ db });
+    let app = withToken(buildApp({ db, apiToken: TEST_TOKEN }));
     const ds = (
       await app.inject({
         method: 'POST',
@@ -47,7 +47,7 @@ describe('session persistence', () => {
     db.close();
 
     db = openDatabase(file);
-    app = buildApp({ db });
+    app = withToken(buildApp({ db, apiToken: TEST_TOKEN }));
     const after = (await app.inject({ method: 'GET', url: `/api/sessions/${id}` })).json();
     expect(after.state).toEqual(before.state);
     expect(after.cursorTime).toBe(before.cursorTime);

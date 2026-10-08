@@ -4,13 +4,16 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { openDatabase, type Db } from '../src/db.js';
 import { LOOPBACK_HOST } from '../src/config.js';
+import { TEST_TOKEN, withToken } from './helpers.js';
 
 let app: FastifyInstance | undefined;
 let db: Db | undefined;
 
 function setup(): FastifyInstance {
   db = openDatabase(':memory:');
-  app = buildApp({ db, now: () => new Date('2026-10-07T12:00:00Z') });
+  app = withToken(
+    buildApp({ db, apiToken: TEST_TOKEN, now: () => new Date('2026-10-07T12:00:00Z') }),
+  );
   return app;
 }
 

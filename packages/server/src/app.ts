@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
@@ -28,6 +29,21 @@ export interface AppOptions {
   readonly logger?: boolean | string;
   /** Directory with the built web UI. Served at "/" when it exists. */
   readonly staticDir?: string;
+  /**
+   * Per-launch API token required (header `X-CandleDrill-Token`) on every state-changing
+   * request. Defaults to 32 random bytes generated at start-up; tests may inject one.
+   */
+  readonly apiToken?: string;
+}
+
+/** Header that must carry the per-launch API token on state-changing requests. */
+export const TOKEN_HEADER = 'x-candledrill-token';
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function sameToken(given: unknown, expected: Buffer): boolean {
+  if (typeof given !== 'string') return false;
+  const b = Buffer.from(given);
+  return b.length === expected.length && timingSafeEqual(b, expected);
 }
 
 /** Maximum CSV upload size (bytes). About 1M one-minute bars. */
@@ -60,11 +76,37 @@ export function buildApp(opts: AppOptions): FastifyInstance {
   const logger = typeof opts.logger === 'string' ? { level: opts.logger } : (opts.logger ?? false);
   const app = Fastify({ logger, bodyLimit: 64 * 1024 });
 
+  const apiToken = opts.apiToken ?? randomBytes(32).toString('base64url');
+  const expectedToken = Buffer.from(apiToken);
+
   // Defence against DNS-rebinding: only answer requests addressed to the loopback host.
   app.addHook('onRequest', async (req, reply) => {
     const host = hostnameOf(req.headers.host);
     if (!host || !ALLOWED_HOSTNAMES.has(host)) {
       return reply.code(421).send({ error: 'misdirected request: CandleDrill is local-only' });
+    }
+    // Cross-origin (CSRF-style) defence. A web page on any other origin, including another
+    // port on localhost and sandboxed "null" origins, must not change local data:
+    // 1. If the browser sends Origin, it must be exactly this server's own origin.
+    // 2. Fetch metadata, when present, must not say the request is cross-site/same-site.
+    // 3. State-changing requests must carry the per-launch token, which only same-origin
+    //    scripts can read (GET /api/token; no CORS headers are ever sent).
+    const origin = req.headers.origin;
+    const fetchSite = req.headers['sec-fetch-site'];
+    const unsafe = !SAFE_METHODS.has(req.method);
+    if (unsafe || req.url.startsWith('/api/token')) {
+      if (
+        origin !== undefined &&
+        origin.toLowerCase() !== `http://${req.headers.host!.toLowerCase()}`
+      ) {
+        return reply.code(403).send({ error: 'cross-origin request refused', code: 'bad-origin' });
+      }
+      if (fetchSite === 'cross-site' || fetchSite === 'same-site') {
+        return reply.code(403).send({ error: 'cross-origin request refused', code: 'bad-origin' });
+      }
+    }
+    if (unsafe && !sameToken(req.headers[TOKEN_HEADER], expectedToken)) {
+      return reply.code(403).send({ error: 'missing or invalid API token', code: 'bad-token' });
     }
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'no-referrer');
@@ -85,6 +127,13 @@ export function buildApp(opts: AppOptions): FastifyInstance {
     telemetry: false,
     notice: CANDLEDRILL_RISK_NOTICE_EN,
   }));
+
+  // Same-origin pages read the per-launch token here. Browsers block cross-origin reads
+  // (no CORS headers) and the Host check above blocks DNS rebinding.
+  app.get('/api/token', async (_req, reply) => {
+    void reply.header('cache-control', 'no-store');
+    return { token: apiToken, header: TOKEN_HEADER };
+  });
 
   const cache = new BarCache(db);
   registerSessionRoutes(app, { db, cache, now });

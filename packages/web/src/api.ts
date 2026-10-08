@@ -35,12 +35,39 @@ export class ApiError extends Error {
   }
 }
 
+let apiToken: string | null = null;
+
+/** Fetch (and cache) the per-launch token the local server requires on writes. */
+async function token(refresh = false): Promise<string> {
+  if (apiToken && !refresh) return apiToken;
+  const res = await fetch('/api/token', { cache: 'no-store', credentials: 'same-origin' });
+  if (!res.ok) throw new ApiError('could not obtain the local API token', res.status, null);
+  apiToken = ((await res.json()) as { token: string }).token;
+  return apiToken;
+}
+
 export async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method,
-    headers: body === undefined ? {} : { 'content-type': 'application/json' },
-    body: body === undefined ? null : JSON.stringify(body),
-  });
+  const send = async (refresh: boolean) => {
+    const headers: Record<string, string> = {};
+    if (body !== undefined) headers['content-type'] = 'application/json';
+    if (method !== 'GET' && method !== 'HEAD')
+      headers['x-candledrill-token'] = await token(refresh);
+    return fetch(url, {
+      method,
+      headers,
+      credentials: 'same-origin',
+      body: body === undefined ? null : JSON.stringify(body),
+    });
+  };
+  let res = await send(false);
+  // The token changes when the server restarts: fetch a fresh one and retry once.
+  if (res.status === 403 && method !== 'GET') {
+    const peek = (await res
+      .clone()
+      .json()
+      .catch(() => null)) as { code?: string } | null;
+    if (peek?.code === 'bad-token') res = await send(true);
+  }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const json: unknown = text ? JSON.parse(text) : undefined;
