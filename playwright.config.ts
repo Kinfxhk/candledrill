@@ -21,7 +21,9 @@ export default defineConfig({
     launchOptions: executablePath ? { executablePath } : {},
   },
   webServer: {
-    command: 'node_modules/.bin/tsx packages/server/src/main.ts',
+    // A plain Node entry point works on every OS (the Unix-style .bin shim path does not
+    // run under Windows cmd.exe).
+    command: 'node --import tsx packages/server/src/main.ts',
     url: `http://127.0.0.1:${PORT}/api/health`,
     env: { CANDLEDRILL_DB: ':memory:', CANDLEDRILL_PORT: String(PORT) },
     reuseExistingServer: false,
