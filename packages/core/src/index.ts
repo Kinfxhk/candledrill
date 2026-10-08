@@ -78,6 +78,7 @@ export {
   dayKeyOf,
   type RuleStatus,
   FILL_MODEL_NOTE,
+  END_OF_DATA_MESSAGE,
   stepSession,
   jumpSession,
   validateSettings,
@@ -91,6 +92,7 @@ export {
 export {
   placeOrder,
   cancelOrder,
+  cancelAllWorking,
   modifyOrder,
   flattenAll,
   processBar,

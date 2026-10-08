@@ -384,6 +384,11 @@ function cancelWhere(t: TradingState, pred: (o: Order) => boolean, reason: strin
   };
 }
 
+/** Cancel every working order with `reason` (positions are left untouched). */
+export function cancelAllWorking(t: TradingState, reason: string): TradingState {
+  return cancelWhere(t, () => true, reason);
+}
+
 /** Cancel every working order and, if a position is open, queue a market order to close it. */
 export function flattenAll(t: TradingState, index: number, time: number): TradingState {
   let s = cancelWhere(t, () => true, 'flatten');

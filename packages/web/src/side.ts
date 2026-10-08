@@ -191,6 +191,8 @@ export class SidePanel {
     const locked = state.status !== 'active';
     this.buyBtn.disabled = locked;
     this.sellBtn.disabled = locked;
+    // At the end of the data no later bar exists to fill a flatten order (keep-open policy).
+    this.flattenBtn.disabled = state.status === 'finished';
     const tr = state.trading;
     const upnl = unrealizedPnl(tr, settings.pointValue);
     const equity = settings.startingBalance + tr.realizedPnl + upnl;

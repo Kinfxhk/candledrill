@@ -117,7 +117,7 @@ describe('practice rules', () => {
     expect(s.trading.realizedPnl).toBe(175);
   });
 
-  it('rules off -> ruleStatus is null and flatten still works after lock', () => {
+  it('rules off -> ruleStatus is null; flatten is refused at the end of the data', () => {
     const bars = [b(0, 0, 100), b(0, 1, 100), b(0, 2, 90)];
     let s = start(bars, BASE);
     s = stepSession(bars, BASE, s, 2).state;
@@ -126,7 +126,9 @@ describe('practice rules', () => {
       trailingUsed: null,
       targetProgress: null,
     });
-    expect(() => sessionFlatten(bars, s)).not.toThrow();
+    // End-of-data policy keep-open: no later bar can fill a flatten order (fill model v2).
+    expect(s.status).toBe('finished');
+    expect(() => sessionFlatten(bars, s)).toThrow(/end of data/);
   });
 
   it('upgrades states stored before rules existed', () => {

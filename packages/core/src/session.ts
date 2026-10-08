@@ -8,6 +8,7 @@
 import type { Bar } from './types.js';
 import { initialCursor, stepsUntil } from './replay.js';
 import {
+  cancelAllWorking,
   cancelOrder,
   emptyTrading,
   flattenAll,
@@ -97,7 +98,7 @@ export function upgradeState(
   raw: SessionState,
 ): SessionState {
   const time = bars[Math.min(raw.cursor, bars.length - 1)]!.time;
-  return {
+  const up: SessionState = {
     ...raw,
     trading: { ...raw.trading, modifications: raw.trading.modifications ?? [] },
     equityPeak: raw.equityPeak ?? settings.startingBalance,
@@ -105,6 +106,25 @@ export function upgradeState(
     maxDrawdownPct: raw.maxDrawdownPct ?? 0,
     dayKey: raw.dayKey ?? dayKeyOf(time, settings),
     dayStartEquity: raw.dayStartEquity ?? settings.startingBalance,
+  };
+  // Sessions finished by v0.1.0 could keep orders (e.g. a flatten) that can never fill.
+  return atEnd(bars, up) ? endOfData(up) : up;
+}
+
+const atEnd = (bars: readonly Bar[], s: SessionState) => s.cursor >= bars.length - 1;
+
+/**
+ * End-of-data policy "keep-open": no later bar exists, so working orders can never fill and
+ * are cancelled; an open position stays open, marked to the last close, and is reported as
+ * open (not as a closed trade). Flatten is unavailable because it would need a next bar.
+ */
+function endOfData(s: SessionState): SessionState {
+  const hasWorking = s.trading.orders.some((o) => o.status === 'working');
+  return {
+    ...s,
+    status: s.status === 'active' ? 'finished' : s.status,
+    statusReason: s.status === 'active' ? 'end of data' : s.statusReason,
+    trading: hasWorking ? cancelAllWorking(s.trading, 'end of data') : s.trading,
   };
 }
 
@@ -152,6 +172,8 @@ export function sessionStats(settings: SessionSettings, state: SessionState): Se
     equity: sessionEquity(settings, state),
     maxDrawdown: state.maxDrawdown,
     maxDrawdownPct: state.maxDrawdownPct,
+    openQty: state.trading.position?.qty ?? 0,
+    unrealizedPnl: unrealizedPnl(state.trading, settings.pointValue),
   });
 }
 
@@ -222,11 +244,16 @@ export function costModel(s: SessionSettings): CostModel {
   };
 }
 
-function assertCanTrade(state: SessionState): void {
+function assertCanTrade(bars: readonly Bar[], state: SessionState): void {
   if (state.status !== 'active') {
     throw new OrderError(`trading is locked: session is ${state.status}`);
   }
+  if (atEnd(bars, state)) throw new OrderError(END_OF_DATA_MESSAGE);
 }
+
+export const END_OF_DATA_MESSAGE =
+  'end of data: there is no later bar to fill an order; an open position stays open, ' +
+  'valued at the last close';
 
 export function sessionPlaceOrder(
   bars: readonly Bar[],
@@ -234,7 +261,7 @@ export function sessionPlaceOrder(
   state: SessionState,
   req: OrderRequest,
 ): SessionState {
-  assertCanTrade(state);
+  assertCanTrade(bars, state);
   const { trading } = placeOrder(
     state.trading,
     costModel(settings),
@@ -256,7 +283,9 @@ export function sessionModifyOrder(
   change: number | OrderChange,
   time = 0,
 ): SessionState {
-  assertCanTrade(state);
+  if (state.status !== 'active') {
+    throw new OrderError(`trading is locked: session is ${state.status}`);
+  }
   return {
     ...state,
     trading: modifyOrder(state.trading, costModel(settings), orderId, change, time),
@@ -264,6 +293,7 @@ export function sessionModifyOrder(
 }
 
 export function sessionFlatten(bars: readonly Bar[], state: SessionState): SessionState {
+  if (atEnd(bars, state)) throw new OrderError(END_OF_DATA_MESSAGE);
   return { ...state, trading: flattenAll(state.trading, state.cursor, bars[state.cursor]!.time) };
 }
 
@@ -287,10 +317,7 @@ export function stepSession(
   const costs = costModel(settings);
   const revealed: Bar[] = [];
   for (let i = 0; i < count; i++) {
-    if (s.cursor >= bars.length - 1) {
-      if (s.status === 'active') s = { ...s, status: 'finished', statusReason: 'end of data' };
-      break;
-    }
+    if (atEnd(bars, s)) break;
     const cursor = s.cursor + 1;
     const bar = bars[cursor]!;
     revealed.push(bar);
@@ -299,9 +326,7 @@ export function stepSession(
     s = markEquity(settings, { ...s, cursor, trading: processBar(s.trading, costs, bar, cursor) });
     s = applyRules(settings, s, bar);
   }
-  if (s.cursor >= bars.length - 1 && s.status === 'active') {
-    s = { ...s, status: 'finished', statusReason: 'end of data' };
-  }
+  if (atEnd(bars, s)) s = endOfData(s);
   return { state: s, revealed };
 }
 

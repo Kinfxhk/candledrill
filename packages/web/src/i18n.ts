@@ -123,7 +123,8 @@ export const en = {
   'st.breached':
     'Practice rule breached: {reason}. Trading is locked; you can keep replaying to review.',
   'st.passed': 'Profit target reached. Trading is locked for this session.',
-  'st.finished': 'End of data reached.',
+  'st.finished':
+    'End of data reached. An open position stays open, valued at the last close; working orders were cancelled.',
   'col.side': 'Side',
   'col.qty': 'Qty',
   'col.entry': 'Entry',
@@ -285,7 +286,7 @@ export const zhHant: Record<MessageKey, string> = {
     '成交模型：訂單只會在之後的K線成交；同一根K線同時觸及止蝕及止賺時，假設先觸止蝕。',
   'st.breached': '已觸發練習規則：{reason}。已停止落單，你仍可繼續回放檢討。',
   'st.passed': '已達到盈利目標。這個練習已停止落單。',
-  'st.finished': '已到數據尾。',
+  'st.finished': '已到數據尾。未平倉持倉會保留，以最後收市價計算；未成交訂單已取消。',
   'col.side': '方向',
   'col.qty': '數量',
   'col.entry': '入場',

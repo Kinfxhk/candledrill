@@ -32,6 +32,10 @@ export interface SessionStats {
   readonly startingBalance: number;
   readonly endingEquity: number;
   readonly returnPct: number;
+  /** Signed open position at report time (0 = flat); not part of the closed-trade figures. */
+  readonly openQty: number;
+  /** Open P&L of that position, marked to the last close, before exit costs. */
+  readonly unrealizedPnl: number;
 }
 
 export interface StatsInput {
@@ -41,6 +45,8 @@ export interface StatsInput {
   readonly equity: number;
   readonly maxDrawdown: number;
   readonly maxDrawdownPct: number;
+  readonly openQty?: number;
+  readonly unrealizedPnl?: number;
 }
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -99,5 +105,7 @@ export function computeStats(input: StatsInput): SessionStats {
     startingBalance: input.startingBalance,
     endingEquity: r2(input.equity),
     returnPct: (input.equity - input.startingBalance) / input.startingBalance,
+    openQty: input.openQty ?? 0,
+    unrealizedPnl: r2(input.unrealizedPnl ?? 0),
   };
 }

@@ -524,7 +524,8 @@ export class PracticeView {
     } else if (e.key === 's' || e.key === 'S') {
       void this.side?.submit('sell');
     } else if (e.key === 'f' || e.key === 'F') {
-      if (this.meta) void this.mutate(() => sessionsApi.flatten(this.meta!.id));
+      if (this.meta && this.state?.status !== 'finished')
+        void this.mutate(() => sessionsApi.flatten(this.meta!.id));
     }
   }
 }

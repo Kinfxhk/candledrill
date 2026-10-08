@@ -113,6 +113,13 @@ export function reportHtml(r: ReportInput): string {
     ['Largest loss', money(s.largestLoss)],
     ['Longest win / loss streak', `${s.longestWinStreak} / ${s.longestLossStreak}`],
     ['Commission paid', money(s.commissionPaid)],
+    [
+      'Open position at report time',
+      s.openQty === 0
+        ? 'none'
+        : `${s.openQty > 0 ? 'long' : 'short'} ${Math.abs(s.openQty)}, open P&L ${money(s.unrealizedPnl)} ` +
+          '(marked to the last close, before exit costs; not included in the trade statistics)',
+    ],
     ['Max drawdown (closing equity)', `${money(s.maxDrawdown)} (${pct(s.maxDrawdownPct)})`],
     [
       'Starting balance → ending equity',
