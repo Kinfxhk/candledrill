@@ -28,6 +28,8 @@ export const TRADE_CSV_COLUMNS = [
   'first_entry_r',
   'planned_risk',
   'unprotected_qty',
+  'tags',
+  'note',
 ] as const;
 
 const iso = (t: number) => new Date(t * 1000).toISOString().replace('.000Z', 'Z');
@@ -40,7 +42,11 @@ function csvCell(v: string | number | null): string {
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
-export function tradesToCsv(trades: readonly Trade[], symbol: string): string {
+export function tradesToCsv(
+  trades: readonly Trade[],
+  symbol: string,
+  journal: Readonly<Record<string, { tags: readonly string[]; note: string }>> = {},
+): string {
   const lines = [TRADE_CSV_COLUMNS.join(',')];
   for (const t of trades) {
     lines.push(
@@ -65,6 +71,8 @@ export function tradesToCsv(trades: readonly Trade[], symbol: string): string {
         t.firstEntryR ?? null,
         t.plannedRisk ?? null,
         t.unprotectedQty ?? null,
+        journal[String(t.id)]?.tags.join('; ') ?? null,
+        journal[String(t.id)]?.note ?? null,
       ]
         .map(csvCell)
         .join(','),

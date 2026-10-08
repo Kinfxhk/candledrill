@@ -13,10 +13,11 @@ import {
   type CsvImportOptions,
 } from '@candledrill/core';
 import { deleteDataset, getBars, getDataset, insertDataset, listDatasets, type Db } from './db.js';
-import { BarCache, registerSessionRoutes } from './sessions.js';
+import { BarCache, blindLockedDatasets, registerSessionRoutes } from './sessions.js';
+import { MAX_RESTORE_BYTES, RestoreError, backupBytes, restoreBackup } from './backup.js';
 
 export const APP_NAME = 'CandleDrill';
-export const APP_VERSION = '0.1.1';
+export const APP_VERSION = '0.2.0';
 export const MAX_BARS_PER_REQUEST = 50_000;
 /** Synthetic datasets created through the API are capped to keep the local DB small. */
 export const MAX_SYNTHETIC_DAYS = 366;
@@ -34,6 +35,8 @@ export interface AppOptions {
    * request. Defaults to 32 random bytes generated at start-up; tests may inject one.
    */
   readonly apiToken?: string;
+  /** Path of the SQLite file; a restore saves the previous database next to it. */
+  readonly databasePath?: string;
 }
 
 /** Header that must carry the per-launch API token on state-changing requests. */
@@ -300,6 +303,13 @@ export function buildApp(opts: AppOptions): FastifyInstance {
     async (req, reply) => {
       const ds = getDataset(db, req.params.id);
       if (!ds) return reply.code(404).send({ error: 'dataset not found' });
+      // A running blind session uses this dataset: showing its bars would give away the
+      // period and what happens next.
+      if (blindLockedDatasets(db).has(ds.id))
+        return reply.code(423).send({
+          error: 'hidden while a blind session on this dataset is running',
+          code: 'blind-lock',
+        });
       const { from, to, limit, last } = req.query;
       const bars = getBars(db, ds.id, {
         ...(from !== undefined ? { from } : {}),
@@ -310,6 +320,35 @@ export function buildApp(opts: AppOptions): FastifyInstance {
       return { datasetId: ds.id, synthetic: ds.synthetic, bars };
     },
   );
+
+  app.get('/api/backup', async (_req, reply) => {
+    const stamp = now().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
+    return reply
+      .header('content-type', 'application/vnd.sqlite3')
+      .header('content-disposition', `attachment; filename="candledrill-backup-${stamp}.db"`)
+      .header('cache-control', 'no-store')
+      .send(backupBytes(db));
+  });
+
+  app.register(async (scope) => {
+    scope.addContentTypeParser(
+      'application/vnd.sqlite3',
+      { parseAs: 'buffer', bodyLimit: MAX_RESTORE_BYTES },
+      (_req, body, done) => done(null, body),
+    );
+    scope.post('/api/restore', { bodyLimit: MAX_RESTORE_BYTES }, async (req, reply) => {
+      if (!Buffer.isBuffer(req.body))
+        return reply.code(415).send({ error: 'send the backup file as application/vnd.sqlite3' });
+      try {
+        const r = restoreBackup(db, req.body, opts.databasePath, now());
+        cache.clear();
+        return { datasets: r.datasets, sessions: r.sessions, previousCopy: r.previousCopy };
+      } catch (err) {
+        if (err instanceof RestoreError) return reply.code(400).send({ error: err.message });
+        throw err;
+      }
+    });
+  });
 
   return app;
 }

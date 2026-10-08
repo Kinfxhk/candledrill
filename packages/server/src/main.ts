@@ -14,7 +14,12 @@ const db = openDatabase(config.databasePath);
 const staticDir =
   process.env.CANDLEDRILL_STATIC_DIR ??
   resolve(dirname(fileURLToPath(import.meta.url)), '../../web/dist');
-const app = buildApp({ db, logger: process.env.CANDLEDRILL_LOG_LEVEL ?? 'warn', staticDir });
+const app = buildApp({
+  db,
+  logger: process.env.CANDLEDRILL_LOG_LEVEL ?? 'warn',
+  staticDir,
+  databasePath: config.databasePath,
+});
 
 const close = async () => {
   await app.close();

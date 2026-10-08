@@ -5,7 +5,7 @@
 // See docs/FILL-MODEL.md for the long-form explanation.
 
 /** Version of the core engine (follows the release version). */
-export const ENGINE_VERSION = '0.1.1';
+export const ENGINE_VERSION = '0.2.0';
 /**
  * Version of the fill model. Bumped whenever a rule that can change a fill price, a fill
  * time or a rule outcome changes. v1 = CandleDrill 0.1.0; v2 = 0.1.1 (gap-through bracket

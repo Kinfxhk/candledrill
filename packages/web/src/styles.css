@@ -604,3 +604,107 @@ a.badge:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
+
+/* v0.2: backup, blind mode, drawing overlay */
+a.button {
+  display: inline-block;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  color: inherit;
+  text-decoration: none;
+}
+a.button:hover {
+  border-color: var(--accent);
+}
+.row.wrap {
+  flex-wrap: wrap;
+}
+p.small {
+  font-size: 12px;
+}
+.reminder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-color: var(--accent);
+}
+.reminder[hidden] {
+  display: none;
+}
+.notice {
+  border-left: 3px solid var(--accent);
+  padding: 6px 10px;
+  background: var(--panel-2);
+}
+.notice[hidden] {
+  display: none;
+}
+.blind-toggle {
+  margin-top: 8px;
+}
+.badge.blind {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.reveal-banner {
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--panel-2);
+  font-size: 13px;
+}
+.chart-body {
+  position: relative;
+}
+svg.draw-overlay {
+  user-select: none;
+  touch-action: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+  overflow: hidden;
+}
+svg.draw-overlay .handle {
+  pointer-events: all;
+  cursor: grab;
+  fill: var(--panel);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+svg.draw-overlay .handle.body {
+  cursor: move;
+}
+svg.draw-overlay .handle:hover,
+svg.draw-overlay .handle.active {
+  fill: var(--accent);
+}
+svg.draw-overlay .del {
+  pointer-events: all;
+  cursor: pointer;
+}
+svg.draw-overlay text {
+  font-size: 11px;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+}
+svg.draw-overlay.dragging {
+  pointer-events: all;
+  cursor: grabbing;
+}
+table.data.compact td,
+table.data.compact th {
+  padding: 2px 8px;
+}
+.groups {
+  gap: 24px;
+  align-items: flex-start;
+}
+.groups h4 {
+  margin: 8px 0 4px;
+}

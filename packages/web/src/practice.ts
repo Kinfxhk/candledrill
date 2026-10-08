@@ -9,6 +9,7 @@ import {
   aggregateBars,
   bucketStart,
   roundToTick,
+  tickDecimals,
   workingOrders,
   type Bar,
   type OrderRequest,
@@ -22,16 +23,27 @@ import {
   type PriceLineSpec,
 } from './chart.js';
 import { SidePanel } from './side.js';
-import { BottomPanel, exportTab, fillsTab, statsTab, tradesTab, type BottomTab } from './bottom.js';
+import {
+  BottomPanel,
+  exportTab,
+  fillsTab,
+  journalTab,
+  statsTab,
+  tradesTab,
+  type BottomTab,
+} from './bottom.js';
 import { t, type MessageKey } from './i18n.js';
-import { el, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
+import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 
 const TIMEFRAMES = [60, 300, 900, 3600, 86400];
 const SPEEDS = [1, 2, 5, 10, 30, 60, 120];
 const TICK_MS = 100;
 
+type DrawMode = 'hline' | 'tline' | 'rect' | 'long' | 'short';
+
 interface ChartPane {
   tf: number;
+  muteUntil: number;
   chart: PriceChart;
   agg: BarAggregator;
   select: HTMLSelectElement;
@@ -54,7 +66,8 @@ export class PracticeView {
   private side: SidePanel | undefined;
   private bottom: BottomPanel | undefined;
   private drawings: Drawing[] = [];
-  private drawMode: 'hline' | 'tline' | null = null;
+  private drawMode: DrawMode | null = null;
+  private linkCharts = localStorage.getItem('candledrill.link') !== '0';
   private pendingPoint: { time: number; price: number } | null = null;
   /** Extra bottom tabs registered by later features (statistics, export). */
   static extraTabs: BottomTab[] = [];
@@ -74,6 +87,11 @@ export class PracticeView {
       best = Math.min(best, this.bars[i]!.time - this.bars[i - 1]!.time);
     }
     return Number.isFinite(best) && best > 0 ? best : 60;
+  }
+
+  /** True while a blind session's real period and prices are still hidden. */
+  get blindHidden(): boolean {
+    return this.meta?.settings.blind?.revealed === false;
   }
 
   private aggOpts() {
@@ -145,14 +163,39 @@ export class PracticeView {
     split.setAttribute('aria-pressed', 'false');
     const hline = btn('pr.hline', '', 'btn-hline');
     const tline = btn('pr.tline', '', 'btn-tline');
+    const rect = btn('pr.rect', '', 'btn-rect');
+    const longTool = btn('pr.longTool', '', 'btn-long');
+    const shortTool = btn('pr.shortTool', '', 'btn-short');
     const clearDraw = btn('pr.clearDrawings', 'ghost', 'btn-clear-drawings');
-    hline.setAttribute('aria-pressed', 'false');
-    tline.setAttribute('aria-pressed', 'false');
+    for (const b of [hline, tline, rect, longTool, shortTool])
+      b.setAttribute('aria-pressed', 'false');
+    const link = el('label', { class: 'row muted' });
+    const linkBox = el('input', { type: 'checkbox', 'data-testid': 'link-charts' });
+    linkBox.checked = this.linkCharts;
+    link.append(linkBox, el('span', { 'data-i18n': 'pr.syncTime' }, t('pr.syncTime')));
+    linkBox.addEventListener('change', () => {
+      this.linkCharts = linkBox.checked;
+      localStorage.setItem('candledrill.link', this.linkCharts ? '1' : '0');
+    });
+    const reveal = btn('pr.reveal', 'ghost', 'btn-reveal');
+    reveal.hidden = !this.blindHidden;
+    reveal.addEventListener('click', () => void this.reveal());
+    const revealBanner = el('div', { class: 'reveal-banner', 'data-testid': 'reveal-banner' });
+    revealBanner.hidden = true;
+    const jumpLabel = el(
+      'label',
+      { class: 'row muted' },
+      el('span', { 'data-i18n': 'pr.jump' }, t('pr.jump')),
+      jumpInput,
+    );
     const toolbar = el(
       'div',
       { class: 'toolbar' },
       el('strong', {}, m.name),
-      el('span', { class: 'muted' }, m.settings.symbol),
+      m.settings.blind
+        ? el('span', { class: 'badge blind', 'data-testid': 'blind-badge' }, t('pr.blindBadge'))
+        : el('span', { class: 'muted' }, m.settings.symbol),
+      reveal,
       el('span', { class: 'sep' }),
       play,
       step,
@@ -164,17 +207,16 @@ export class PracticeView {
         speed,
       ),
       el('span', { class: 'sep' }),
-      el(
-        'label',
-        { class: 'row muted' },
-        el('span', { 'data-i18n': 'pr.jump' }, t('pr.jump')),
-        jumpInput,
-      ),
+      jumpLabel,
       jumpBtn,
       el('span', { class: 'sep' }),
       split,
+      link,
       hline,
       tline,
+      rect,
+      longTool,
+      shortTool,
       clearDraw,
       el('span', { class: 'spacer' }),
       clock,
@@ -183,7 +225,10 @@ export class PracticeView {
     const side = el('aside', { class: 'side', 'data-testid': 'side' });
     const workspace = el('div', { class: 'workspace' }, charts, side);
     const bottom = el('div', { class: 'bottom', 'data-testid': 'bottom' });
-    this.root.replaceChildren(banner, toolbar, workspace, bottom);
+    // Blind: no calendar jump (it would show dates); stepping and playing are enough.
+    jumpLabel.hidden = this.blindHidden;
+    jumpBtn.hidden = this.blindHidden;
+    this.root.replaceChildren(banner, revealBanner, toolbar, workspace, bottom);
     this.els = {
       banner,
       play,
@@ -198,6 +243,13 @@ export class PracticeView {
       split,
       hline,
       tline,
+      rect,
+      long: longTool,
+      short: shortTool,
+      reveal,
+      revealBanner,
+      jumpLabel,
+      link,
     };
     split.addEventListener('click', () => this.toggleSplit());
     hline.addEventListener('click', () =>
@@ -205,6 +257,15 @@ export class PracticeView {
     );
     tline.addEventListener('click', () =>
       this.setDrawMode(this.drawMode === 'tline' ? null : 'tline'),
+    );
+    rect.addEventListener('click', () =>
+      this.setDrawMode(this.drawMode === 'rect' ? null : 'rect'),
+    );
+    longTool.addEventListener('click', () =>
+      this.setDrawMode(this.drawMode === 'long' ? null : 'long'),
+    );
+    shortTool.addEventListener('click', () =>
+      this.setDrawMode(this.drawMode === 'short' ? null : 'short'),
     );
     clearDraw.addEventListener('click', () => void this.saveDrawings([]));
     this.side = new SidePanel(side, {
@@ -214,6 +275,7 @@ export class PracticeView {
     });
     this.bottom = new BottomPanel(bottom, [
       tradesTab,
+      journalTab,
       statsTab,
       fillsTab,
       exportTab,
@@ -242,18 +304,58 @@ export class PracticeView {
       p.cell.remove();
     }
     const on = this.panes.length > 1;
+    this.els.link!.hidden = !on;
     charts.classList.toggle('split', on);
     this.els.split!.setAttribute('aria-pressed', String(on));
     localStorage.setItem('candledrill.split', on ? '1' : '0');
   }
 
-  private setDrawMode(mode: 'hline' | 'tline' | null): void {
+  private setDrawMode(mode: DrawMode | null): void {
     this.drawMode = mode;
     this.pendingPoint = null;
-    this.els.hline?.setAttribute('aria-pressed', String(mode === 'hline'));
-    this.els.tline?.setAttribute('aria-pressed', String(mode === 'tline'));
+    for (const k of ['hline', 'tline', 'rect', 'long', 'short'] as const)
+      this.els[k]?.setAttribute('aria-pressed', String(mode === k));
     this.els.charts?.classList.toggle('drawing', mode !== null);
-    if (mode) toast(t('pr.drawHint'));
+    if (mode)
+      toast(
+        t(
+          mode === 'rect'
+            ? 'pr.rectHint'
+            : mode === 'long' || mode === 'short'
+              ? 'pr.rToolHint'
+              : 'pr.drawHint',
+        ),
+      );
+  }
+
+  private async reveal(): Promise<void> {
+    if (!this.meta || !confirm(t('pr.revealConfirm'))) return;
+    try {
+      const view = await sessionsApi.reveal(this.meta.id);
+      this.meta = view.session;
+      this.els.reveal!.hidden = true;
+      this.applyView(view);
+    } catch (err) {
+      toast((err as Error).message, 'error');
+    }
+  }
+
+  /** Label of a long/short R tool: risk and reward in ticks and money, and the R multiple. */
+  private positionLabel(d: Extract<Drawing, { kind: 'position' }>): string {
+    const s = this.meta!.settings;
+    const risk = Math.round(Math.abs(d.entry - d.stop) / s.tickSize);
+    const reward = Math.round(Math.abs(d.target - d.entry) / s.tickSize);
+    return t('pr.rLabel', {
+      side: t(d.side === 'long' ? 'pr.long' : 'pr.short'),
+      risk,
+      money: fmtMoney(Math.abs(d.entry - d.stop) * s.pointValue),
+      reward,
+      r: risk > 0 ? (reward / risk).toFixed(2) : '–',
+    });
+  }
+
+  private deleteDrawing(id: string): void {
+    void this.saveDrawings(this.drawings.filter((d) => d.id !== id));
   }
 
   private renderDrawings(): void {
@@ -289,8 +391,35 @@ export class PracticeView {
     this.els.charts!.append(cell);
     const chart = new PriceChart(body, this.meta!.settings.utcOffsetMinutes * 60);
     chart.setTickSize(this.meta!.settings.tickSize);
-    const pane: ChartPane = { tf, chart, agg: new BarAggregator(tf, this.aggOpts()), select, cell };
+    chart.setBarSeconds(tf);
+    chart.setBlindAxis(this.blindHidden);
+    const pane: ChartPane = {
+      tf,
+      muteUntil: 0,
+      chart,
+      agg: new BarAggregator(tf, this.aggOpts()),
+      select,
+      cell,
+    };
     chart.onClick((c) => this.onChartClick(pane, c.time, c.price));
+    chart.setPositionLabeler((d) => this.positionLabel(d));
+    chart.onDrawingEdit(
+      (d) => void this.saveDrawings(this.drawings.map((x) => (x.id === d.id ? d : x))),
+    );
+    chart.onDrawingDelete((id) => this.deleteDrawing(id));
+    // Crosshair always follows across charts; the time axis follows when "Link charts" is on.
+    chart.onCrosshair((time) => {
+      for (const o of this.panes)
+        if (o !== pane) o.chart.showCrosshair(time === null ? null : this.snap(o, time));
+    });
+    chart.onRangeChange((edge) => {
+      if (!this.linkCharts || Date.now() < pane.muteUntil) return;
+      for (const o of this.panes)
+        if (o !== pane) {
+          o.muteUntil = Date.now() + 200;
+          o.chart.alignRightEdge(edge);
+        }
+    });
     select.addEventListener('change', () => {
       pane.tf = Number(select.value);
       this.resetPane(pane);
@@ -299,6 +428,7 @@ export class PracticeView {
   }
 
   private resetPane(p: ChartPane): void {
+    p.chart.setBarSeconds(p.tf);
     p.agg = new BarAggregator(p.tf, this.aggOpts());
     for (const b of this.bars) p.agg.push(b);
     p.chart.setBars(aggregateBars(this.bars, p.tf, this.aggOpts()));
@@ -317,6 +447,7 @@ export class PracticeView {
   }
 
   protected onChartClick(_p: ChartPane, time: number | null, price: number | null): void {
+    if (time !== null) time = this.snap(_p, time);
     if (price === null) return;
     const tick = this.meta!.settings.tickSize;
     const px = roundToTick(price, tick);
@@ -326,18 +457,39 @@ export class PracticeView {
       void this.saveDrawings([...this.drawings, { kind: 'hline', id, price: px }]);
       return;
     }
-    if (this.drawMode === 'tline') {
+    if (this.drawMode === 'long' || this.drawMode === 'short') {
+      if (time === null) return;
+      const dir = this.drawMode === 'long' ? 1 : -1;
+      const side = this.drawMode;
+      this.setDrawMode(null);
+      void this.saveDrawings([
+        ...this.drawings,
+        {
+          kind: 'position',
+          id,
+          side,
+          t1: time,
+          t2: time + 30 * _p.tf,
+          entry: px,
+          stop: roundToTick(px - dir * 20 * tick, tick),
+          target: roundToTick(px + dir * 40 * tick, tick),
+        },
+      ]);
+      return;
+    }
+    if (this.drawMode === 'tline' || this.drawMode === 'rect') {
       if (time === null) return;
       if (!this.pendingPoint) {
         this.pendingPoint = { time, price: px };
         return;
       }
       const a = this.pendingPoint;
+      const kind = this.drawMode;
       this.setDrawMode(null);
-      if (a.time === time) return;
+      if (a.time === time && kind === 'tline') return;
       void this.saveDrawings([
         ...this.drawings,
-        { kind: 'tline', id, t1: a.time, p1: a.price, t2: time, p2: px },
+        { kind, id, t1: a.time, p1: a.price, t2: time, p2: px },
       ]);
       return;
     }
@@ -452,11 +604,12 @@ export class PracticeView {
         title: `${tr.position.qty > 0 ? '+' : ''}${tr.position.qty}`,
       });
     }
+    const dp = tickDecimals(this.meta!.settings.tickSize);
     for (const p of this.panes) {
       const markers: MarkerSpec[] = tr.fills.map((f) => ({
         time: this.snap(p, f.time),
         side: f.side,
-        text: `${f.side === 'buy' ? 'B' : 'S'}${f.qty}@${f.price}`,
+        text: `${f.side === 'buy' ? 'B' : 'S'}${f.qty}@${f.price.toFixed(dp)}`,
       }));
       p.chart.setMarkers(markers);
       p.chart.setPriceLines(lines);
@@ -466,7 +619,27 @@ export class PracticeView {
   render(): void {
     if (!this.meta || !this.state) return;
     const off = this.meta.settings.utcOffsetMinutes;
-    this.els.clock!.textContent = fmtTime(this.cursorTime, off);
+    const blind = this.meta.settings.blind;
+    if (blind && !blind.revealed) {
+      // Weekday and clock only; the day number counts from the session start.
+      const local = new Date((this.cursorTime + off * 60) * 1000);
+      const day0 = Math.floor((this.meta.startTime + off * 60) / 86_400);
+      const n = Math.floor((this.cursorTime + off * 60) / 86_400) - day0 + 1;
+      const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][local.getUTCDay()]!;
+      this.els.clock!.textContent = `${t('pr.blindDay', { n })} · ${wd} ${local.toISOString().slice(11, 16)}`;
+    } else this.els.clock!.textContent = fmtTime(this.cursorTime, off);
+    const rb = this.els.revealBanner!;
+    if (blind?.revealed && blind.timeShift !== undefined && blind.priceOffset !== undefined) {
+      rb.hidden = false;
+      rb.textContent = t('pr.revealed', {
+        symbol: blind.symbol ?? '',
+        start: fmtTime(this.meta.startTime - blind.timeShift, off),
+        now: fmtTime(this.cursorTime - blind.timeShift, off),
+        sign: blind.priceOffset >= 0 ? '+' : '−',
+        offset: String(Math.abs(blind.priceOffset)),
+      });
+      this.els.reveal!.hidden = true;
+    } else rb.hidden = true;
     const ji = this.els.jumpInput as HTMLInputElement;
     if (!ji.value || fromLocalInput(ji.value, off) <= this.cursorTime)
       ji.value = toLocalInput(this.cursorTime + 3600, off);
@@ -512,6 +685,9 @@ export class PracticeView {
       return;
     if (e.key === 'Escape') {
       this.setDrawMode(null);
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      const sel = this.panes.map((p) => p.chart.selectedDrawing).find((x) => x !== null);
+      if (sel) this.deleteDrawing(sel);
     } else if (e.key === ' ') {
       e.preventDefault();
       if (this.playing) this.pause();

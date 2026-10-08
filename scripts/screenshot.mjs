@@ -32,7 +32,13 @@ await page.getByTestId('btn-buy').click();
 await page.getByTestId('btn-step').click();
 await page.getByTestId('btn-step').click();
 await page.getByTestId('btn-split').click();
+// A long R tool on the left chart and the crosshair on both charts (linked).
+const body = await page.locator('.chart-body').first().boundingBox();
+await page.getByTestId('btn-long').click();
+await page.mouse.click(body.x + body.width * 0.72, body.y + body.height * 0.4);
 await page.waitForTimeout(4500); // let toasts fade
+await page.mouse.move(body.x + body.width * 0.55, body.y + body.height * 0.5);
+await page.waitForTimeout(300);
 await page.screenshot({ path: 'docs/screenshot.png' });
 await browser.close();
 console.info('wrote docs/screenshot.png');

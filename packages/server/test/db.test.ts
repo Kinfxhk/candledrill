@@ -9,8 +9,8 @@ afterEach(() => db?.close());
 describe('database', () => {
   it('migrates idempotently', () => {
     db = openDatabase(':memory:');
-    expect(migrate(db)).toBe(3);
-    expect(migrate(db)).toBe(3);
+    expect(migrate(db)).toBe(4);
+    expect(migrate(db)).toBe(4);
   });
 
   it('round-trips a synthetic dataset exactly', () => {

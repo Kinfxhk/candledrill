@@ -5,6 +5,8 @@ import type {
   Bar,
   CsvImportOptions,
   CsvImportReport,
+  Excursion,
+  GroupRow,
   OrderChange,
   OrderRequest,
   SessionState,
@@ -46,17 +48,22 @@ async function token(refresh = false): Promise<string> {
   return apiToken;
 }
 
-export async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+export async function request<T>(
+  method: string,
+  url: string,
+  body?: unknown,
+  rawType?: string,
+): Promise<T> {
   const send = async (refresh: boolean) => {
     const headers: Record<string, string> = {};
-    if (body !== undefined) headers['content-type'] = 'application/json';
+    if (body !== undefined) headers['content-type'] = rawType ?? 'application/json';
     if (method !== 'GET' && method !== 'HEAD')
       headers['x-candledrill-token'] = await token(refresh);
     return fetch(url, {
       method,
       headers,
       credentials: 'same-origin',
-      body: body === undefined ? null : JSON.stringify(body),
+      body: body === undefined ? null : rawType ? (body as BodyInit) : JSON.stringify(body),
     });
   };
   let res = await send(false);
@@ -97,8 +104,16 @@ export const api = {
     request<{ bars: Bar[] }>('GET', `/api/datasets/${id}/bars?limit=${limit}&last=true`),
 };
 
+export interface PublicBlind {
+  revealed: boolean;
+  symbol?: string;
+  timeShift?: number;
+  priceOffset?: number;
+}
+
 export interface SessionSettings {
   symbol: string;
+  blind?: PublicBlind;
   tickSize: number;
   pointValue: number;
   commissionPerContract: number;
@@ -127,6 +142,7 @@ export interface SessionSummary {
   datasetId: number;
   name: string;
   status: string;
+  blind: 'hidden' | 'revealed' | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -145,9 +161,36 @@ export const sessionsApi = {
   create: (body: {
     datasetId: number;
     name: string;
-    startTime: number;
-    settings: Omit<SessionSettings, 'symbol'>;
+    startTime?: number;
+    blind?: boolean;
+    settings: Omit<SessionSettings, 'symbol' | 'blind'>;
   }) => request<SessionViewDto>('POST', '/api/sessions', body),
+  journal: (id: number) =>
+    request<{
+      journal: Record<string, { tags: string[]; note: string }>;
+      excursions: Excursion[];
+      byHour: GroupRow[];
+      byWeekday: GroupRow[];
+    }>('GET', `/api/sessions/${id}/journal`),
+  saveJournal: (id: number, tradeId: number, tags: string[], note: string) =>
+    request<{ journal: Record<string, { tags: string[]; note: string }> }>(
+      'PUT',
+      `/api/sessions/${id}/journal/${tradeId}`,
+      { tags, note },
+    ),
+  reveal: (id: number) => request<SessionViewDto>('POST', `/api/sessions/${id}/reveal`, {}),
+  importFile: (file: string, datasetId?: number) =>
+    request<SessionViewDto>('POST', '/api/sessions/import', {
+      file,
+      ...(datasetId ? { datasetId } : {}),
+    }),
+  restore: (bytes: ArrayBuffer) =>
+    request<{ datasets: number; sessions: number; previousCopy: string | null }>(
+      'POST',
+      '/api/restore',
+      bytes,
+      'application/vnd.sqlite3',
+    ),
   open: (id: number) => request<SessionViewDto & { bars: Bar[] }>('GET', `/api/sessions/${id}`),
   step: (id: number, count: number) =>
     request<SessionViewDto & { revealed: Bar[] }>('POST', `/api/sessions/${id}/step`, { count }),

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Library view: datasets, static preview chart, CSV import, new practice session form.
 
-import { api, type DatasetRow } from './api.js';
+import { api, ApiError, type DatasetRow } from './api.js';
 import { PriceChart } from './chart.js';
 import { t } from './i18n.js';
 import { el, fmtTime, tfLabel, toast } from './format.js';
@@ -26,6 +26,14 @@ export class LibraryView {
     this.openImport = setupImporter((ds) => void this.reload(ds.id));
     document.getElementById('btn-import')!.addEventListener('click', () => this.openImport());
     document.getElementById('btn-demo')!.addEventListener('click', () => void this.createDemo());
+    const blind = this.form.elements.namedItem('blind') as HTMLInputElement;
+    blind.addEventListener('change', () => {
+      this.applyBlindToggle();
+      // Seeing the whole dataset right before a blind session would spoil it.
+      if (blind.checked) this.chart?.setBars([]);
+      else if (this.selected) void this.select(this.selected.id);
+    });
+    this.form.addEventListener('blind-reset', () => this.applyBlindToggle());
     this.form.addEventListener('submit', (ev) => {
       ev.preventDefault();
       if (this.selected && this.hooks.createSession)
@@ -122,17 +130,53 @@ export class LibraryView {
     if (!this.chart) this.chart = new PriceChart(document.getElementById('preview-chart')!);
     this.chart.setTimeShift(ds.utcOffsetMinutes * 60);
     this.chart.setTickSize(ds.tickSize);
-    const { bars } = await api.previewBars(id);
-    this.chart.setBars(bars);
-    this.chart.fit();
     this.prefillForm(ds);
+    const locked = document.getElementById('preview-locked')!;
+    locked.hidden = true;
+    const blind = (this.form.elements.namedItem('blind') as HTMLInputElement).checked;
+    if (blind) this.chart.setBars([]);
+    else {
+      try {
+        const { bars } = await api.previewBars(id);
+        this.chart.setBars(bars);
+        this.chart.fit();
+      } catch (err) {
+        if (!(err instanceof ApiError && err.status === 423)) throw err;
+        this.chart.setBars([]);
+        locked.hidden = false;
+      }
+    }
+  }
+
+  /** Default session name; a blind session must not be named after the symbol. */
+  private defaultName(ds: DatasetRow): string {
+    const blind = (this.form.elements.namedItem('blind') as HTMLInputElement).checked;
+    return `${blind ? t('pr.blindBadge') : ds.symbol} ${new Date().toISOString().slice(0, 10)}`;
+  }
+
+  private applyBlindToggle(): void {
+    const name = this.form.elements.namedItem('name') as HTMLInputElement;
+    if (this.selected) {
+      const ds = this.selected;
+      const date = new Date().toISOString().slice(0, 10);
+      const defaults = [`${ds.symbol} ${date}`, `${t('pr.blindBadge')} ${date}`];
+      if (defaults.includes(name.value)) name.value = this.defaultName(ds);
+    }
+    const blind = (this.form.elements.namedItem('blind') as HTMLInputElement).checked;
+    const start = this.form.elements.namedItem('start') as HTMLInputElement;
+    start.disabled = blind;
+    start.required = !blind;
+  }
+
+  get selectedDataset(): DatasetRow | undefined {
+    return this.selected;
   }
 
   private prefillForm(ds: DatasetRow): void {
     if (!this.hooks.createSession) return;
     this.form.hidden = false;
     const f = (n: string) => this.form.elements.namedItem(n) as HTMLInputElement;
-    f('name').value = `${ds.symbol} ${new Date().toISOString().slice(0, 10)}`;
+    f('name').value = this.defaultName(ds);
     f('tickSize').value = String(ds.tickSize);
     f('utcOffset').value = String(ds.utcOffsetMinutes);
     if (ds.firstTime !== null && ds.lastTime !== null) {

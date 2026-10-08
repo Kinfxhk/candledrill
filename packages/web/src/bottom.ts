@@ -2,9 +2,9 @@
 // Bottom panel: tabs for trades, fills and (later) statistics and export.
 
 import { sessionStats } from '@candledrill/core';
-import type { SessionSettings, SessionStateDto } from './api.js';
+import { sessionsApi, type SessionSettings, type SessionStateDto } from './api.js';
 import { t, type MessageKey } from './i18n.js';
-import { el, fmtMoney, fmtNum, fmtPct, fmtTime, signClass } from './format.js';
+import { el, fmtMoney, fmtNum, fmtPct, fmtTime, signClass, toast } from './format.js';
 import { fmtPrice } from './side.js';
 
 export interface BottomTab {
@@ -184,6 +184,125 @@ export const exportTab: BottomTab = {
       ),
       el('p', { class: 'muted' }, t('pr.exportNote')),
     );
+  },
+};
+
+/** Tags, notes and MAE/MFE per trade, plus results by hour and weekday. */
+export const journalTab: BottomTab = {
+  key: 'pr.journal',
+  id: 'journal',
+  render(panel, s, state, id) {
+    const trades = state.trading.trades;
+    if (trades.length === 0) {
+      panel.replaceChildren(el('p', { class: 'muted' }, t('pr.noTrades')));
+      return;
+    }
+    panel.replaceChildren(el('p', { class: 'muted' }, '…'));
+    void sessionsApi
+      .journal(id)
+      .then((j) => {
+        if (!panel.isConnected) return;
+        const ex = new Map(j.excursions.map((e) => [e.tradeId, e]));
+        const head = el('tr');
+        for (const k of [
+          '#',
+          'col.side',
+          'col.net',
+          'col.r',
+          'col.mae',
+          'col.mfe',
+          'col.tags',
+          'col.note',
+        ] as const)
+          head.append(
+            el(
+              'th',
+              { class: ['col.net', 'col.r', 'col.mae', 'col.mfe'].includes(k) ? 'num' : '' },
+              k === '#' ? '#' : t(k),
+            ),
+          );
+        const rows = [...trades].reverse().map((tr) => {
+          const e = ex.get(tr.id);
+          const entry = j.journal[String(tr.id)] ?? { tags: [], note: '' };
+          const tags = el('input', {
+            type: 'text',
+            value: entry.tags.join(', '),
+            'aria-label': `${t('col.tags')} ${tr.id}`,
+            'data-testid': `tags-${tr.id}`,
+            maxlength: '200',
+          });
+          const note = el('input', {
+            type: 'text',
+            value: entry.note,
+            'aria-label': `${t('col.note')} ${tr.id}`,
+            'data-testid': `note-${tr.id}`,
+            maxlength: '2000',
+          });
+          const save = () =>
+            void sessionsApi
+              .saveJournal(id, tr.id, tags.value.split(','), note.value)
+              .then(() => toast(t('pr.journalSaved')))
+              .catch((err: Error) => toast(err.message, 'error'));
+          tags.addEventListener('change', save);
+          note.addEventListener('change', save);
+          const exc = (ticks: number | undefined, r: number | null | undefined) =>
+            ticks === undefined
+              ? '–'
+              : `${fmtNum(ticks, 0)} t${r === null || r === undefined ? '' : ` · ${fmtNum(r)}R`}`;
+          return el(
+            'tr',
+            { 'data-testid': `journal-row-${tr.id}` },
+            el('td', {}, String(tr.id)),
+            el('td', {}, t(tr.side === 'long' ? 'pr.long' : 'pr.short')),
+            el('td', { class: `num ${signClass(tr.netPnl)}` }, fmtMoney(tr.netPnl)),
+            el('td', { class: 'num' }, tr.rMultiple === null ? 'N/A' : fmtNum(tr.rMultiple)),
+            el('td', { class: 'num', 'data-testid': `mae-${tr.id}` }, exc(e?.maeTicks, e?.maeR)),
+            el('td', { class: 'num', 'data-testid': `mfe-${tr.id}` }, exc(e?.mfeTicks, e?.mfeR)),
+            el('td', {}, tags),
+            el('td', {}, note),
+          );
+        });
+        const group = (title: MessageKey, rowsIn: typeof j.byHour) =>
+          el(
+            'div',
+            {},
+            el('h4', {}, t(title)),
+            el(
+              'table',
+              { class: 'data compact' },
+              el(
+                'tr',
+                {},
+                el('th', {}, ''),
+                el('th', { class: 'num' }, t('stat.trades')),
+                el('th', { class: 'num' }, t('stat.winRate')),
+                el('th', { class: 'num' }, t('stat.netPnl')),
+              ),
+              ...rowsIn.map((g) =>
+                el(
+                  'tr',
+                  {},
+                  el('td', {}, g.key),
+                  el('td', { class: 'num' }, String(g.trades)),
+                  el('td', { class: 'num' }, fmtPct(g.winRate)),
+                  el('td', { class: `num ${signClass(g.netPnl)}` }, fmtMoney(g.netPnl)),
+                ),
+              ),
+            ),
+          );
+        panel.replaceChildren(
+          el('table', { class: 'data', 'data-testid': 'journal-table' }, head, ...rows),
+          el('p', { class: 'muted small' }, t('pr.maeNote')),
+          el(
+            'div',
+            { class: 'row wrap groups' },
+            group('pr.byHour', j.byHour),
+            group('pr.byWeekday', j.byWeekday),
+          ),
+        );
+      })
+      .catch((err: Error) => panel.replaceChildren(el('p', { class: 'muted' }, err.message)));
+    void s;
   },
 };
 

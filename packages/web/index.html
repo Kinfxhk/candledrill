@@ -36,6 +36,26 @@
     <main>
       <section class="view library active" id="view-library" aria-labelledby="h-datasets">
         <div class="left">
+          <div class="card reminder" id="backup-reminder" role="status" hidden>
+            <span data-i18n="remind.text"></span>
+            <span class="spacer"></span>
+            <button
+              type="button"
+              class="small primary"
+              id="remind-backup"
+              data-i18n="remind.backup"
+            >
+              Back up now
+            </button>
+            <button
+              type="button"
+              class="small ghost"
+              id="remind-dismiss"
+              data-i18n="remind.dismiss"
+            >
+              Remind me later
+            </button>
+          </div>
           <div class="card">
             <h2 id="h-datasets" data-i18n="lib.datasets">Datasets</h2>
             <div class="row" style="margin-bottom: 8px">
@@ -58,12 +78,39 @@
               <tbody></tbody>
             </table>
             <p class="muted" id="session-empty" data-i18n="lib.noSessions" hidden></p>
+            <div class="row wrap" style="margin-top: 8px">
+              <button type="button" id="btn-import-session" data-i18n="lib.importSession">
+                Import session file
+              </button>
+              <input
+                type="file"
+                id="session-file"
+                accept=".json,application/json"
+                hidden
+                aria-label="Session file"
+              />
+              <a class="button" id="btn-backup" href="/api/backup" download data-i18n="lib.backup"
+                >Back up everything</a
+              >
+              <button type="button" class="ghost" id="btn-restore" data-i18n="lib.restore">
+                Restore from backup
+              </button>
+              <input
+                type="file"
+                id="restore-file"
+                accept=".db,.sqlite,.sqlite3,application/vnd.sqlite3"
+                hidden
+                aria-label="Backup file"
+              />
+            </div>
+            <p class="muted small" data-i18n="lib.dataNote"></p>
           </div>
         </div>
         <div class="right">
           <div class="card">
             <h2 data-i18n="lib.preview">Preview</h2>
             <p class="muted" id="preview-hint" data-i18n="lib.previewHint"></p>
+            <p class="notice" id="preview-locked" data-i18n="lib.previewLocked" hidden></p>
             <div class="preview-chart" id="preview-chart"></div>
           </div>
           <form class="card" id="new-session-form" hidden>
@@ -125,6 +172,11 @@
                 ><input name="target" type="number" min="0" step="any"
               /></label>
             </div>
+            <label class="row blind-toggle"
+              ><input type="checkbox" name="blind" data-testid="ns-blind" />
+              <strong data-i18n="ns.blind">Blind practice</strong></label
+            >
+            <p class="muted" data-i18n="ns.blindNote"></p>
             <p class="muted" data-i18n="ns.rulesNote"></p>
             <button type="submit" class="primary" data-i18n="ns.create">Start practising</button>
           </form>

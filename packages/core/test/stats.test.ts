@@ -138,12 +138,22 @@ describe('exports', () => {
     expect(lines).toHaveLength(3);
     expect(lines[1]).toBe(
       "1,'=EVIL,long,1,2026-01-05T08:10:00Z,2026-01-05T08:15:00Z,100,104,204,4,200,100,2,manual," +
-        'true,100,2,100,0',
+        'true,100,2,100,0,,',
     );
     const second = lines[2]!.split(',');
     expect(second[11]).toBe(''); // no initial risk
     expect(second[12]).toBe(''); // R is N/A
-    expect(second.slice(14)).toEqual(['false', '', '', '0', '1']);
+    expect(second.slice(14)).toEqual(['false', '', '', '0', '1', '', '']);
+  });
+
+  it('adds journal tags and notes, injection-safe and quoted', () => {
+    const csv = tradesToCsv([trade(1, 200, 2), trade(2, -100)], 'X', {
+      '1': { tags: ['breakout', '=cmd'], note: '=HYPERLINK("http://x")\nsecond, line' },
+    });
+    const rows = csv.trim().split('\n');
+    expect(rows[1]).toContain(`breakout; =cmd,"'=HYPERLINK(""http://x"")`);
+    expect(csv).toContain('second, line"');
+    expect(rows.at(-1)!.endsWith(',,')).toBe(true);
   });
 
   it('renders an escaped, script-free HTML report', () => {

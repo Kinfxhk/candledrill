@@ -45,7 +45,11 @@ const MIGRATIONS: readonly string[] = [
      updated_at TEXT NOT NULL
    );
    CREATE INDEX sessions_dataset ON sessions(dataset_id);`,
+  // v4: trade journal (tags and notes per closed trade)
+  `ALTER TABLE sessions ADD COLUMN journal_json TEXT NOT NULL DEFAULT '{}';`,
 ];
+
+export const MIGRATIONS_COUNT = MIGRATIONS.length;
 
 export function openDatabase(path: string): Db {
   const db = new Database(path);
@@ -213,6 +217,7 @@ export interface SessionRow<S = unknown, T = unknown> {
   readonly settings: S;
   readonly state: T;
   readonly drawings: unknown[];
+  readonly journal: Record<string, { tags: string[]; note: string }>;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -225,6 +230,7 @@ interface RawSessionRow {
   settings_json: string;
   state_json: string;
   drawings_json: string;
+  journal_json: string;
   created_at: string;
   updated_at: string;
 }
@@ -238,6 +244,7 @@ function toSession<S, T>(r: RawSessionRow): SessionRow<S, T> {
     settings: JSON.parse(r.settings_json) as S,
     state: JSON.parse(r.state_json) as T,
     drawings: JSON.parse(r.drawings_json) as unknown[],
+    journal: JSON.parse(r.journal_json ?? '{}') as SessionRow['journal'],
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -278,6 +285,27 @@ export function listSessions<S, T>(db: Db): SessionRow<S, T>[] {
 export function updateSessionState<T>(db: Db, id: number, state: T, now: string): void {
   db.prepare('UPDATE sessions SET state_json = ?, updated_at = ? WHERE id = ?').run(
     JSON.stringify(state),
+    now,
+    id,
+  );
+}
+
+export function updateSessionSettings<S>(db: Db, id: number, settings: S, now: string): void {
+  db.prepare('UPDATE sessions SET settings_json = ?, updated_at = ? WHERE id = ?').run(
+    JSON.stringify(settings),
+    now,
+    id,
+  );
+}
+
+export function updateSessionJournal(
+  db: Db,
+  id: number,
+  journal: SessionRow['journal'],
+  now: string,
+): void {
+  db.prepare('UPDATE sessions SET journal_json = ?, updated_at = ? WHERE id = ?').run(
+    JSON.stringify(journal),
     now,
     id,
   );
