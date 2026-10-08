@@ -272,7 +272,7 @@ describe('export API', () => {
     expect(html.body).toContain('Export me');
     expect(html.body).toContain('not investment advice');
     expect(html.body).toContain('(synthetic data)');
-    expect(html.body).toContain('fill model v2');
+    expect(html.body).toContain('fill model v3');
     expect(html.body).toContain('net-after-exit-costs');
     expect(html.body).toContain('Check your data licence before sharing');
 
@@ -284,7 +284,7 @@ describe('export API', () => {
       formatVersion: 1,
       name: 'Export me',
       simulationPolicy: {
-        fillModelVersion: '2',
+        fillModelVersion: '3',
         gapPolicy: 'fill-at-open',
         endOfDataPolicy: 'keep-open',
         profitTargetBasis: 'net-after-exit-costs',

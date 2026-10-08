@@ -33,7 +33,7 @@ describe('HTTP API', () => {
       status: 'ok',
       name: 'CandleDrill',
       telemetry: false,
-      fillModelVersion: '2',
+      fillModelVersion: '3',
     });
     expect(body.engineVersion).toBe(body.version);
     expect(body.notice).toMatch(/not investment advice/);

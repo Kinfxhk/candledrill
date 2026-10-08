@@ -5,7 +5,7 @@ and close, so the order of prices inside it is unknown. This page lists the rule
 CandleDrill uses, so every practice result can be explained and reproduced. It is not
 a model of a real exchange.
 
-Current versions: **engine 0.2.0, fill model v2.** Both appear in every HTML report, in
+Current versions: **engine 0.2.0, fill model v3.** Both appear in every HTML report, in
 session JSON exports (`simulationPolicy`) and at `GET /api/health`. The fill model
 version changes whenever a rule that can change a fill price, a fill time or a rule
 outcome changes.
@@ -29,6 +29,8 @@ outcome changes.
 - **Market** orders fill at the next bar's open plus adverse slippage.
 - **Limit** orders fill at their price when the bar touches it. If the bar opens beyond
   the price, they fill at the open (price improvement). Limit fills have no slippage.
+  A limit on the wrong side of the last price (a buy at or above it, a sell at or below
+  it) is rejected, because it would otherwise fill at the next open.
 - **Stop** orders trigger when the bar trades at or through the stop price. They fill at
   the stop price, or at the open if the bar gaps through it, plus adverse slippage.
 - Within one bar, orders crossed at the open fill first. After that, stop-type orders

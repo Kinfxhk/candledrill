@@ -7,6 +7,9 @@
 // - Market orders fill at the next bar's open, plus adverse slippage.
 // - Limit orders fill when the bar trades at or through the limit price, at the limit price,
 //   or at the open if the bar opens beyond it (price improvement on gaps). No slippage.
+//   A limit already at or through the last close is rejected at placement (it would
+//   otherwise fill at the next open). A limit that was valid when placed may still
+//   fill at a later open if that bar gaps through it.
 // - Stop orders trigger when the bar trades at or through the stop price and fill at the
 //   stop price (or the open if the bar gaps through it), plus adverse slippage.
 // - Within one bar, orders whose price is crossed at the open fill first; then stop-type
@@ -221,6 +224,19 @@ function checkPrice(name: string, p: number | null | undefined, tick: number): n
 }
 
 /** Stop-loss must be on the losing side and take-profit on the winning side of `ref`. */
+/**
+ * A limit already marketable against the last close would fill at the next open
+ * (`triggerOf` treats an open at or through the limit as a gap). Reject it. Stops are
+ * not checked here: a buy stop above the market is how a short is covered.
+ */
+function rejectMarketableLimit(side: Side, price: number, lastClose: number): void {
+  const through = side === 'buy' ? price >= lastClose : price <= lastClose;
+  if (!through) return;
+  throw new OrderError(
+    `limit ${price} is already at or through the market (last price ${lastClose}) and would fill at the next open; use a market order to trade now, or place the limit on the resting side (buy below the last price, sell above it)`,
+  );
+}
+
 function checkBracket(side: Side, ref: number, sl: number | null, tp: number | null): void {
   const dir = side === 'buy' ? 1 : -1;
   if (sl !== null && (sl - ref) * dir >= 0) {
@@ -253,6 +269,7 @@ export function placeOrder(
   const tp =
     req.takeProfit == null ? null : checkPrice('takeProfit', req.takeProfit, costs.tickSize);
   checkBracket(req.side, price ?? t.lastClose, sl, tp);
+  if (req.type === 'limit' && price !== null) rejectMarketableLimit(req.side, price, t.lastClose);
   const order: Order = {
     id: t.nextId,
     side: req.side,
@@ -297,7 +314,8 @@ export function cancelOrder(
  *
  * - Entry orders: price (limit/stop), stop-loss and take-profit, checked exactly like a
  *   new order (stop-loss below / take-profit above the entry price for a buy, mirrored for
- *   a sell; market entries use the last close).
+ *   a sell; market entries use the last close). A limit price must stay on the resting
+ *   side of the last close (buy below it, sell above it).
  * - Stop-loss / take-profit children: price only, and it must not be marketable against
  *   the last close (a long's stop-loss below it, take-profit above it; mirrored for a
  *   short). To exit at the next open, use Flatten.
@@ -334,6 +352,7 @@ export function modifyOrder(
     const stopLoss = pick('stopLoss', req.stopLoss, o.stopLoss);
     const takeProfit = pick('takeProfit', req.takeProfit, o.takeProfit);
     checkBracket(o.side, price ?? t.lastClose, stopLoss, takeProfit);
+    if (o.type === 'limit' && price !== null) rejectMarketableLimit(o.side, price, t.lastClose);
     after = { price, stopLoss, takeProfit };
   } else if (o.role === 'stop-loss' || o.role === 'take-profit') {
     if (req.stopLoss !== undefined || req.takeProfit !== undefined)

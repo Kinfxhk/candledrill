@@ -26,6 +26,26 @@ Postponed with reason: **daylight-saving-aware (IANA) session calendars**. Blind
 depends on whole-week time shifts and the engine on fixed-offset trading days; changing
 both safely is a design change larger than a minor release.
 
+## [0.2.2] - 2026-10-08
+
+### Fixed
+
+- **A limit already at or through the last price no longer fills at the next open.**
+  After a short, a buy limit placed above the last price was filled on the next bar's
+  open and covered the short, even when that bar never traded the limit. The mirror
+  did the same to a long: a sell limit below the last price flattened it at the next
+  open. `placeOrder` (and modifying an entry limit) now rejects that order. The message
+  says the limit is already at or through the market and would fill at the next open;
+  use a market order to trade now, or rest the limit on the other side (buy below the
+  last price, sell above it). A buy stop is still how to cover a short above the market.
+  A limit that was valid when placed is unchanged: a later bar may still fill it at the
+  open if that bar gaps through the price.
+
+### Changed
+
+- Fill model **v3** (`FILL_MODEL_VERSION`). Engine version stays 0.2.0, the same split
+  0.2.1 used. Reports, session JSON and `GET /api/health` record v3.
+
 ## [0.2.1] - 2026-10-08
 
 Patch from a hands-on review of 0.1.1. Fill model unchanged (**v2**).
@@ -231,7 +251,8 @@ First public release.
   no-market-data and attribution checks, gitleaks secret scan) and a Playwright
   headless smoke test, both in CI.
 
-[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/Kinfxhk/candledrill/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Kinfxhk/candledrill/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Kinfxhk/candledrill/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/Kinfxhk/candledrill/compare/v0.1.0...v0.1.1

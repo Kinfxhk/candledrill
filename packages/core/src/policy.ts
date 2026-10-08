@@ -10,9 +10,10 @@ export const ENGINE_VERSION = '0.2.0';
  * Version of the fill model. Bumped whenever a rule that can change a fill price, a fill
  * time or a rule outcome changes. v1 = CandleDrill 0.1.0; v2 = 0.1.1 (gap-through bracket
  * children fill at the bar open, atomic bracket modification, net profit-target basis,
- * end-of-data keep-open policy).
+ * end-of-data keep-open policy); v3 = 0.2.2 (a limit already at or through the last
+ * price is rejected instead of filling at the next open).
  */
-export const FILL_MODEL_VERSION = '2';
+export const FILL_MODEL_VERSION = '3';
 
 export interface SimulationPolicy {
   readonly engineVersion: string;

@@ -6,11 +6,10 @@ at a time without seeing the future, place simulated orders, and review your
 results. Everything runs on your own computer, with no account, no subscription and
 no telemetry.
 
-> **Status: v0.2.1.** Same practice tools as v0.2.0, plus clearer Traditional Chinese
-> (rule reasons, exit reasons, order types and session status), price-axis decimals
-> that follow the tick, and short notes on bar-close rules, market-order brackets
-> and the CSV tick (see the [CHANGELOG](CHANGELOG.md)). Expect rough edges; please
-> report bugs in the issue tracker.
+> **Status: v0.2.2.** Same practice tools as v0.2.1. A limit already at or through
+> the last price is rejected instead of filling at the next open (fill model v3; see
+> the [CHANGELOG](CHANGELOG.md)). Expect rough edges; please report bugs in the issue
+> tracker.
 
 ![CandleDrill practice screen with synthetic demo data: two synchronised timeframes with a shared crosshair, a long R tool drawing, an open bracket position, order ticket and trade log](docs/screenshot.png)
 
@@ -130,12 +129,14 @@ respective owners and appear here only for plain factual comparison.
 
 Bar data cannot tell what happened inside a bar, so CandleDrill uses fixed,
 conservative rules, shows them in the app, and records the engine and fill-model
-version (currently **fill model v2**) in every report. Full details and limitations:
+version (currently **fill model v3**) in every report. Full details and limitations:
 [docs/FILL-MODEL.md](docs/FILL-MODEL.md).
 
 - Orders only fill on bars revealed **after** they were placed.
 - Market orders fill at the next bar's open plus slippage.
-- Limit orders fill at their price, or at the open if price gaps through it.
+- Limit orders fill at their price, or at the open if price gaps through it. A limit
+  already at or through the last price is rejected (a buy at or above it, a sell at
+  or below it); it would otherwise fill at the next open.
 - Stop orders fill at their price, or at the open if gapped, plus slippage.
 - Bracket stop-loss/take-profit orders follow the same rules from the moment the
   entry fills: if the open gaps through them, they fill at the open, never at a price
@@ -320,7 +321,7 @@ the library's logo link is kept). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PART
 不收集任何使用數據。
 
 - **介面供桌面瀏覽器使用**，不保證手機寬度（約 390px）的版面。
-- **現階段**：v0.2.1。v0.2.0 的功能之外：價格軸小數位跟最小跳動（0.25 顯示兩位，不再把
+- **現階段**：v0.2.2。已經在最後價或穿過市價的限價單會被拒絕（買入限價高於或等於最後價、沽出限價低於或等於最後價），不會在下一根開市自動成交。v0.2.1 沿用 v0.2.0 的功能，另外：價格軸小數位跟最小跳動（0.25 顯示兩位，不再把
   4145.75 顯示成 4145.5）；中文介面翻譯規則原因、出場原因、訂單類型及練習狀態；練習規則
   註明每根K線收市才檢查；市價單止蝕由最後收市價起計；已實現盈虧註明含手續費；匯入 CSV
   時提示最小跳動預設 0.01，數據集列表會顯示該值。v0.2.0 新增：
