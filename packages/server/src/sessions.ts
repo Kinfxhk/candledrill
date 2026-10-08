@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Practice-session routes. The server is the only place that holds the full bar series;
-// the browser only ever receives bars up to the session cursor (strict no-future-leak).
+// these session routes only ever send bars up to the session cursor (no look-ahead on the
+// practice data path). Note: the dataset library routes in app.ts can return any bars of a
+// dataset (used for the import preview), so this is not a whole-app guarantee.
 
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import {
@@ -17,6 +19,7 @@ import {
   tradesToCsv,
   reportHtml,
   FILL_MODEL_NOTE,
+  SIMULATION_POLICY,
   CANDLEDRILL_RISK_NOTICE_EN,
   stepSession,
   validateSettings,
@@ -450,7 +453,11 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
         {
           format: 'candledrill-session',
           formatVersion: 1,
-          note: 'Practice session without price data. ' + CANDLEDRILL_RISK_NOTICE_EN,
+          note:
+            'Practice session without price bars (it does contain fill prices and times derived ' +
+            'from the dataset; check your data licence before sharing). ' +
+            CANDLEDRILL_RISK_NOTICE_EN,
+          simulationPolicy: SIMULATION_POLICY,
           name: row.name,
           startTime: row.startTime,
           settings: row.settings,

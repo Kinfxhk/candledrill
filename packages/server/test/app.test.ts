@@ -26,7 +26,13 @@ describe('HTTP API', () => {
     const res = await setup().inject({ method: 'GET', url: '/api/health' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body).toMatchObject({ status: 'ok', name: 'CandleDrill', telemetry: false });
+    expect(body).toMatchObject({
+      status: 'ok',
+      name: 'CandleDrill',
+      telemetry: false,
+      fillModelVersion: '2',
+    });
+    expect(body.engineVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(body.notice).toMatch(/not investment advice/);
     expect(res.headers['x-content-type-options']).toBe('nosniff');
   });

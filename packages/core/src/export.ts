@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Export formats: trades CSV (plain columns for other journals), self-contained HTML report.
-// Exports never include price bars, so sharing a report never redistributes market data.
+// Exports contain no price bars, but they do contain entry/exit prices, times and drawings
+// derived from the dataset. Whether such derived data may be shared depends on the data
+// licence of the user's own data source; CandleDrill cannot decide that for the user.
 
 import type { Trade } from './orders.js';
 import type { SessionStats } from './stats.js';
+import { SIMULATION_POLICY, type SimulationPolicy } from './policy.js';
 
 export const TRADE_CSV_COLUMNS = [
   'trade_id',
@@ -87,6 +90,8 @@ export interface ReportInput {
   readonly trades: readonly Trade[];
   readonly riskNotice: string;
   readonly fillModel: string;
+  /** Defaults to the current engine's SIMULATION_POLICY. */
+  readonly policy?: SimulationPolicy;
 }
 
 const money = (v: number | null) => (v === null ? '–' : v.toFixed(2));
@@ -128,6 +133,10 @@ export function reportHtml(r: ReportInput): string {
   ];
   const e = escapeHtml;
   const statRows = rows.map(([k, v]) => `<tr><th>${e(k)}</th><td>${e(v)}</td></tr>`).join('');
+  const policy = r.policy ?? SIMULATION_POLICY;
+  const policyRows = Object.entries(policy)
+    .map(([k, v]) => `<tr><th>${e(k)}</th><td>${e(String(v))}</td></tr>`)
+    .join('');
   const settingRows = Object.entries(r.settings)
     .map(([k, v]) => `<tr><th>${e(k)}</th><td>${e(v === null ? 'off' : String(v))}</td></tr>`)
     .join('');
@@ -156,8 +165,12 @@ th{color:#555;font-weight:500}.notice{background:#fff7e6;border:1px solid #f0d7a
 <p class="muted">Symbol ${e(r.symbol)}${r.synthetic ? ' (synthetic data)' : ''} · generated ${e(r.generatedAt)} by CandleDrill</p>
 <p class="notice">${e(r.riskNotice)}</p>
 <h2>Statistics</h2><table>${statRows}</table>
-<h2>Assumptions</h2><p>${e(r.fillModel)}</p><table>${settingRows}</table>
+<h2>Assumptions</h2><p>${e(r.fillModel)}</p>
+<p class="muted">Engine ${e(policy.engineVersion)} · fill model v${e(policy.fillModelVersion)}</p>
+<table>${policyRows}</table>
+<h2>Settings</h2><table>${settingRows}</table>
 <h2>Trades</h2><table><tr><th>#</th><th>Side</th><th>Qty</th><th>Opened (UTC)</th><th>Entry</th><th>Closed (UTC)</th><th>Exit</th><th>Net P&amp;L</th><th>R</th><th>Exit</th></tr>${tradeRows}</table>
+<p class="muted">This report contains prices and times derived from the dataset used for practice. Check your data licence before sharing it.</p>
 <p class="muted">CandleDrill is free software (AGPL-3.0-or-later). Practice results do not predict real results.</p>
 </body></html>
 `;

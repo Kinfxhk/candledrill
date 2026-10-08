@@ -172,8 +172,13 @@ function applyRules(settings: SessionSettings, s: SessionState, bar: Bar): Sessi
 export const FILL_MODEL_NOTE =
   'Orders only fill on bars revealed after they were placed. Market orders fill at the next open; ' +
   'limit orders at their price (or the open if it gaps through); stop orders at their price or the ' +
-  'open if gapped, plus slippage. When one bar touches both the stop-loss and the take-profit, the ' +
-  'stop-loss is assumed to fill first. Drawdown and practice rules use closing prices of each bar.';
+  'open if gapped, plus slippage. Bracket children follow the same rules from the moment their ' +
+  'entry fills: if the stop-loss or take-profit is already crossed, they fill at the bar open (or ' +
+  'the entry price), never outside the bar. When one bar touches both the stop-loss and the ' +
+  'take-profit, the stop-loss is assumed to fill first. Drawdown and practice rules use closing ' +
+  'prices of each bar; the profit target counts only after estimated exit commission and ' +
+  'slippage. At the end of the data an open position stays open, valued at the last close. ' +
+  'R is N/A unless every entry of a trade had a stop-loss.';
 
 export function sessionEquity(settings: SessionSettings, state: SessionState): number {
   return (

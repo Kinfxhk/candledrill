@@ -6,6 +6,8 @@ import {
   generateSyntheticBars,
   importCsv,
   CANDLEDRILL_RISK_NOTICE_EN,
+  ENGINE_VERSION,
+  FILL_MODEL_VERSION,
   SYNTHETIC_SYMBOL_PREFIX,
   type CsvImportOptions,
 } from '@candledrill/core';
@@ -78,6 +80,8 @@ export function buildApp(opts: AppOptions): FastifyInstance {
     status: 'ok',
     name: APP_NAME,
     version: APP_VERSION,
+    engineVersion: ENGINE_VERSION,
+    fillModelVersion: FILL_MODEL_VERSION,
     telemetry: false,
     notice: CANDLEDRILL_RISK_NOTICE_EN,
   }));
