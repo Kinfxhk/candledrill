@@ -106,6 +106,8 @@ point value`. `rMultiple = netPnl / initialRisk`.
 - `firstEntryRisk` and `firstEntryR` keep the first entry's own risk and the result
   relative to it, under names that cannot be confused with R. `plannedRisk` is the known
   (stop-protected) part, and `unprotectedQty` is the quantity added without a stop.
+- Risk is directional. An entry that fills beyond its own stop-loss (a gap) has zero
+  planned risk to that stop, so its R is N/A.
 - Partial exits do not change the risk basis. A reversal starts a new trade with its own
   basis. Moving a stop after entry does not change the initial risk.
 

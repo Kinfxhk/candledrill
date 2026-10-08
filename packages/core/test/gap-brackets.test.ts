@@ -145,6 +145,16 @@ describe('bracket children on the entry bar', () => {
     expect(target.trades[0]).toMatchObject({ entryPrice: 105, exitPrice: 105, netPnl: 0 });
   });
 
+  it('an entry filled beyond its own stop-loss has zero planned risk, so R is N/A', () => {
+    for (const [side, sl, b] of [
+      ['buy', 98, bar(1, 95, 96, 94, 95)],
+      ['sell', 102, bar(1, 105, 106, 104, 105)],
+    ] as const) {
+      const t = one(FREE, { side, type: 'market', qty: 1, stopLoss: sl }, b);
+      expect(t.trades[0]).toMatchObject({ initialRisk: 0, rMultiple: null, firstEntryR: null });
+    }
+  });
+
   it('limit entry gapped through at the open, stop-loss also gapped -> both at the open', () => {
     for (const costs of [FREE, COSTS]) {
       const long = one(

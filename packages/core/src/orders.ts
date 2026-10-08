@@ -498,10 +498,16 @@ export function applyFill(
     commissionPaid: money(t.commissionPaid + commission),
   };
   const signed = f.side === 'buy' ? f.qty : -f.qty;
+  // Directional risk: an entry that fills beyond its own stop-loss (a gap) risks 0 to that
+  // stop, so its R is undefined (N/A) rather than computed from a meaningless distance.
   const riskOf = (qty: number): number | null =>
     stopLossForRisk === null
       ? null
-      : money(Math.abs(f.price - stopLossForRisk) * qty * costs.pointValue);
+      : money(
+          Math.max(0, (f.price - stopLossForRisk) * (f.side === 'buy' ? 1 : -1)) *
+            qty *
+            costs.pointValue,
+        );
   const open = (qty: number, comm: number): void => {
     const risk = riskOf(qty);
     s = {
