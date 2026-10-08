@@ -182,9 +182,11 @@ byte-identical output, guarded by a golden snapshot test.
 ## Roadmap
 
 v0.1 covers the core practice loop. Planned for v0.2 (see [CHANGELOG](CHANGELOG.md)):
-crosshair and time-scale sync between charts, drag-to-modify orders on the chart,
-intrabar rule checks, daylight-saving-aware session calendars, session JSON
-import, an optional "limit must trade through" fill mode, and an `npx` package.
+a command queue with stale-response protection, numeric order modification with a
+risk preview, a blind-practice entry (no preview, random start), toolbar and panel
+improvements, crosshair and time-scale sync between charts, better CSV data-quality
+reporting, session JSON import with backup/restore, intrabar rule checks,
+daylight-saving-aware calendars, and an `npx` package.
 
 ## Privacy and security
 

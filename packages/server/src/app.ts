@@ -16,7 +16,7 @@ import { deleteDataset, getBars, getDataset, insertDataset, listDatasets, type D
 import { BarCache, registerSessionRoutes } from './sessions.js';
 
 export const APP_NAME = 'CandleDrill';
-export const APP_VERSION = '0.1.0';
+export const APP_VERSION = '0.1.1';
 export const MAX_BARS_PER_REQUEST = 50_000;
 /** Synthetic datasets created through the API are capped to keep the local DB small. */
 export const MAX_SYNTHETIC_DAYS = 366;

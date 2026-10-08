@@ -35,7 +35,7 @@ describe('HTTP API', () => {
       telemetry: false,
       fillModelVersion: '2',
     });
-    expect(body.engineVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(body.engineVersion).toBe(body.version);
     expect(body.notice).toMatch(/not investment advice/);
     expect(res.headers['x-content-type-options']).toBe('nosniff');
   });
