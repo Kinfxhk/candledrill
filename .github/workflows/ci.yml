@@ -44,6 +44,9 @@ jobs:
       - name: Unit + property + golden tests
         run: npm test
 
+      - name: Independent Python oracle (1000 random sessions, blind leakage, backup round trip)
+        run: npm run oracle
+
       - name: Dependency licence check (AGPL-3.0 compatible allowlist)
         run: npm run check:licenses
 

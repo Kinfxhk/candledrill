@@ -1,7 +1,7 @@
 {
   "name": "candledrill-monorepo",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "CandleDrill (K線操練場): free, self-hosted candlestick replay practice tool. Educational only.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
@@ -30,6 +30,8 @@
     "check:licenses": "node scripts/check-licenses.mjs",
     "check:secrets": "bash scripts/secret-scan.sh",
     "check:no-market-data": "node scripts/check-no-market-data.mjs",
+    "oracle": "node --import tsx tools/oracle/dump.ts .oracle-cases.json 1000 1 && python3 tools/oracle/check.py .oracle-cases.json",
+    "bench": "node --import tsx scripts/bench.ts",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run check:licenses && npm run check:no-market-data && npm run check:secrets"
   },
   "devDependencies": {

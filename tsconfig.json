@@ -10,6 +10,8 @@
     "packages/*/test/**/*.ts",
     "vitest.config.ts",
     "e2e/**/*.ts",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "tools/**/*.ts",
+    "scripts/**/*.ts"
   ]
 }

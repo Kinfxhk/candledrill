@@ -6,3 +6,4 @@ package-lock.json
 **/__snapshots__/**
 test-results
 playwright-report
+.oracle-cases.json
