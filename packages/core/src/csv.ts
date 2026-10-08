@@ -166,13 +166,20 @@ export function guessMapping(header: readonly string[]): CsvMapping | undefined 
   };
 }
 
+/** Largest accepted UTC offset in a timestamp, in minutes (+/-14:00). */
+export const MAX_OFFSET_MINUTES = 14 * 60;
+
 const DT_RE =
   /^(\d{4}|\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{1,2})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2})(?:[.,]\d+)?)?)?\s*(Z|[+-]\d{2}:?\d{2})?$/i;
 const COMPACT_RE = /^(\d{4})(\d{2})(\d{2})(?:[ T]?(\d{2}):?(\d{2})(?::?(\d{2}))?)?$/;
 const TOD_RE = /^(\d{1,2}):?(\d{2})(?::?(\d{2})(?:[.,]\d+)?)?$/;
 
+/**
+ * Strict calendar/clock validation: hours 0-23, minutes and seconds 0-59. "24:00" and leap
+ * seconds (":60") are rejected rather than silently rolled over by Date.UTC.
+ */
 function utcSeconds(y: number, mo: number, d: number, h: number, mi: number, s: number): number {
-  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 24 || mi > 59 || s > 60) return Number.NaN;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59 || s > 59) return Number.NaN;
   const ms = Date.UTC(y, mo - 1, d, h, mi, s);
   const check = new Date(Date.UTC(y, mo - 1, d));
   if (check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) return Number.NaN;
@@ -228,7 +235,11 @@ export function parseTimestamp(
     if (zone.toUpperCase() === 'Z') offset = 0;
     else {
       const zm = /^([+-])(\d{2}):?(\d{2})$/.exec(zone)!;
-      offset = (zm[1] === '-' ? -1 : 1) * (Number(zm[2]) * 60 + Number(zm[3]));
+      const zh = Number(zm[2]);
+      const zmin = Number(zm[3]);
+      // Real-world offsets lie within -12:00..+14:00; allow +/-14:00 and reject overflow.
+      if (zmin > 59 || zh * 60 + zmin > MAX_OFFSET_MINUTES) return Number.NaN;
+      offset = (zm[1] === '-' ? -1 : 1) * (zh * 60 + zmin);
     }
   }
   return base - offset * 60;
@@ -240,7 +251,7 @@ function parseTimeOfDay(raw: string): number {
   const h = Number(m[1]);
   const mi = Number(m[2]);
   const s = m[3] ? Number(m[3]) : 0;
-  if (h > 24 || mi > 59 || s > 59) return Number.NaN;
+  if (h > 23 || mi > 59 || s > 59) return Number.NaN;
   return h * 3600 + mi * 60 + s;
 }
 

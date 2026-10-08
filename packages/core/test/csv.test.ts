@@ -50,6 +50,36 @@ describe('parseTimestamp', () => {
     expect(parseTimestamp('2026-02-30 10:00')).toBeNaN();
     expect(parseTimestamp('')).toBeNaN();
   });
+  it.each([
+    '2026-01-05 24:30', // used to roll over to the next day 00:30
+    '2026-01-05 24:00',
+    '2026-01-05T24:00:00Z',
+    '2026-01-05 23:60',
+    '2026-01-05 23:59:60', // leap second: not silently normalised
+    '20260105 240000',
+    '05/01/2026 25:00',
+    '2026-01-05T12:00:00+99:99', // used to give a wrong UTC time
+    '2026-01-05T12:00:00+05:60',
+    '2026-01-05T12:00:00-14:01',
+    '2026-01-05T12:00:00+1500',
+    '2026-01-05T12:00:00+15:00',
+  ])('rejects the invalid time or offset %s', (raw) => {
+    expect(parseTimestamp(raw)).toBeNaN();
+  });
+  it('accepts the full valid clock and offset range', () => {
+    expect(parseTimestamp('2026-01-05 23:59:59')).toBe(Date.UTC(2026, 0, 5, 23, 59, 59) / 1000);
+    expect(parseTimestamp('2026-01-05 00:00')).toBe(Date.UTC(2026, 0, 5) / 1000);
+    expect(parseTimestamp('2026-01-05T12:00:00+14:00')).toBe(Date.UTC(2026, 0, 4, 22) / 1000);
+    expect(parseTimestamp('2026-01-05T12:00:00-12:00')).toBe(Date.UTC(2026, 0, 6, 0) / 1000);
+    expect(parseTimestamp('2026-01-05T12:00:00+0545')).toBe(Date.UTC(2026, 0, 5, 6, 15) / 1000);
+  });
+  it('rejects an invalid separate time-of-day column during import', () => {
+    const mapping = { time: 0, timeOfDay: 1, open: 2, high: 3, low: 4, close: 5 };
+    const csv = (tod: string) =>
+      `date,time,open,high,low,close\n2026-01-05,23:29,1,1,1,1\n2026-01-05,${tod},1,1,1,1\n`;
+    expect(importCsv(csv('23:30'), { mapping, tickSize: 1 }).ok).toBe(true);
+    expect(importCsv(csv('24:30'), { mapping, tickSize: 1 }).ok).toBe(false);
+  });
 });
 
 describe('guessMapping', () => {
