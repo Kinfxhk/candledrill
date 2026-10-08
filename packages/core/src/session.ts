@@ -86,7 +86,8 @@ export function ruleStatus(settings: SessionSettings, state: SessionState): Rule
       ? Math.max(0, state.equityPeak - eq) / settings.trailingDrawdown
       : null,
     targetProgress: settings.profitTarget
-      ? Math.max(0, eq - settings.startingBalance) / settings.profitTarget
+      ? Math.max(0, liquidationEquity(settings, state) - settings.startingBalance) /
+        settings.profitTarget
       : null,
   };
 }
@@ -128,6 +129,22 @@ function endOfData(s: SessionState): SessionState {
   };
 }
 
+/**
+ * Estimated cost of closing the open position now: exit commission plus adverse slippage,
+ * using the same cost model as a real (forced) exit.
+ */
+export function estimatedExitCost(settings: SessionSettings, state: SessionState): number {
+  const qty = Math.abs(state.trading.position?.qty ?? 0);
+  if (qty === 0) return 0;
+  const slip = settings.slippageTicks * settings.tickSize * settings.pointValue;
+  return Math.round(qty * (settings.commissionPerContract + slip) * 1e8) / 1e8;
+}
+
+/** Equity if the position were closed at the last close after estimated exit costs. */
+export function liquidationEquity(settings: SessionSettings, state: SessionState): number {
+  return sessionEquity(settings, state) - estimatedExitCost(settings, state);
+}
+
 function applyRules(settings: SessionSettings, s: SessionState, bar: Bar): SessionState {
   if (s.status !== 'active') return s;
   const eq = sessionEquity(settings, s);
@@ -140,8 +157,10 @@ function applyRules(settings: SessionSettings, s: SessionState, bar: Bar): Sessi
     status = 'breached';
     reason = `trailing drawdown ${settings.trailingDrawdown}`;
   } else if (
+    // Profit target basis: net after estimated exit costs, so the final realized result
+    // after the forced exit is never below the target.
     settings.profitTarget !== null &&
-    eq - settings.startingBalance >= settings.profitTarget
+    liquidationEquity(settings, s) - settings.startingBalance >= settings.profitTarget - 1e-9
   ) {
     status = 'passed';
     reason = `profit target ${settings.profitTarget}`;

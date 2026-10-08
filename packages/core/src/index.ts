@@ -72,6 +72,8 @@ export {
   sessionModifyOrder,
   sessionFlatten,
   sessionEquity,
+  liquidationEquity,
+  estimatedExitCost,
   sessionStats,
   ruleStatus,
   upgradeState,
