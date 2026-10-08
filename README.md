@@ -6,7 +6,8 @@ at a time without seeing the future, place simulated orders, and review your
 results. Everything runs on your own computer, with no account, no subscription and
 no telemetry.
 
-> **Status: v0.1.0, first public release.** Usable end to end. Expect rough edges;
+> **Status: v0.1.1.** Usable end to end. v0.1.1 fixes simulation and security issues
+> found by an external review (see the [CHANGELOG](CHANGELOG.md)). Expect rough edges;
 > please report bugs in the issue tracker.
 
 ![CandleDrill practice screen with synthetic demo data: two synchronised timeframes, an open bracket position, order ticket and trade log](docs/screenshot.png)
@@ -35,7 +36,9 @@ respective owners and appear here only for plain factual comparison.
 ## Principles
 
 - **Self-hosted, local-only.** The server binds to `127.0.0.1` only and refuses
-  any other address. Your data stays in a local SQLite file
+  any other address. The one exception is the container image, which listens on
+  `0.0.0.0` inside the container and must be published on the host's `127.0.0.1`
+  (see Docker below). Your data stays in a local SQLite file
   (default `~/.candledrill/candledrill.db`).
 - **No telemetry.** No analytics, no tracking, no phoning home.
 - **No bundled market data.** The demo uses a deterministic **synthetic** data
@@ -53,13 +56,16 @@ respective owners and appear here only for plain factual comparison.
   consistency, duplicates, ordering) with a row-level report. A deterministic
   synthetic generator makes demo data in one click.
 - **Replay without look-ahead**: step one bar, ten bars, play at 1–120 bars/s,
-  jump forward to a date. The server keeps the full series and the browser only
-  ever receives bars up to the replay cursor.
+  jump forward to a date. The server keeps the full series, and a practice session
+  only ever receives bars up to the replay cursor. Note: the data library shows a
+  preview of the dataset (its most recent bars) before you start, so this guards
+  against accidental look-ahead during practice, not against reading your own data.
+  See [What "no look-ahead" covers](docs/FILL-MODEL.md#what-no-look-ahead-covers).
 - **Timeframes**: 1m, 5m, 15m, 1h and daily, aggregated from the revealed bars
   only (a forming higher-timeframe bar never shows the future). Two-chart split
   view for multi-timeframe practice.
 - **Simulated orders**: market, limit, stop; bracket orders with stop-loss and
-  take-profit (OCO); modify and cancel; flatten all. Commission per contract and
+  take-profit (OCO); atomic modify (re-validated, logged) and cancel; flatten all. Commission per contract and
   slippage in ticks.
 - **Positions and P&L**: average price, open and closed P&L, equity, trade log,
   fills, markers and order lines on the chart.
@@ -78,15 +84,25 @@ respective owners and appear here only for plain factual comparison.
 ## How fills are simulated
 
 Bar data cannot tell what happened inside a bar, so CandleDrill uses fixed,
-conservative rules and shows them in the app:
+conservative rules, shows them in the app, and records the engine and fill-model
+version (currently **fill model v2**) in every report. Full details and limitations:
+[docs/FILL-MODEL.md](docs/FILL-MODEL.md).
 
 - Orders only fill on bars revealed **after** they were placed.
 - Market orders fill at the next bar's open plus slippage.
 - Limit orders fill at their price, or at the open if price gaps through it.
 - Stop orders fill at their price, or at the open if gapped, plus slippage.
+- Bracket stop-loss/take-profit orders follow the same rules from the moment the
+  entry fills: if the open gaps through them, they fill at the open, never at a price
+  outside the bar.
 - If one bar touches both the stop-loss and the take-profit, the **stop-loss is
   assumed to fill first**.
-- Drawdown and practice rules are evaluated on each bar's close.
+- Drawdown and practice rules are evaluated on each bar's close. The profit target
+  counts only **after estimated exit commission and slippage**.
+- At the end of the data an open position **stays open**, valued at the last close.
+  Working orders are cancelled and Flatten is disabled, because there is no later bar.
+- R-multiples use the stop-loss risk of every entry; R is **N/A** if any entry had no
+  stop-loss.
 
 ## Quick start
 
@@ -115,7 +131,9 @@ docker compose up --build    # http://127.0.0.1:4870/
 ```
 
 `compose.yaml` publishes the port on the host's **127.0.0.1 only** and keeps data
-in the `candledrill-data` volume. With plain Docker, always bind to loopback:
+in the `candledrill-data` volume. Inside the container the server listens on
+`0.0.0.0` (allowed only when `CANDLEDRILL_CONTAINER=1`, which the image sets) so
+Docker can forward the port. With plain Docker, always bind to loopback:
 `docker run -p 127.0.0.1:4870:4870 -v candledrill:/data candledrill`. CandleDrill
 has no login, so never expose it to a network.
 
@@ -134,7 +152,7 @@ data you are entitled to use; CandleDrill ships no market data.
 npm run check          # lint, format, typecheck, unit/property/golden tests,
                        # licence allowlist, no-market-data + attribution, secret scan
 npm run dev:server     # API on http://127.0.0.1:4870
-npm run dev:web        # Vite dev server on http://127.0.0.1:4871 (proxies /api)
+npm run dev:web        # Vite dev server on http://127.0.0.1:4871 (proxies /api to 4870)
 npm run test:e2e       # headless browser smoke test (Playwright)
 ```
 
@@ -170,10 +188,22 @@ import, an optional "limit must trade through" fill mode, and an `npx` package.
 
 ## Privacy and security
 
-- The server binds to `127.0.0.1` only and refuses other addresses; it also
-  rejects requests whose `Host` header is not loopback (DNS-rebinding defence).
+- The server binds to `127.0.0.1` only and refuses other addresses (container
+  exception above); it also rejects requests whose `Host` header is not loopback
+  (DNS-rebinding defence).
+- **Cross-origin protection:** every state-changing request must carry a random
+  token generated at each launch (`X-CandleDrill-Token`), which only pages served by
+  CandleDrill itself can read. Requests whose `Origin` is not exactly CandleDrill's own
+  origin (including other localhost ports and `null`) are refused. No CORS headers
+  are ever sent. Scripts on your own machine can fetch the token from
+  `GET /api/token` and send it with writes.
 - Strict Content-Security-Policy, no third-party requests, no analytics.
 - CSV exports are protected against spreadsheet formula injection.
+- **Sharing reports:** exports contain no price bars, but they do contain entry and
+  exit prices, times and drawings derived from your data. Check your data provider's
+  licence before publishing a report built on real market data.
+- Loopback is not a sandbox: other software running on your computer can reach
+  `127.0.0.1`. Do not expose CandleDrill to a network; it has no login.
 - See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ## Third-party attribution
@@ -189,11 +219,21 @@ the library's logo link is kept). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PART
 匯入K線後逐根前進（看不到未來K線），進行模擬落單，再檢討成績。毋須帳戶、毋須訂閱、
 不收集任何使用數據。
 
-- **現階段**：v0.1.0 首個公開版本：CSV 匯入、無未來數據回放、多時間框架、市價／限價／
-  止蝕單及括號單（止蝕＋止賺）、持倉與盈虧、統計報告及匯出、自訂練習規則（每日虧損、
-  移動回撤、盈利目標）、畫線、中英介面及深淺色主題。
+- **現階段**：v0.1.1。修正外部檢討指出的成交及安全問題（跳空時括號單只會以開市價成交、
+  改單會重新驗證、數據尾端政策、盈利目標扣除平倉成本、R 值風險覆蓋、本機 API 跨來源防護、
+  嚴格時間格式），並加入 Windows 自動測試。功能包括：CSV 匯入、練習期間不傳送未來K線的
+  回放、多時間框架、市價／限價／止蝕單及括號單（止蝕＋止賺）、持倉與盈虧、統計報告及匯出、
+  自訂練習規則（每日虧損、移動回撤、盈利目標）、畫線、中英介面及深淺色主題。
+- **成交規則**：詳見 [docs/FILL-MODEL.md](docs/FILL-MODEL.md)（英文）。報告會列明引擎及成交
+  模型版本。
+- **「無未來數據」的範圍**：練習進行中只會收到游標以前的K線；但資料庫頁面在開始前會預覽數據，
+  而數據本身存於本機，所以只能避免意外先見，並非防作弊。
+- **分享報告**：匯出檔不含K線，但含有由數據衍生的成交價及時間；以真實行情練習時，公開前請
+  先確認數據授權。
 - **快速開始**：安裝 Node.js 22 後執行 `npm ci && npm start`，打開 http://127.0.0.1:4870/ 。
-- **只在本機運行**：伺服器只綁定 `127.0.0.1`，數據存於本機 SQLite 檔。
+- **只在本機運行**：伺服器只綁定 `127.0.0.1`（Docker 容器內部例外地監聽 `0.0.0.0`，但只可
+  發佈到本機 `127.0.0.1`），數據存於本機 SQLite 檔。所有改動數據的請求都須附上每次啟動
+  隨機產生的權杖，其他網站發出的請求會被拒絕。
 - **不附帶真實行情**：示範數據全部由程式合成（代號以 `SYNTH-` 開頭）；用戶須自行匯入
   有權使用之數據。
 - **不連接任何經紀或平台，不會真實落單。**

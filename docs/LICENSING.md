@@ -5,7 +5,10 @@
 Chosen so that anyone who modifies CandleDrill and offers it to others as a hosted
 (network) service must publish their source code under the same licence. This keeps
 the project free and makes it hard to wrap it into a closed, paid subscription
-service, which is the opposite of the project's goal.
+service, which is the opposite of the project's goal. Note that the AGPL does not
+forbid charging money: it requires that users of a modified (including network-hosted)
+version can obtain its corresponding source code. No extra "non-commercial" terms are
+added.
 
 - `LICENSE` is the unmodified text from https://www.gnu.org/licenses/agpl-3.0.txt
   (fetched 2026-10-07, 661 lines, SHA-256
@@ -30,6 +33,13 @@ Pages read on 2026-10-07:
 
 The enforced allowlist lives in `scripts/check-licenses.mjs`. Dev-only tooling may
 additionally use CC-BY and Python-2.0 licences because it is never distributed.
+
+Licence fields are evaluated as SPDX expressions by `scripts/lib/spdx.mjs`, a small
+parser with the SPDX precedence (`WITH` > `AND` > `OR`) and parentheses. A `WITH`
+exception only passes if the exact pair is allowlisted. Malformed, unknown or
+non-SPDX values (for example `SEE LICENSE IN ...`) fail closed. (Before 0.1.1 the gate
+split on `AND`/`OR` and accepted `(MIT OR GPL-2.0-only) AND GPL-2.0-only`.) The gate is
+a whitelist check, not a legal review.
 
 ## Contributions
 
