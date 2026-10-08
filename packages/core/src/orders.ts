@@ -12,9 +12,11 @@
 // - Within one bar, orders whose price is crossed at the open fill first; then stop-type
 //   orders before limit-type orders. Hence when one bar touches both a stop-loss and a
 //   take-profit, the stop-loss is assumed to fill first (conservative).
-// - Bracket children are created when the entry fills. On the entry bar itself the stop-loss
-//   fills if touched; the take-profit may only fill on that bar if the entry filled at the
-//   open and the stop-loss was not touched.
+// - Bracket children are created when the entry fills and use the same trigger rules on the
+//   entry bar, applied to the part of the bar known to follow the entry. A child already
+//   crossed at that point (gap through the stop-loss or take-profit) fills at the bar open
+//   (or at the entry price for an intrabar entry), never at a price outside the bar. After an
+//   intrabar entry the stop-loss fills if touched (conservative) but the take-profit does not.
 // - Stop-loss, take-profit and flatten orders are reduce-only and never flip a position.
 
 import type { Bar } from './types.js';
@@ -461,6 +463,74 @@ function makeChild(
   };
 }
 
+/**
+ * Resolve freshly created bracket children on the bar their entry filled on, with the SAME
+ * trigger rules as any other working order (`triggerOf`), applied to the part of the bar
+ * that is known to come after the entry:
+ *
+ * - Entry filled at the open: the whole bar follows the entry, so the children see the bar
+ *   as is. A child whose price is already crossed at the open (a gap through the stop-loss
+ *   or take-profit) fills at the open, exactly like a working order would.
+ * - Entry filled intrabar at price P: the only price known to follow the entry is P itself,
+ *   so the children see a bar that "opens" at P with the same high/low. A child already
+ *   crossed at P exits at P (plus stop slippage). The stop-loss may still fill at its price
+ *   if the bar reached it (conservative: the order of high and low is unknown), but the
+ *   take-profit may not, because the favourable extreme may have happened before the entry.
+ *
+ * Fills therefore never happen at a price the bar model does not allow.
+ */
+function resolveEntryBarChildren(
+  t: TradingState,
+  costs: CostModel,
+  bar: Bar,
+  entry: Order,
+  entryTrig: Trigger,
+  qty: number,
+  sl: Order | null,
+  tp: Order | null,
+): TradingState {
+  const after: Bar = entryTrig.atOpen ? bar : { ...bar, open: entry.price! };
+  const options: { child: Order; trig: Trigger }[] = [];
+  if (sl) {
+    const trig = triggerOf(sl, after, costs);
+    if (trig) options.push({ child: sl, trig });
+  }
+  if (tp) {
+    const trig = triggerOf(tp, after, costs);
+    // On an intrabar entry the take-profit may only fill if it is marketable at the entry.
+    if (trig && (entryTrig.atOpen || trig.atOpen)) options.push({ child: tp, trig });
+  }
+  if (options.length === 0) return t;
+  // Same priority as processBar: crossed-at-open first, then stop-loss before take-profit.
+  options.sort((a, b) =>
+    a.trig.atOpen !== b.trig.atOpen
+      ? a.trig.atOpen
+        ? -1
+        : 1
+      : (isStopLike(a.child) ? 0 : 1) - (isStopLike(b.child) ? 0 : 1),
+  );
+  const { child, trig } = options[0]!;
+  let s = replaceOrder(t, {
+    ...child,
+    status: 'filled',
+    filledTime: bar.time,
+    fillPrice: trig.price,
+  });
+  s = cancelWhere(
+    s,
+    (x) => x.ocoGroup === child.ocoGroup && x.id !== child.id,
+    'OCO sibling filled',
+  );
+  return applyFill(s, costs, {
+    orderId: child.id,
+    side: child.side,
+    qty,
+    price: trig.price,
+    time: bar.time,
+    role: child.role,
+  });
+}
+
 /** Fill working orders against a newly revealed bar, then mark to market at its close. */
 export function processBar(
   t: TradingState,
@@ -508,7 +578,6 @@ export function processBar(
     const sameDir = pos !== null && pos.qty > 0 === (o.side === 'buy');
     if (o.role === 'entry' && sameDir && (o.stopLoss !== null || o.takeProfit !== null)) {
       qty = Math.min(qty, Math.abs(pos.qty));
-      // Create bracket children and resolve them conservatively on this same bar.
       let sl: Order | null = null;
       let tp: Order | null = null;
       if (o.stopLoss !== null) {
@@ -519,44 +588,7 @@ export function processBar(
         tp = makeChild(o, 'take-profit', qty, o.takeProfit, s.nextId, index, bar.time);
         s = { ...s, nextId: s.nextId + 1, orders: [...s.orders, tp] };
       }
-      const slTouched =
-        sl !== null && (sl.side === 'sell' ? bar.low <= sl.price! : bar.high >= sl.price!);
-      if (sl && slTouched) {
-        const slip = costs.slippageTicks * costs.tickSize;
-        const price = roundToTick(
-          sl.side === 'sell' ? sl.price! - slip : sl.price! + slip,
-          costs.tickSize,
-        );
-        s = replaceOrder(s, { ...sl, status: 'filled', filledTime: bar.time, fillPrice: price });
-        if (tp) s = cancelWhere(s, (x) => x.id === tp.id, 'OCO sibling filled');
-        s = applyFill(s, costs, {
-          orderId: sl.id,
-          side: sl.side,
-          qty,
-          price,
-          time: bar.time,
-          role: 'stop-loss',
-        });
-      } else if (tp && trig.atOpen) {
-        const tpTouched = tp.side === 'sell' ? bar.high >= tp.price! : bar.low <= tp.price!;
-        if (tpTouched) {
-          s = replaceOrder(s, {
-            ...tp,
-            status: 'filled',
-            filledTime: bar.time,
-            fillPrice: tp.price,
-          });
-          if (sl) s = cancelWhere(s, (x) => x.id === sl.id, 'OCO sibling filled');
-          s = applyFill(s, costs, {
-            orderId: tp.id,
-            side: tp.side,
-            qty,
-            price: tp.price!,
-            time: bar.time,
-            role: 'take-profit',
-          });
-        }
-      }
+      s = resolveEntryBarChildren(s, costs, bar, o, trig, qty, sl, tp);
     }
   }
   return { ...s, lastClose: bar.close };

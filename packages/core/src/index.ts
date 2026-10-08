@@ -59,6 +59,12 @@ export {
 
 export { initialCursor, visibleBars, stepsUntil } from './replay.js';
 export {
+  ENGINE_VERSION,
+  FILL_MODEL_VERSION,
+  SIMULATION_POLICY,
+  type SimulationPolicy,
+} from './policy.js';
+export {
   createSession,
   costModel,
   sessionPlaceOrder,
