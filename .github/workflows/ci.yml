@@ -55,8 +55,8 @@ jobs:
           set -euo pipefail
           base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
           tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSfLO "${base}/${tarball}"
-          curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" | grep " ${tarball}\$" | sha256sum -c -
+          curl -sSfL --retry 5 --retry-all-errors --retry-delay 3 -O "${base}/${tarball}"
+          curl -sSfL --retry 5 --retry-all-errors --retry-delay 3 "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" | grep " ${tarball}\$" | sha256sum -c -
           tar -xzf "${tarball}" gitleaks
           sudo mv gitleaks /usr/local/bin/gitleaks
           rm -f "${tarball}"
