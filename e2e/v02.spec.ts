@@ -83,7 +83,12 @@ test('a delayed step from the previous session cannot change the newly opened se
       r.url().endsWith(`/sessions/${a.session.id}/step`),
     );
     release();
-    await response;
+    await (await response).finished();
+    await page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+    await expect(page.getByTestId('position')).toContainText('Flat');
+    await expect(page.getByTestId('clock')).toHaveText(clock!);
     // The next live step must use B's state, and only advance B once.
     await page.getByTestId('btn-step').click();
     await expect
