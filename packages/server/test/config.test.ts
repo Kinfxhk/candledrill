@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PORT, LOOPBACK_HOST, resolveConfig } from '../src/config.js';
 
@@ -7,7 +8,8 @@ describe('resolveConfig', () => {
     const c = resolveConfig({ CANDLEDRILL_DATA_DIR: '/tmp/cd' });
     expect(c.host).toBe(LOOPBACK_HOST);
     expect(c.port).toBe(DEFAULT_PORT);
-    expect(c.databasePath).toBe('/tmp/cd/candledrill.db');
+    // Built with the platform path API so the test also passes on Windows.
+    expect(c.databasePath).toBe(join('/tmp/cd', 'candledrill.db'));
   });
 
   it.each(['0.0.0.0', '::', '192.168.1.10', 'localhost', '::1'])(
