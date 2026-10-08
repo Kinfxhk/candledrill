@@ -77,8 +77,18 @@ export interface OpenTrade {
   readonly maxQty: number;
   readonly commission: number;
   readonly grossPnl: number;
-  /** Currency risked at entry (|entry - stop-loss| x qty x point value), if a stop-loss was set. */
+  /**
+   * Planned risk of the trade cycle: the sum over every entry fill of
+   * |fill price - its stop-loss| x qty x point value. Null as soon as any entry fill had
+   * no stop-loss (risk incomplete).
+   */
   readonly initialRisk: number | null;
+  /** Risk of the first entry fill alone (null without a stop-loss). */
+  readonly firstEntryRisk: number | null;
+  /** Sum of the known (stop-protected) part of the planned risk. */
+  readonly plannedRisk: number;
+  /** Entry quantity that was added without a stop-loss. */
+  readonly unprotectedQty: number;
 }
 
 export interface Trade {
@@ -92,8 +102,18 @@ export interface Trade {
   readonly grossPnl: number;
   readonly commission: number;
   readonly netPnl: number;
+  /** Planned risk of all entry fills; null when any entry fill had no stop-loss. */
   readonly initialRisk: number | null;
+  /** netPnl / initialRisk. Null (shown as N/A) when the risk is incomplete. */
   readonly rMultiple: number | null;
+  /** True when every entry fill of the trade had a stop-loss. */
+  readonly riskComplete: boolean;
+  /** Risk of the first entry fill only, and netPnl relative to it. */
+  readonly firstEntryRisk: number | null;
+  readonly firstEntryR: number | null;
+  /** Known (stop-protected) part of the planned risk, and the quantity added without a stop. */
+  readonly plannedRisk: number;
+  readonly unprotectedQty: number;
   readonly exitReason: ExitReason;
 }
 
@@ -436,6 +456,26 @@ function exitReasonOf(role: Fill['role']): ExitReason {
   }
 }
 
+const ratio = (net: number, risk: number | null): number | null =>
+  risk ? Math.round((net / risk) * 1e4) / 1e4 : null;
+
+/** Risk bookkeeping when an entry fill adds to an open trade (scale-in). */
+function addRisk(
+  ot: OpenTrade,
+  risk: number | null,
+  qty: number,
+): Pick<OpenTrade, 'initialRisk' | 'plannedRisk' | 'unprotectedQty'> {
+  // Trades stored by v0.1.0 have no coverage fields: treat their first entry as the basis.
+  const planned = ot.plannedRisk ?? ot.initialRisk ?? 0;
+  const unprotected = ot.unprotectedQty ?? (ot.initialRisk === null ? ot.entryQty : 0);
+  const complete = unprotected === 0 && risk !== null;
+  return {
+    plannedRisk: money(planned + (risk ?? 0)),
+    unprotectedQty: unprotected + (risk === null ? qty : 0),
+    initialRisk: complete ? money(planned + risk) : null,
+  };
+}
+
 /** Apply one execution to the position and trade ledger. */
 export function applyFill(
   t: TradingState,
@@ -453,11 +493,12 @@ export function applyFill(
     commissionPaid: money(t.commissionPaid + commission),
   };
   const signed = f.side === 'buy' ? f.qty : -f.qty;
+  const riskOf = (qty: number): number | null =>
+    stopLossForRisk === null
+      ? null
+      : money(Math.abs(f.price - stopLossForRisk) * qty * costs.pointValue);
   const open = (qty: number, comm: number): void => {
-    const risk =
-      stopLossForRisk === null
-        ? null
-        : money(Math.abs(f.price - stopLossForRisk) * qty * costs.pointValue);
+    const risk = riskOf(qty);
     s = {
       ...s,
       position: { qty: f.side === 'buy' ? qty : -qty, avgPrice: f.price },
@@ -472,6 +513,9 @@ export function applyFill(
         commission: comm,
         grossPnl: 0,
         initialRisk: risk,
+        firstEntryRisk: risk,
+        plannedRisk: risk ?? 0,
+        unprotectedQty: risk === null ? qty : 0,
       },
     };
   };
@@ -493,6 +537,7 @@ export function applyFill(
         entryValue: ot.entryValue + f.qty * f.price,
         maxQty: Math.max(ot.maxQty, absQ + f.qty),
         commission: money(ot.commission + commission),
+        ...addRisk(ot, riskOf(f.qty), f.qty),
       },
     };
     return s;
@@ -527,7 +572,12 @@ export function applyFill(
     commission: trade.commission,
     netPnl: net,
     initialRisk: trade.initialRisk,
-    rMultiple: trade.initialRisk ? Math.round((net / trade.initialRisk) * 1e4) / 1e4 : null,
+    rMultiple: ratio(net, trade.initialRisk),
+    riskComplete: trade.initialRisk !== null,
+    firstEntryRisk: trade.firstEntryRisk,
+    firstEntryR: ratio(net, trade.firstEntryRisk),
+    plannedRisk: trade.plannedRisk,
+    unprotectedQty: trade.unprotectedQty,
     exitReason: exitReasonOf(f.role),
   };
   s = { ...s, position: null, openTrade: null, trades: [...s.trades, closed] };

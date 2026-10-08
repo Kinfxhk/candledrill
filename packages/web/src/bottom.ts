@@ -70,7 +70,9 @@ export const tradesTab: BottomTab = {
           el('td', {}, fmtTime(tr.closeTime, s.utcOffsetMinutes)),
           el('td', { class: 'num' }, fmtPrice(tr.exitPrice, s.tickSize)),
           el('td', { class: `num ${signClass(tr.netPnl)}` }, fmtMoney(tr.netPnl)),
-          el('td', { class: 'num' }, tr.rMultiple === null ? '–' : fmtNum(tr.rMultiple, 2)),
+          tr.rMultiple === null || tr.rMultiple === undefined
+            ? el('td', { class: 'num muted', title: t('col.rNa') }, 'N/A')
+            : el('td', { class: 'num' }, fmtNum(tr.rMultiple, 2)),
           el('td', {}, tr.exitReason),
         ),
       );
@@ -126,7 +128,11 @@ export const statsTab: BottomTab = {
       ['stat.avgWin', fmtMoney(st.avgWin), st.avgWin],
       ['stat.avgLoss', fmtMoney(st.avgLoss), st.avgLoss],
       ['stat.profitFactor', fmtNum(st.profitFactor, 2), null],
-      ['stat.avgR', st.avgR === null ? '–' : `${fmtNum(st.avgR, 2)} (${st.tradesWithR})`, st.avgR],
+      [
+        'stat.avgR',
+        st.avgR === null ? 'N/A' : `${fmtNum(st.avgR, 2)} (${st.tradesWithR})`,
+        st.avgR,
+      ],
       ['stat.maxDd', fmtMoney(st.maxDrawdown), null],
       ['stat.maxDdPct', fmtPct(st.maxDrawdownPct), null],
       ['stat.largestWin', fmtMoney(st.largestWin), st.largestWin],

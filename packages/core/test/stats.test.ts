@@ -27,6 +27,11 @@ const trade = (id: number, netPnl: number, rMultiple: number | null = null): Tra
   netPnl,
   initialRisk: rMultiple === null ? null : Math.abs(netPnl / rMultiple),
   rMultiple,
+  riskComplete: rMultiple !== null,
+  firstEntryRisk: rMultiple === null ? null : Math.abs(netPnl / rMultiple),
+  firstEntryR: rMultiple,
+  plannedRisk: rMultiple === null ? 0 : Math.abs(netPnl / rMultiple),
+  unprotectedQty: rMultiple === null ? 1 : 0,
   exitReason: 'manual',
 });
 
@@ -132,9 +137,13 @@ describe('exports', () => {
     expect(lines[0]).toBe(TRADE_CSV_COLUMNS.join(','));
     expect(lines).toHaveLength(3);
     expect(lines[1]).toBe(
-      "1,'=EVIL,long,1,2026-01-05T08:10:00Z,2026-01-05T08:15:00Z,100,104,204,4,200,100,2,manual",
+      "1,'=EVIL,long,1,2026-01-05T08:10:00Z,2026-01-05T08:15:00Z,100,104,204,4,200,100,2,manual," +
+        'true,100,2,100,0',
     );
-    expect(lines[2]!.split(',')[11]).toBe(''); // no initial risk
+    const second = lines[2]!.split(',');
+    expect(second[11]).toBe(''); // no initial risk
+    expect(second[12]).toBe(''); // R is N/A
+    expect(second.slice(14)).toEqual(['false', '', '', '0', '1']);
   });
 
   it('renders an escaped, script-free HTML report', () => {

@@ -19,7 +19,7 @@ export interface SessionStats {
   readonly avgLoss: number | null;
   /** Average net P&L per trade. */
   readonly expectancy: number | null;
-  /** Average R-multiple over trades that had a stop-loss at entry. */
+  /** Average R-multiple over trades whose every entry fill had a stop-loss (risk complete). */
   readonly avgR: number | null;
   readonly tradesWithR: number;
   readonly largestWin: number | null;

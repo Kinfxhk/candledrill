@@ -20,6 +20,11 @@ export const TRADE_CSV_COLUMNS = [
   'initial_risk',
   'r_multiple',
   'exit_reason',
+  'risk_complete',
+  'first_entry_risk',
+  'first_entry_r',
+  'planned_risk',
+  'unprotected_qty',
 ] as const;
 
 const iso = (t: number) => new Date(t * 1000).toISOString().replace('.000Z', 'Z');
@@ -51,6 +56,12 @@ export function tradesToCsv(trades: readonly Trade[], symbol: string): string {
         t.initialRisk,
         t.rMultiple,
         t.exitReason,
+        // Trades stored by v0.1.0 lack the coverage fields; derive what is knowable.
+        String(t.riskComplete ?? t.initialRisk !== null),
+        t.firstEntryRisk ?? null,
+        t.firstEntryR ?? null,
+        t.plannedRisk ?? null,
+        t.unprotectedQty ?? null,
       ]
         .map(csvCell)
         .join(','),
@@ -94,7 +105,9 @@ export function reportHtml(r: ReportInput): string {
     ['Profit factor', s.profitFactor === null ? '–' : s.profitFactor.toFixed(2)],
     [
       'Average R',
-      s.avgR === null ? '–' : `${s.avgR.toFixed(2)} (${s.tradesWithR} trades with a stop-loss)`,
+      s.avgR === null
+        ? 'N/A (no trade with a stop-loss on every entry)'
+        : `${s.avgR.toFixed(2)} (${s.tradesWithR} trades with a stop-loss on every entry)`,
     ],
     ['Largest win', money(s.largestWin)],
     ['Largest loss', money(s.largestLoss)],
@@ -117,7 +130,7 @@ export function reportHtml(r: ReportInput): string {
         `<tr><td>${t.id}</td><td>${t.side}</td><td>${t.qty}</td><td>${e(iso(t.openTime))}</td>` +
         `<td>${Number(t.entryPrice.toFixed(8))}</td><td>${e(iso(t.closeTime))}</td>` +
         `<td>${Number(t.exitPrice.toFixed(8))}</td><td>${money(t.netPnl)}</td>` +
-        `<td>${t.rMultiple === null ? '–' : t.rMultiple.toFixed(2)}</td><td>${e(t.exitReason)}</td></tr>`,
+        `<td>${t.rMultiple == null ? 'N/A' : t.rMultiple.toFixed(2)}</td><td>${e(t.exitReason)}</td></tr>`,
     )
     .join('');
   return `<!doctype html>
