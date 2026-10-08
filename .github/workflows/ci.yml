@@ -80,7 +80,47 @@ jobs:
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Headless smoke test (replay + bracket order flow)
+      - name: Headless browser tests (smoke + cross-origin)
+        run: npm run test:e2e
+
+  windows:
+    # The project is developed on Linux; this job proves the Windows fixes (LF checkout,
+    # path handling, npm launch in the licence gate, Playwright web server) on a real
+    # Windows runner. The secret scan stays in the Linux job (pinned Linux gitleaks binary).
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check (LF checkout via .gitattributes)
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit + property + golden tests
+        run: npm test
+
+      - name: Dependency licence check
+        run: npm run check:licenses
+
+      - name: No bundled market data / required notices
+        run: npm run check:no-market-data
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install chromium
+
+      - name: Headless browser tests (smoke + cross-origin)
         run: npm run test:e2e
 
   docker:
