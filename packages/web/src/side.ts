@@ -4,6 +4,7 @@
 import {
   roundToTick,
   ruleStatus,
+  tickDecimals,
   unrealizedPnl,
   workingOrders,
   type OrderRequest,
@@ -12,6 +13,7 @@ import {
 } from '@candledrill/core';
 import type { SessionSettings, SessionStateDto } from './api.js';
 import { t, type MessageKey } from './i18n.js';
+import { orderRoleText, orderTypeText } from './labels.js';
 import { el, fmtMoney, fmtNum, signClass } from './format.js';
 
 export interface SideActions {
@@ -119,6 +121,7 @@ export class SidePanel {
         label('pr.sl', this.sl),
         label('pr.tp', this.tp),
       ),
+      el('p', { class: 'muted small', 'data-i18n': 'pr.bracketHint' }, t('pr.bracketHint')),
       el('div', { class: 'grid2', style: 'margin-top:10px' }, this.buyBtn, this.sellBtn),
       el('div', { style: 'margin-top:6px' }, this.flattenBtn),
     );
@@ -129,12 +132,14 @@ export class SidePanel {
       { class: 'card' },
       el('h3', { 'data-i18n': 'pr.position' }, t('pr.position')),
       this.positionBox,
+      el('p', { class: 'muted small', 'data-i18n': 'pr.realizedHint' }, t('pr.realizedHint')),
     );
     this.rulesBox = el('div', { 'data-testid': 'rules' });
     const rules = el(
       'section',
       { class: 'card' },
       el('h3', { 'data-i18n': 'pr.rules' }, t('pr.rules')),
+      el('p', { class: 'muted small', 'data-i18n': 'pr.rulesBar' }, t('pr.rulesBar')),
       this.rulesBox,
     );
     this.extra = el('div', { style: 'display:flex;flex-direction:column;gap:10px' }, rules);
@@ -270,7 +275,11 @@ export class SidePanel {
               { class: o.side === 'buy' ? 'up' : 'down' },
               `${o.side === 'buy' ? t('pr.buy') : t('pr.sell')} ${o.qty}`,
             ),
-            el('td', {}, `${o.type}${o.role !== 'entry' ? ` · ${o.role}` : ''}`),
+            el(
+              'td',
+              {},
+              `${orderTypeText(o.type)}${o.role !== 'entry' ? ` · ${orderRoleText(o.role)}` : ''}`,
+            ),
             el(
               'td',
               { class: 'num' },
@@ -292,8 +301,7 @@ export function fmtPrice(v: number, tick: number): string {
   return v.toFixed(onGrid ? d : Math.min(10, d + 2));
 }
 
+/** Same count as `tickDecimals` in core (the price axis uses that function). */
 export function decimals(tick: number): number {
-  for (let d = 0; d <= 10; d++)
-    if (Math.abs(tick * 10 ** d - Math.round(tick * 10 ** d)) < 1e-9) return d;
-  return 10;
+  return tickDecimals(tick);
 }

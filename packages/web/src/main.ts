@@ -2,6 +2,7 @@
 import './styles.css';
 import { api, ApiError, sessionsApi, type DatasetRow } from './api.js';
 import { applyI18n, setLang, getLang, t, type Lang } from './i18n.js';
+import { sessionStatusText } from './labels.js';
 import { LibraryView } from './library.js';
 import { PracticeView } from './practice.js';
 import { el, fmtTime, fromLocalInput, toast } from './format.js';
@@ -197,7 +198,7 @@ async function renderSessions(): Promise<void> {
       const badge = el(
         'span',
         { class: `badge ${s.status === 'breached' ? 'bad' : s.status === 'passed' ? 'ok' : ''}` },
-        s.status,
+        sessionStatusText(s.status),
       );
       const blindBadge = s.blind
         ? el(

@@ -183,6 +183,8 @@ export class PriceChart {
 
   setTickSize(tickSize: number): void {
     this.tick = tickSize;
+    // Decimal places of the tick itself (0.25 → 2). ceil(-log10(tick)) is 1 for
+    // 0.25 and makes lightweight-charts print 4145.75 as 4145.5.
     const precision = tickDecimals(tickSize);
     this.candles.applyOptions({ priceFormat: { type: 'price', precision, minMove: tickSize } });
   }

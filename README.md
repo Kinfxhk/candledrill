@@ -6,10 +6,11 @@ at a time without seeing the future, place simulated orders, and review your
 results. Everything runs on your own computer, with no account, no subscription and
 no telemetry.
 
-> **Status: v0.2.0.** Adds blind practice, session file import, full backup and
-> restore, rectangle and long/short R drawing tools with drag editing, crosshair and
-> time-axis sync between the two charts, and a trade journal with MAE/MFE (see the
-> [CHANGELOG](CHANGELOG.md)). Expect rough edges; please report bugs in the issue tracker.
+> **Status: v0.2.1.** Same practice tools as v0.2.0, plus clearer Traditional Chinese
+> (rule reasons, exit reasons, order types and session status), price-axis decimals
+> that follow the tick, and short notes on bar-close rules, market-order brackets
+> and the CSV tick (see the [CHANGELOG](CHANGELOG.md)). Expect rough edges; please
+> report bugs in the issue tracker.
 
 ![CandleDrill practice screen with synthetic demo data: two synchronised timeframes with a shared crosshair, a long R tool drawing, an open bracket position, order ticket and trade log](docs/screenshot.png)
 
@@ -43,7 +44,8 @@ respective owners and appear here only for plain factual comparison.
 - **Your data stays yours.** One SQLite file on your disk, a one-click backup file,
   and a documented way to restore it (see [Your data](#your-data)).
 - **Works on macOS, Linux and Windows** (Node.js 22+ or Docker). Windows is tested in
-  CI on every change.
+  CI on every change. **Use a desktop browser.** The layout is not meant for a phone
+  window (about 390px wide); a narrow window used to let the About button stick out.
 - **No broker connection, ever.** Practice only; the app never asks you to link an
   account.
 - **Honest simulation.** Fill rules and their limits are written down
@@ -315,7 +317,11 @@ the library's logo link is kept). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PART
 匯入K線後逐根前進（看不到未來K線），進行模擬落單，再檢討成績。毋須帳戶、毋須訂閱、
 不收集任何使用數據。
 
-- **現階段**：v0.2.0。新增：
+- **介面供桌面瀏覽器使用**，不保證手機寬度（約 390px）的版面。
+- **現階段**：v0.2.1。v0.2.0 的功能之外：價格軸小數位跟最小跳動（0.25 顯示兩位，不再把
+  4145.75 顯示成 4145.5）；中文介面翻譯規則原因、出場原因、訂單類型及練習狀態；練習規則
+  註明每根K線收市才檢查；市價單止蝕由最後收市價起計；已實現盈虧註明含手續費；匯入 CSV
+  時提示最小跳動預設 0.01，數據集列表會顯示該值。v0.2.0 新增：
   - **盲練**：隨機起點；代號顯示為 `BLIND`；日期移動隨機整數週（星期及時間不變），價格移動
     隨機整數個最小價位（盈虧及 R 不變）；盲練期間資料庫預覽會鎖住；按「揭曉」或完成後才顯示
     真實代號、日期及價格。只防一眼認出，並非加密保證。

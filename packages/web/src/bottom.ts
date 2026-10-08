@@ -5,6 +5,7 @@ import { sessionStats } from '@candledrill/core';
 import { sessionsApi, type SessionSettings, type SessionStateDto } from './api.js';
 import { t, type MessageKey } from './i18n.js';
 import { el, fmtMoney, fmtNum, fmtPct, fmtTime, signClass, toast } from './format.js';
+import { exitReasonText, orderRoleText } from './labels.js';
 import { fmtPrice } from './side.js';
 
 export interface BottomTab {
@@ -73,7 +74,7 @@ export const tradesTab: BottomTab = {
           tr.rMultiple === null || tr.rMultiple === undefined
             ? el('td', { class: 'num muted', title: t('col.rNa') }, 'N/A')
             : el('td', { class: 'num' }, fmtNum(tr.rMultiple, 2)),
-          el('td', {}, tr.exitReason),
+          el('td', {}, exitReasonText(tr.exitReason)),
         ),
       );
     panel.replaceChildren(
@@ -108,7 +109,7 @@ export const fillsTab: BottomTab = {
           ),
           el('td', {}, String(f.qty)),
           el('td', {}, fmtPrice(f.price, s.tickSize)),
-          el('td', {}, f.role),
+          el('td', {}, orderRoleText(f.role)),
         ),
       );
     panel.replaceChildren(el('table', { class: 'data' }, head, ...rows));

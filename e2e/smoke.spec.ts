@@ -60,7 +60,7 @@ test('replay and bracket order flow', async ({ page }) => {
     await page.waitForTimeout(100);
   }
   await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText(/stop-loss|take-profit/);
+  await expect(rows.first()).toContainText(/Stop-loss|Take-profit/);
 
   // Stats tab renders and the language toggle switches to Traditional Chinese.
   await page.getByTestId('tab-stats').click();

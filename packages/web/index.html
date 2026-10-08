@@ -178,6 +178,7 @@
             >
             <p class="muted" data-i18n="ns.blindNote"></p>
             <p class="muted" data-i18n="ns.rulesNote"></p>
+            <p class="muted" data-i18n="pr.rulesBar"></p>
             <button type="submit" class="primary" data-i18n="ns.create">Start practising</button>
           </form>
         </div>
@@ -285,8 +286,9 @@ Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/</pre>
           /></label>
           <label class="field"
             ><span data-i18n="imp.tickSize">Tick size</span
-            ><input name="tickSize" type="number" min="0" step="any" value="0.01" required
-          /></label>
+            ><input name="tickSize" type="number" min="0" step="any" value="0.01" required />
+            <span class="muted" data-i18n="imp.tickHint"></span
+          ></label>
           <label class="field"
             ><span data-i18n="imp.symbol">Symbol</span
             ><input name="symbol" pattern="[A-Za-z0-9._\-]{1,32}" required

@@ -126,6 +126,34 @@ jobs:
       - name: Headless browser tests (smoke + cross-origin)
         run: npm run test:e2e
 
+  node24:
+    name: check (${{ matrix.os }}, node 24)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit + property + golden tests
+        run: npm test
+
+      - name: Independent Python oracle
+        if: runner.os == 'Linux'
+        run: npm run oracle
+
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 20

@@ -33,6 +33,7 @@ import {
   type BottomTab,
 } from './bottom.js';
 import { t, type MessageKey } from './i18n.js';
+import { statusReasonText } from './labels.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 
 const TIMEFRAMES = [60, 300, 900, 3600, 86400];
@@ -648,7 +649,7 @@ export class PracticeView {
     banner.className = `status-banner ${st === 'active' ? '' : `show ${st}`}`;
     banner.textContent =
       st === 'breached'
-        ? t('st.breached', { reason: this.state.statusReason ?? '' })
+        ? t('st.breached', { reason: statusReasonText(this.state.statusReason) })
         : st === 'passed'
           ? t('st.passed')
           : st === 'finished'

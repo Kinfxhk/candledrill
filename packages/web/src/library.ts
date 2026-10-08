@@ -98,7 +98,8 @@ export class LibraryView {
           el(
             'div',
             { class: 'muted' },
-            `${d.symbol} · ${tfLabel(d.timeframeSeconds)} · ${d.barCount.toLocaleString()} ${t('lib.bars')} · ` +
+            `${d.symbol} · ${tfLabel(d.timeframeSeconds)} · ${t('lib.tick', { n: d.tickSize })} · ` +
+              `${d.barCount.toLocaleString()} ${t('lib.bars')} · ` +
               `${fmtTime(d.firstTime, d.utcOffsetMinutes)} → ${fmtTime(d.lastTime, d.utcOffsetMinutes)}`,
           ),
         );

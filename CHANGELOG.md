@@ -26,6 +26,42 @@ Postponed with reason: **daylight-saving-aware (IANA) session calendars**. Blind
 depends on whole-week time shifts and the engine on fixed-offset trading days; changing
 both safely is a design change larger than a minor release.
 
+## [0.2.1] - 2026-10-08
+
+Patch from a hands-on review of 0.1.1. Fill model unchanged (**v2**).
+
+### Fixed
+
+- **Price-axis decimals.** The chart, last-price tag and stop-loss / take-profit
+  tags use the tick's own decimal count (`0.25` → 2, `0.025` and `0.125` → 3).
+  Version 0.1.1 used `ceil(-log10(tick))`, which is 1 for a 0.25 tick, so
+  lightweight-charts showed 4145.75 as 4145.5 while the position panel showed
+  4145.75. That formula was already replaced in 0.2.0; 0.2.1 locks it with unit
+  tests and an independent Python check (`tools/oracle/price_axis.py`) that the
+  displayed price string parses back to the price. `0.1`, `0.01` and `0.005`
+  stay as they were.
+- **Traditional Chinese no longer prints raw engine English** for the practice-rule
+  banner (`daily loss limit 300` and the other rule reasons), exit reasons
+  (stop-loss, take-profit, flatten, rule, manual), working-order types (market,
+  limit, stop) and session status (active, breached, passed, finished). English
+  uses the same table. Stored session files keep the English tokens.
+- R-multiple hint and the dataset preview hint. The old R hint could be read as
+  if the trade had a stop; it now says the trade has an entry with no stop-loss.
+  The preview hint uses 選擇, not 揀.
+
+### Changed
+
+- The new-session form and the practice-rules card say rules are checked at each
+  bar close, not while the bar is forming.
+- Stop-loss and take-profit fields say a market order counts ticks from the last
+  close, not from the fill.
+- The closed-result label is “Realized P&L (incl. fees)” / 「已實現盈虧（含手續費）」,
+  with a note that entry commission is included before any trade is closed.
+- CSV import warns that the tick defaults to 0.01, and the dataset list shows the
+  tick after import.
+- The header wraps, so the About button no longer sticks out of a narrow window.
+  The app is for a desktop browser (stated in the README).
+
 ## [0.2.0] - 2026-10-08
 
 Feature release based on user-feedback research. Fill model unchanged (**v2**); results
@@ -185,7 +221,8 @@ First public release.
   no-market-data and attribution checks, gitleaks secret scan) and a Playwright
   headless smoke test, both in CI.
 
-[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Kinfxhk/candledrill/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Kinfxhk/candledrill/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/Kinfxhk/candledrill/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Kinfxhk/candledrill/releases/tag/v0.1.0
