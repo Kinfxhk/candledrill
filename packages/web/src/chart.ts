@@ -22,6 +22,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { roundToTick, tickDecimals, type Bar } from '@candledrill/core';
+import { weekdayName } from './labels.js';
 
 export interface ChartTheme {
   background: string;
@@ -200,11 +201,10 @@ export class PriceChart {
 
   /** Blind mode: the time axis and crosshair show weekday and clock time, never a date. */
   setBlindAxis(on: boolean): void {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const clock = (t: Time) => {
-      const d = new Date(Number(t) * 1000);
+    const clock = (time: Time) => {
+      const d = new Date(Number(time) * 1000);
       const hm = d.toISOString().slice(11, 16);
-      return { day: days[d.getUTCDay()]!, hm };
+      return { day: weekdayName(d.getUTCDay()), hm };
     };
     if (on) {
       this.chart.applyOptions({

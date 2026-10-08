@@ -32,7 +32,8 @@ import {
   tradesTab,
   type BottomTab,
 } from './bottom.js';
-import { t, type MessageKey } from './i18n.js';
+import { practiceClockText } from './clock.js';
+import { getLang, t, type MessageKey } from './i18n.js';
 import { statusReasonText } from './labels.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 
@@ -67,6 +68,7 @@ export class PracticeView {
   private side: SidePanel | undefined;
   private bottom: BottomPanel | undefined;
   private drawings: Drawing[] = [];
+  private blindAxisLang: string | undefined;
   private drawMode: DrawMode | null = null;
   private linkCharts = localStorage.getItem('candledrill.link') !== '0';
   private pendingPoint: { time: number; price: number } | null = null;
@@ -621,14 +623,16 @@ export class PracticeView {
     if (!this.meta || !this.state) return;
     const off = this.meta.settings.utcOffsetMinutes;
     const blind = this.meta.settings.blind;
-    if (blind && !blind.revealed) {
-      // Weekday and clock only; the day number counts from the session start.
-      const local = new Date((this.cursorTime + off * 60) * 1000);
-      const day0 = Math.floor((this.meta.startTime + off * 60) / 86_400);
-      const n = Math.floor((this.cursorTime + off * 60) / 86_400) - day0 + 1;
-      const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][local.getUTCDay()]!;
-      this.els.clock!.textContent = `${t('pr.blindDay', { n })} · ${wd} ${local.toISOString().slice(11, 16)}`;
-    } else this.els.clock!.textContent = fmtTime(this.cursorTime, off);
+    this.els.clock!.textContent = practiceClockText({
+      cursorTime: this.cursorTime,
+      startTime: this.meta.startTime,
+      utcOffsetMinutes: off,
+      blind,
+    });
+    if (this.blindHidden && this.blindAxisLang !== getLang()) {
+      this.blindAxisLang = getLang();
+      for (const pane of this.panes) pane.chart.setBlindAxis(true);
+    }
     const rb = this.els.revealBanner!;
     if (blind?.revealed && blind.timeShift !== undefined && blind.priceOffset !== undefined) {
       rb.hidden = false;

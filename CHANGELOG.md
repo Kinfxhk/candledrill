@@ -62,6 +62,16 @@ Patch from a hands-on review of 0.1.1. Fill model unchanged (**v2**).
 - The header wraps, so the About button no longer sticks out of a narrow window.
   The app is for a desktop browser (stated in the README).
 
+- After a blind reveal, the clock shows the real exchange time (the disguised
+  cursor minus the time shift), the same instant as the reveal banner. Before
+  reveal it still shows day number, weekday and clock, with no calendar date.
+  Chart prices stay disguised.
+- Weekday names follow the UI language (English Mon–Sun, Traditional Chinese
+  週一–週日) on the blind clock, the chart axis and the journal weekday table.
+- Traditional Chinese drawing buttons say 好倉 R / 淡倉 R, matching the position
+  panel. User-facing Chinese uses 入場/出場, 跳 and K線 (no space). English
+  wording is unchanged.
+
 ## [0.2.0] - 2026-10-08
 
 Feature release based on user-feedback research. Fill model unchanged (**v2**); results

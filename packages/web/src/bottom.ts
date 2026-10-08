@@ -5,7 +5,7 @@ import { sessionStats } from '@candledrill/core';
 import { sessionsApi, type SessionSettings, type SessionStateDto } from './api.js';
 import { t, type MessageKey } from './i18n.js';
 import { el, fmtMoney, fmtNum, fmtPct, fmtTime, signClass, toast } from './format.js';
-import { exitReasonText, orderRoleText } from './labels.js';
+import { exitReasonText, orderRoleText, weekdayKeyText } from './labels.js';
 import { fmtPrice } from './side.js';
 
 export interface BottomTab {
@@ -249,7 +249,7 @@ export const journalTab: BottomTab = {
           const exc = (ticks: number | undefined, r: number | null | undefined) =>
             ticks === undefined
               ? '–'
-              : `${fmtNum(ticks, 0)} t${r === null || r === undefined ? '' : ` · ${fmtNum(r)}R`}`;
+              : `${fmtNum(ticks, 0)} ${t('unit.tick')}${r === null || r === undefined ? '' : ` · ${fmtNum(r)}R`}`;
           return el(
             'tr',
             { 'data-testid': `journal-row-${tr.id}` },
@@ -283,7 +283,7 @@ export const journalTab: BottomTab = {
                 el(
                   'tr',
                   {},
-                  el('td', {}, g.key),
+                  el('td', {}, weekdayKeyText(g.key)),
                   el('td', { class: 'num' }, String(g.trades)),
                   el('td', { class: 'num' }, fmtPct(g.winRate)),
                   el('td', { class: `num ${signClass(g.netPnl)}` }, fmtMoney(g.netPnl)),

@@ -68,3 +68,35 @@ export function statusReasonText(reason: string | null | undefined): string {
   }
   return reason;
 }
+
+const WEEKDAY_BY_UTC: MessageKey[] = [
+  'wd.sun',
+  'wd.mon',
+  'wd.tue',
+  'wd.wed',
+  'wd.thu',
+  'wd.fri',
+  'wd.sat',
+];
+
+const WEEKDAY_BY_KEY: Record<string, MessageKey> = {
+  Sun: 'wd.sun',
+  Mon: 'wd.mon',
+  Tue: 'wd.tue',
+  Wed: 'wd.wed',
+  Thu: 'wd.thu',
+  Fri: 'wd.fri',
+  Sat: 'wd.sat',
+};
+
+/** `utcDay` is Date#getUTCDay (0 = Sunday). English stays Sun/Mon; zh-Hant is 週日/週一. */
+export function weekdayName(utcDay: number): string {
+  const key = WEEKDAY_BY_UTC[utcDay];
+  return key ? t(key) : String(utcDay);
+}
+
+/** Journal group keys are "Mon".."Sun". Anything else (an hour such as "09") is unchanged. */
+export function weekdayKeyText(key: string): string {
+  const id = WEEKDAY_BY_KEY[key];
+  return id ? t(id) : key;
+}
