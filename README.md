@@ -16,6 +16,8 @@ no telemetry.
 
 <sub>Screenshot uses generated `SYNTH-` demo data, not real market prices.</sub>
 
+Hands-on guide in Traditional Chinese: [docs/guide.zh-Hant.md](docs/guide.zh-Hant.md).
+
 ## Risk notice
 
 CandleDrill is an **educational practice tool**. It is **not investment advice**,
@@ -349,6 +351,7 @@ the library's logo link is kept). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PART
   而數據本身存於本機，所以只能避免意外先見，並非防作弊。
 - **分享報告**：匯出檔不含K線，但含有由數據衍生的成交價及時間；以真實行情練習時，公開前請
   先確認數據授權。
+- **使用教學**（繁體中文實測）：[docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)。
 - **快速開始**：安裝 Node.js 22 後執行 `npm ci && npm start`，打開 http://127.0.0.1:4870/ 。
 - **只在本機運行**：伺服器只綁定 `127.0.0.1`（Docker 容器內部例外地監聽 `0.0.0.0`，但只可
   發佈到本機 `127.0.0.1`），數據存於本機 SQLite 檔。所有改動數據的請求都須附上每次啟動
