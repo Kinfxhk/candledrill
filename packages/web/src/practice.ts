@@ -61,6 +61,8 @@ export class PracticeView {
   private playing = false;
   private timer: ReturnType<typeof setInterval> | undefined;
   private inFlight = false;
+  /** Invalidates pending requests whenever this view is opened or closed. */
+  private generation = 0;
   private speed = 5;
   private carry = 0;
   private root = document.getElementById('practice-root')!;
@@ -103,8 +105,16 @@ export class PracticeView {
   }
 
   async open(id: number): Promise<void> {
-    this.pause();
-    const view = await sessionsApi.open(id);
+    this.close();
+    const generation = this.generation;
+    let view;
+    try {
+      view = await sessionsApi.open(id);
+    } catch (err) {
+      if (generation !== this.generation) return;
+      throw err;
+    }
+    if (generation !== this.generation) return;
     this.meta = view.session;
     this.bars = view.bars;
     this.drawings = (view.session.drawings as Drawing[]) ?? [];
@@ -117,10 +127,20 @@ export class PracticeView {
   }
 
   close(): void {
+    this.generation++;
     this.pause();
+    this.inFlight = false;
     for (const p of this.panes) p.chart.destroy();
     this.panes = [];
     this.meta = undefined;
+    this.state = undefined;
+    this.bars = [];
+    this.drawings = [];
+    this.pendingPoint = null;
+    this.drawMode = null;
+    this.els = {};
+    this.side = undefined;
+    this.bottom = undefined;
     this.root.replaceChildren();
     this.root.hidden = true;
     document.getElementById('practice-empty')!.hidden = false;
@@ -333,12 +353,15 @@ export class PracticeView {
 
   private async reveal(): Promise<void> {
     if (!this.meta || !confirm(t('pr.revealConfirm'))) return;
+    const generation = this.generation;
     try {
       const view = await sessionsApi.reveal(this.meta.id);
+      if (generation !== this.generation) return;
       this.meta = view.session;
       this.els.reveal!.hidden = true;
       this.applyView(view);
     } catch (err) {
+      if (generation !== this.generation) return;
       toast((err as Error).message, 'error');
     }
   }
@@ -367,11 +390,14 @@ export class PracticeView {
 
   private async saveDrawings(next: Drawing[]): Promise<void> {
     if (!this.meta) return;
+    const generation = this.generation;
     try {
       const r = await sessionsApi.saveDrawings(this.meta.id, next);
+      if (generation !== this.generation) return;
       this.drawings = r.drawings as Drawing[];
       this.renderDrawings();
     } catch (err) {
+      if (generation !== this.generation) return;
       toast((err as Error).message, 'error');
     }
   }
@@ -500,9 +526,13 @@ export class PracticeView {
   }
 
   private async mutate(fn: () => Promise<SessionViewDto>): Promise<void> {
+    const generation = this.generation;
     try {
-      this.applyView(await fn());
+      const view = await fn();
+      if (generation !== this.generation) return;
+      this.applyView(view);
     } catch (err) {
+      if (generation !== this.generation) return;
       toast((err as Error).message, 'error');
     }
   }
@@ -527,36 +557,50 @@ export class PracticeView {
 
   async step(count: number): Promise<void> {
     if (!this.meta || this.inFlight) return;
+    const generation = this.generation;
     this.inFlight = true;
     try {
       const r = await sessionsApi.step(this.meta.id, count);
+      if (generation !== this.generation) return;
       this.appendBars(r.revealed);
       this.applyView(r);
       if (r.state.status === 'finished') this.pause();
     } catch (err) {
+      if (generation !== this.generation) return;
       this.pause();
       toast((err as Error).message, 'error');
     } finally {
-      this.inFlight = false;
+      if (generation === this.generation) this.inFlight = false;
     }
   }
 
   private async jump(): Promise<void> {
-    if (!this.meta) return;
+    if (!this.meta || this.inFlight) return;
+    const generation = this.generation;
+    const id = this.meta.id;
     const time = fromLocalInput(
       (this.els.jumpInput as HTMLInputElement).value,
       this.meta.settings.utcOffsetMinutes,
     );
     if (!Number.isFinite(time)) return;
     this.pause();
-    const r = await sessionsApi.jump(this.meta.id, time);
-    if (r.truncated) {
-      await this.open(this.meta.id);
-      return;
+    this.inFlight = true;
+    try {
+      const r = await sessionsApi.jump(id, time);
+      if (generation !== this.generation) return;
+      if (r.truncated) {
+        await this.open(id);
+        return;
+      }
+      this.appendBars(r.revealed);
+      this.applyView(r);
+      for (const p of this.panes) p.chart.scrollToEnd();
+    } catch (err) {
+      if (generation !== this.generation) return;
+      toast((err as Error).message, 'error');
+    } finally {
+      if (generation === this.generation) this.inFlight = false;
     }
-    this.appendBars(r.revealed);
-    this.applyView(r);
-    for (const p of this.panes) p.chart.scrollToEnd();
   }
 
   play(): void {

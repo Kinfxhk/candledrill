@@ -50,6 +50,54 @@ async function sessionByName(page: Page, name: string) {
   return (await page.request.get(`/api/sessions/${s.id}`)).json();
 }
 
+test('a delayed step from the previous session cannot change the newly opened session', async ({
+  page,
+}) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  await demo(page);
+  await newSession(page, 'Race A');
+  const a = await sessionByName(page, 'Race A');
+  await page.getByTestId('btn-buy').click();
+  await expect(page.getByTestId('orders')).toContainText('MKT');
+
+  let release!: () => void;
+  let arrived!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const ready = new Promise<void>((r) => (arrived = r));
+  await page.route(`**/api/sessions/${a.session.id}/step`, async (route) => {
+    const response = await route.fetch();
+    arrived();
+    await gate;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.getByTestId('btn-step').click();
+    await ready;
+    await page.click('nav.tabs button[data-view=library]');
+    await newSession(page, 'Race B');
+    await expect(page.locator('.toolbar strong')).toHaveText('Race B');
+    const b = await sessionByName(page, 'Race B');
+    const clock = await page.getByTestId('clock').textContent();
+    const response = page.waitForResponse((r) =>
+      r.url().endsWith(`/sessions/${a.session.id}/step`),
+    );
+    release();
+    await response;
+    // The next live step must use B's state, and only advance B once.
+    await page.getByTestId('btn-step').click();
+    await expect
+      .poll(async () => (await sessionByName(page, 'Race B')).state.cursor)
+      .toBe(b.state.cursor + 1);
+    await expect(page.getByTestId('position')).toContainText('Flat');
+    await expect(page.getByTestId('clock')).not.toHaveText(clock!);
+    expect(errors).toEqual([]);
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: 'wait' });
+  }
+});
+
 test('blind practice hides the period, symbol and preview until revealed', async ({ page }) => {
   const errors = watchErrors(page);
   const bodies: string[] = [];
