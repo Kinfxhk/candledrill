@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Keep every tracked text file LF on all platforms (Windows checkouts included), so the
+# Prettier format gate and golden snapshots behave the same everywhere.
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
