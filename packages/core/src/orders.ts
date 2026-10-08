@@ -108,6 +108,36 @@ export interface TradingState {
   readonly realizedPnl: number;
   readonly commissionPaid: number;
   readonly lastClose: number;
+  /** Audit log of every accepted order modification (before and after values). */
+  readonly modifications: readonly OrderModification[];
+}
+
+export interface OrderPrices {
+  readonly price: number | null;
+  readonly stopLoss: number | null;
+  readonly takeProfit: number | null;
+}
+
+export interface OrderModification {
+  readonly seq: number;
+  /** Cursor bar time when the change was made. */
+  readonly time: number;
+  readonly orderId: number;
+  readonly role: OrderRole;
+  readonly before: OrderPrices;
+  readonly after: OrderPrices;
+}
+
+/**
+ * Requested change to a working order. Omitted fields stay as they are; `null` removes a
+ * stop-loss or take-profit. `shiftBracket` moves an entry's existing stop-loss and
+ * take-profit by the same distance as its price (fields given explicitly win).
+ */
+export interface OrderChange {
+  readonly price?: number;
+  readonly stopLoss?: number | null;
+  readonly takeProfit?: number | null;
+  readonly shiftBracket?: boolean;
 }
 
 export interface CostModel {
@@ -148,6 +178,7 @@ export function emptyTrading(lastClose: number): TradingState {
     realizedPnl: 0,
     commissionPaid: 0,
     lastClose,
+    modifications: [],
   };
 }
 
@@ -169,6 +200,21 @@ function checkPrice(name: string, p: number | null | undefined, tick: number): n
   return roundToTick(p, tick);
 }
 
+/** Stop-loss must be on the losing side and take-profit on the winning side of `ref`. */
+function checkBracket(side: Side, ref: number, sl: number | null, tp: number | null): void {
+  const dir = side === 'buy' ? 1 : -1;
+  if (sl !== null && (sl - ref) * dir >= 0) {
+    throw new OrderError(
+      `stop-loss must be ${dir > 0 ? 'below' : 'above'} the entry reference price ${ref}`,
+    );
+  }
+  if (tp !== null && (tp - ref) * dir <= 0) {
+    throw new OrderError(
+      `take-profit must be ${dir > 0 ? 'above' : 'below'} the entry reference price ${ref}`,
+    );
+  }
+}
+
 /** Validate and add a new working order. `index`/`time` are the current cursor bar. */
 export function placeOrder(
   t: TradingState,
@@ -186,18 +232,7 @@ export function placeOrder(
   const sl = req.stopLoss == null ? null : checkPrice('stopLoss', req.stopLoss, costs.tickSize);
   const tp =
     req.takeProfit == null ? null : checkPrice('takeProfit', req.takeProfit, costs.tickSize);
-  const ref = price ?? t.lastClose;
-  const dir = req.side === 'buy' ? 1 : -1;
-  if (sl !== null && (sl - ref) * dir >= 0) {
-    throw new OrderError(
-      `stop-loss must be ${dir > 0 ? 'below' : 'above'} the entry reference price ${ref}`,
-    );
-  }
-  if (tp !== null && (tp - ref) * dir <= 0) {
-    throw new OrderError(
-      `take-profit must be ${dir > 0 ? 'above' : 'below'} the entry reference price ${ref}`,
-    );
-  }
+  checkBracket(req.side, price ?? t.lastClose, sl, tp);
   const order: Order = {
     id: t.nextId,
     side: req.side,
@@ -234,17 +269,90 @@ export function cancelOrder(
   return replaceOrder(t, { ...o, status: 'cancelled', cancelReason: reason });
 }
 
+/**
+ * Modify a working order atomically. The whole bracket is re-validated against the
+ * resulting prices and the change is either applied in full or rejected with an
+ * `OrderError` (state unchanged). Every accepted change is appended to
+ * `TradingState.modifications` with its before/after prices.
+ *
+ * - Entry orders: price (limit/stop), stop-loss and take-profit, checked exactly like a
+ *   new order (stop-loss below / take-profit above the entry price for a buy, mirrored for
+ *   a sell; market entries use the last close).
+ * - Stop-loss / take-profit children: price only, and it must not be marketable against
+ *   the last close (a long's stop-loss below it, take-profit above it; mirrored for a
+ *   short). To exit at the next open, use Flatten.
+ */
 export function modifyOrder(
   t: TradingState,
   costs: CostModel,
   id: number,
-  price: number,
+  change: number | OrderChange,
+  time = 0,
 ): TradingState {
+  const req: OrderChange = typeof change === 'number' ? { price: change } : change;
   const o = t.orders.find((x) => x.id === id);
   if (!o) throw new OrderError(`order ${id} not found`);
   if (o.status !== 'working') throw new OrderError(`order ${id} is not working`);
-  if (o.type === 'market') throw new OrderError('market orders have no price');
-  return replaceOrder(t, { ...o, price: checkPrice('price', price, costs.tickSize) });
+  if (req.price === undefined && req.stopLoss === undefined && req.takeProfit === undefined)
+    throw new OrderError('nothing to modify');
+  const before: OrderPrices = { price: o.price, stopLoss: o.stopLoss, takeProfit: o.takeProfit };
+  let after: OrderPrices;
+  if (o.role === 'entry') {
+    if (req.price !== undefined && o.type === 'market')
+      throw new OrderError('market orders have no price');
+    const price =
+      req.price === undefined ? o.price : checkPrice('price', req.price, costs.tickSize);
+    const delta = req.shiftBracket && price !== null && o.price !== null ? price - o.price : 0;
+    const pick = (name: string, given: number | null | undefined, current: number | null) => {
+      if (given === null) return null;
+      if (given !== undefined) return checkPrice(name, given, costs.tickSize);
+      if (current === null || delta === 0) return current;
+      const moved = roundToTick(current + delta, costs.tickSize);
+      if (moved <= 0) throw new OrderError(`${name} would move to a non-positive price`);
+      return moved;
+    };
+    const stopLoss = pick('stopLoss', req.stopLoss, o.stopLoss);
+    const takeProfit = pick('takeProfit', req.takeProfit, o.takeProfit);
+    checkBracket(o.side, price ?? t.lastClose, stopLoss, takeProfit);
+    after = { price, stopLoss, takeProfit };
+  } else if (o.role === 'stop-loss' || o.role === 'take-profit') {
+    if (req.stopLoss !== undefined || req.takeProfit !== undefined)
+      throw new OrderError('modify a protective order through its price');
+    if (req.price === undefined) throw new OrderError('price is required');
+    const price = checkPrice('price', req.price, costs.tickSize);
+    // A child that closes a long sells; it protects a long below / takes profit above.
+    const longPos = o.side === 'sell';
+    const ref = t.lastClose;
+    const wrong =
+      o.role === 'stop-loss'
+        ? longPos
+          ? price >= ref
+          : price <= ref
+        : longPos
+          ? price <= ref
+          : price >= ref;
+    if (wrong) {
+      const where = (o.role === 'stop-loss') === longPos ? 'below' : 'above';
+      throw new OrderError(
+        `${o.role} must stay ${where} the last price ${ref}; use Flatten to exit at the next open`,
+      );
+    }
+    after = { price, stopLoss: null, takeProfit: null };
+  } else {
+    throw new OrderError(`${o.role} orders cannot be modified`);
+  }
+  const log: OrderModification = {
+    seq: t.modifications.length + 1,
+    time,
+    orderId: o.id,
+    role: o.role,
+    before,
+    after,
+  };
+  return {
+    ...replaceOrder(t, { ...o, ...after }),
+    modifications: [...t.modifications, log],
+  };
 }
 
 function cancelWhere(t: TradingState, pred: (o: Order) => boolean, reason: string): TradingState {

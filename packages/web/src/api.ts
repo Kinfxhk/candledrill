@@ -5,6 +5,7 @@ import type {
   Bar,
   CsvImportOptions,
   CsvImportReport,
+  OrderChange,
   OrderRequest,
   SessionState,
 } from '@candledrill/core';
@@ -134,8 +135,8 @@ export const sessionsApi = {
     request<SessionViewDto>('POST', `/api/sessions/${id}/orders`, req),
   cancelOrder: (id: number, orderId: number) =>
     request<SessionViewDto>('DELETE', `/api/sessions/${id}/orders/${orderId}`),
-  modifyOrder: (id: number, orderId: number, price: number) =>
-    request<SessionViewDto>('PATCH', `/api/sessions/${id}/orders/${orderId}`, { price }),
+  modifyOrder: (id: number, orderId: number, change: OrderChange) =>
+    request<SessionViewDto>('PATCH', `/api/sessions/${id}/orders/${orderId}`, change),
   flatten: (id: number) => request<SessionViewDto>('POST', `/api/sessions/${id}/flatten`, {}),
   saveDrawings: (id: number, drawings: unknown[]) =>
     request<{ drawings: unknown[] }>('PUT', `/api/sessions/${id}/drawings`, { drawings }),

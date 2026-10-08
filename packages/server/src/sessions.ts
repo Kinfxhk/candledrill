@@ -347,7 +347,15 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
       mutate(req.params.id, reply, (row) => sessionCancelOrder(row.state, req.params.orderId)),
   );
 
-  app.patch<{ Params: { id: number; orderId: number }; Body: { price: number } }>(
+  app.patch<{
+    Params: { id: number; orderId: number };
+    Body: {
+      price?: number;
+      stopLoss?: number | null;
+      takeProfit?: number | null;
+      shiftBracket?: boolean;
+    };
+  }>(
     '/api/sessions/:id/orders/:orderId',
     {
       schema: {
@@ -355,14 +363,25 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
         body: {
           type: 'object',
           additionalProperties: false,
-          required: ['price'],
-          properties: { price: { type: 'number', exclusiveMinimum: 0 } },
+          minProperties: 1,
+          properties: {
+            price: { type: 'number', exclusiveMinimum: 0 },
+            stopLoss: priceOrNull,
+            takeProfit: priceOrNull,
+            shiftBracket: { type: 'boolean' },
+          },
         },
       },
     },
     async (req, reply) =>
-      mutate(req.params.id, reply, (row) =>
-        sessionModifyOrder(row.settings, row.state, req.params.orderId, req.body.price),
+      mutate(req.params.id, reply, (row, bars) =>
+        sessionModifyOrder(
+          row.settings,
+          row.state,
+          req.params.orderId,
+          req.body,
+          bars[row.state.cursor]!.time,
+        ),
       ),
   );
 

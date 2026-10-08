@@ -171,6 +171,65 @@ describe('order API', () => {
     expect(after.state.trading.position).toBeNull();
     expect(after.state.trading.trades).toHaveLength(1);
   });
+
+  it('modifies a bracket atomically and logs before/after', async () => {
+    const { a, ds } = await setup();
+    const created = (
+      await a.inject({
+        method: 'POST',
+        url: '/api/sessions',
+        payload: {
+          datasetId: ds.id,
+          name: 'm',
+          startTime: ds.firstTime + 3600,
+          settings: SETTINGS,
+        },
+      })
+    ).json();
+    const id = created.session.id;
+    const last = created.state.trading.lastClose as number;
+    const placed = await a.inject({
+      method: 'POST',
+      url: `/api/sessions/${id}/orders`,
+      payload: {
+        side: 'buy',
+        type: 'limit',
+        qty: 1,
+        price: last - 50,
+        stopLoss: last - 60,
+        takeProfit: last - 30,
+      },
+    });
+    const orderId = placed.json().state.trading.orders[0].id;
+    const url = `/api/sessions/${id}/orders/${orderId}`;
+    const bad = await a.inject({ method: 'PATCH', url, payload: { price: last - 70 } });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().error).toMatch(/stop-loss must be below/);
+    const empty = await a.inject({ method: 'PATCH', url, payload: {} });
+    expect(empty.statusCode).toBe(400);
+    const good = await a.inject({
+      method: 'PATCH',
+      url,
+      payload: { price: last - 70, shiftBracket: true },
+    });
+    expect(good.statusCode).toBe(200);
+    const st = good.json().state;
+    expect(st.trading.orders[0]).toMatchObject({
+      price: last - 70,
+      stopLoss: last - 80,
+      takeProfit: last - 50,
+    });
+    expect(st.trading.modifications).toEqual([
+      {
+        seq: 1,
+        time: good.json().cursorTime,
+        orderId,
+        role: 'entry',
+        before: { price: last - 50, stopLoss: last - 60, takeProfit: last - 30 },
+        after: { price: last - 70, stopLoss: last - 80, takeProfit: last - 50 },
+      },
+    ]);
+  });
 });
 
 describe('export API', () => {

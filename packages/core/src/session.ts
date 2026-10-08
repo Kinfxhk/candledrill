@@ -17,6 +17,7 @@ import {
   processBar,
   forceClose,
   type CostModel,
+  type OrderChange,
   type OrderRequest,
   type TradingState,
   unrealizedPnl,
@@ -98,6 +99,7 @@ export function upgradeState(
   const time = bars[Math.min(raw.cursor, bars.length - 1)]!.time;
   return {
     ...raw,
+    trading: { ...raw.trading, modifications: raw.trading.modifications ?? [] },
     equityPeak: raw.equityPeak ?? settings.startingBalance,
     maxDrawdown: raw.maxDrawdown ?? 0,
     maxDrawdownPct: raw.maxDrawdownPct ?? 0,
@@ -251,10 +253,14 @@ export function sessionModifyOrder(
   settings: SessionSettings,
   state: SessionState,
   orderId: number,
-  price: number,
+  change: number | OrderChange,
+  time = 0,
 ): SessionState {
   assertCanTrade(state);
-  return { ...state, trading: modifyOrder(state.trading, costModel(settings), orderId, price) };
+  return {
+    ...state,
+    trading: modifyOrder(state.trading, costModel(settings), orderId, change, time),
+  };
 }
 
 export function sessionFlatten(bars: readonly Bar[], state: SessionState): SessionState {
