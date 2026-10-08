@@ -8,7 +8,8 @@
 // Restore: the uploaded file is opened read-only first and must pass every check before
 // anything changes: SQLite integrity check, only the tables/indexes CandleDrill creates (no
 // triggers or views), a known schema version, foreign keys intact, and settings/state JSON
-// that parses. It is then migrated (on a private copy) to the current schema and copied
+// that parses. Runtime bars and sessions are validated after migration on a private copy.
+// The validated copy is copied
 // into the live database in ONE transaction. A copy of the current database is written next
 // to it first ("candledrill.db.before-restore-<time>"), so a restore can be undone.
 
@@ -16,7 +17,24 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, basename, join } from 'node:path';
 import Database from 'better-sqlite3';
-import { MIGRATIONS_COUNT, migrate, type Db } from './db.js';
+import {
+  blindIssues,
+  checkSessionState,
+  disguiseBars,
+  journalIssues,
+  parseSessionFile,
+  validateBars,
+  type SessionState,
+} from '@candledrill/core';
+import {
+  MIGRATIONS_COUNT,
+  migrate,
+  getAllBars,
+  listDatasets,
+  listSessions,
+  type Db,
+} from './db.js';
+import type { StoredSettings } from './sessions.js';
 
 export const MAX_RESTORE_BYTES = 1024 * 1024 * 1024;
 const TABLES = ['datasets', 'bars', 'sessions'] as const;
@@ -116,6 +134,47 @@ export function inspectBackup(input: Buffer): {
   }
 }
 
+/** Validate runtime data on the migrated private copy, before any live writes. */
+function validateLibrary(src: Db): void {
+  const sessions = listSessions<StoredSettings, SessionState>(src);
+  for (const ds of listDatasets(src)) {
+    const bars = getAllBars(src, ds.id);
+    if (validateBars(bars, { timeframeSeconds: ds.timeframeSeconds }).length)
+      throw new RestoreError('a dataset in the file has invalid bars');
+    for (const row of sessions.filter((r) => r.datasetId === ds.id)) {
+      const { blind, ...settings } = row.settings;
+      const parsed = parseSessionFile(
+        JSON.stringify({
+          format: 'candledrill-session',
+          formatVersion: 1,
+          name: row.name,
+          startTime: row.startTime,
+          settings,
+          blind,
+          state: row.state,
+          drawings: row.drawings,
+          journal: row.journal,
+        }),
+      );
+      if (!parsed.file) throw new RestoreError('a practice session in the file is invalid');
+      const f = parsed.file;
+      let sessionBars = bars;
+      if (f.blind) {
+        if (f.blind.symbol !== ds.symbol || blindIssues(f.blind, bars, f.settings.tickSize).length)
+          throw new RestoreError('a blind practice session in the file is invalid');
+        sessionBars = disguiseBars(bars, f.blind, f.settings.tickSize);
+      } else if (f.settings.symbol !== ds.symbol) {
+        throw new RestoreError('a practice session in the file has the wrong symbol');
+      }
+      if (
+        checkSessionState(sessionBars, f.settings, f.state).length ||
+        journalIssues(row.journal, f.state.trading.trades).length
+      )
+        throw new RestoreError('a practice session in the file does not match its dataset');
+    }
+  }
+}
+
 export interface RestoreResult {
   readonly datasets: number;
   readonly sessions: number;
@@ -141,7 +200,9 @@ export function restoreBackup(
     try {
       src.pragma('trusted_schema = OFF');
       migrate(src);
-    } catch {
+      validateLibrary(src);
+    } catch (err) {
+      if (err instanceof RestoreError) throw err;
       throw new RestoreError('the file could not be upgraded to the current layout');
     } finally {
       src.close();
