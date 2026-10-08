@@ -385,6 +385,9 @@ describe('backup and restore', () => {
     for (const sql of [
       "UPDATE sessions SET settings_json='{}', state_json='{}'",
       "UPDATE sessions SET state_json='{}'",
+      "UPDATE sessions SET settings_json='[]'",
+      'UPDATE datasets SET tick_size=0',
+      'UPDATE datasets SET timeframe_seconds=-60',
       "UPDATE sessions SET state_json=json_set(state_json, '$.cursor', 999999)",
       "UPDATE sessions SET drawings_json='{}'",
       `UPDATE sessions SET journal_json='{"999":{"tags":[],"note":"orphan"}}'`,
@@ -404,6 +407,35 @@ describe('backup and restore', () => {
       ).toEqual([]);
     }
   });
+
+  it('restores runtime history beyond portable import limits and preserves API-accepted names', async () => {
+    const { a, ds } = await setup();
+    const created = await a.inject({
+      method: 'POST',
+      url: '/api/sessions',
+      payload: { datasetId: ds.id, name: ' ', startTime: ds.firstTime + 3600, settings: SETTINGS },
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().session.id;
+    const state = created.json().state;
+    state.trading.modifications = Array.from({ length: 200_001 }, (_, i) => ({
+      seq: i + 1,
+      time: ds.firstTime + 3600,
+      orderId: 1,
+      role: 'entry',
+      before: { price: 100, stopLoss: null, takeProfit: null },
+      after: { price: 101, stopLoss: null, takeProfit: null },
+    }));
+    const serialized = JSON.stringify(state);
+    expect(serialized.length).toBeGreaterThan(20 * 1024 * 1024);
+    db!.prepare('UPDATE sessions SET state_json = ? WHERE id = ?').run(serialized, id);
+    const backup = (await a.inject({ method: 'GET', url: '/api/backup' })).rawPayload;
+    expect((await restore(a, backup)).statusCode).toBe(200);
+    const reopened = await a.inject({ method: 'GET', url: `/api/sessions/${id}` });
+    expect(reopened.statusCode).toBe(200);
+    expect(reopened.json().session.name).toBe(' ');
+    expect(reopened.json().state.trading.modifications).toEqual(state.trading.modifications);
+  }, 20_000);
 
   it('restores schema 3 sessions with legacy optional state fields and upgrades them on open', async () => {
     const { a, ds } = await setup();

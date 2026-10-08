@@ -138,6 +138,13 @@ export function inspectBackup(input: Buffer): {
 function validateLibrary(src: Db): void {
   const sessions = listSessions<StoredSettings, SessionState>(src);
   for (const ds of listDatasets(src)) {
+    if (
+      !Number.isFinite(ds.tickSize) ||
+      ds.tickSize <= 0 ||
+      !Number.isFinite(ds.timeframeSeconds) ||
+      ds.timeframeSeconds <= 0
+    )
+      throw new RestoreError('a dataset in the file has invalid metadata');
     const bars = getAllBars(src, ds.id);
     if (validateBars(bars, { timeframeSeconds: ds.timeframeSeconds }).length)
       throw new RestoreError('a dataset in the file has invalid bars');
@@ -155,6 +162,7 @@ function validateLibrary(src: Db): void {
           drawings: row.drawings,
           journal: row.journal,
         }),
+        { source: 'backup' },
       );
       if (!parsed.file) throw new RestoreError('a practice session in the file is invalid');
       const f = parsed.file;
@@ -167,7 +175,7 @@ function validateLibrary(src: Db): void {
         throw new RestoreError('a practice session in the file has the wrong symbol');
       }
       if (
-        checkSessionState(sessionBars, f.settings, f.state).length ||
+        checkSessionState(sessionBars, f.settings, f.state, { source: 'backup' }).length ||
         journalIssues(row.journal, f.state.trading.trades).length
       )
         throw new RestoreError('a practice session in the file does not match its dataset');
