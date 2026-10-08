@@ -6,6 +6,9 @@
 // Fails on unknown, missing or non-allowlisted licences.
 
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { satisfiesSpdx as satisfies } from './lib/spdx.mjs';
 
 /** Licences we may ship in runtime dependencies (all GPLv3/AGPLv3-compatible per FSF). */
 const RUNTIME_ALLOW = new Set([
@@ -45,15 +48,26 @@ function normalise(lic) {
   return String(lic).trim();
 }
 
-/** Minimal SPDX expression evaluation: OR = any alternative ok, AND = all parts ok. */
-function satisfies(expr, allowed) {
-  const e = expr.replace(/^\(|\)$/g, '').trim();
-  if (/\s+OR\s+/i.test(e)) return e.split(/\s+OR\s+/i).some((p) => satisfies(p, allowed));
-  if (/\s+AND\s+/i.test(e)) return e.split(/\s+AND\s+/i).every((p) => satisfies(p, allowed));
-  return allowed.has(e.replace(/[()]/g, '').trim());
+/**
+ * Run `npm query '*'` portably. `execFileSync('npm')` fails on Windows (npm is a .cmd
+ * shim, so it reports ENOENT), so we start npm's JavaScript entry point with the current
+ * Node binary instead.
+ */
+function npmQueryAll() {
+  const opts = { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 };
+  const candidates = [
+    process.env.npm_execpath, // set by `npm run`
+    join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'), // Windows
+    join(dirname(process.execPath), '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'), // Unix
+  ].filter((p) => p && /npm-cli\.js$/.test(p) && existsSync(p));
+  if (candidates.length > 0) {
+    return execFileSync(process.execPath, [candidates[0], 'query', '*'], opts);
+  }
+  // Last resort: let the OS shell resolve npm (needed for the .cmd shim on Windows).
+  return execFileSync('npm', ['query', '*'], { ...opts, shell: process.platform === 'win32' });
 }
 
-const raw = execFileSync('npm', ['query', '*'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+const raw = npmQueryAll();
 const pkgs = JSON.parse(raw);
 const devAllowed = new Set([...RUNTIME_ALLOW, ...DEV_ONLY_ALLOW]);
 
