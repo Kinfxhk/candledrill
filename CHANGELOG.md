@@ -6,23 +6,81 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
-Planned for v0.2:
+Still planned:
 
 - Per-session command queue, session revision and idempotent commands (no stale
   responses after quick session switches or retries)
 - Numeric order-modify dialog (stop-loss/take-profit/price) and a pre-trade risk preview
-- Blind-practice entry: no dataset preview, random start, review marking
 - Toolbar reorganisation, resizable panels, simpler chart markers
-- Crosshair and visible-range sync between the two charts
 - Correct handling of partial higher-timeframe buckets at the start of trimmed history
 - CSV import: conflicting-duplicate detection, source line numbers, data-quality summary
-- Import a session from its exported JSON (with dataset fingerprint), backup/restore
-- Drag-to-modify orders and drawings on the chart
+- Drag-to-modify working orders on the chart
 - Intrabar (high/low-based) practice-rule checks; currently rules use bar closes
-- Daylight-saving-aware session calendars (currently a fixed UTC offset)
+- Optional fixed-spread cost model (clearly labelled as an assumption, not historical
+  spreads)
 - Optional end-of-data settlement at the last close (`exitReason: end-of-data`)
 - Optional "limit orders must trade through" fill mode
 - Published npm package for `npx candledrill`; prebuilt container image
+
+Postponed with reason: **daylight-saving-aware (IANA) session calendars**. Blind practice
+depends on whole-week time shifts and the engine on fixed-offset trading days; changing
+both safely is a design change larger than a minor release.
+
+## [0.2.0] - 2026-10-08
+
+Feature release based on user-feedback research. Fill model unchanged (**v2**); results
+of existing sessions do not change. Database schema 4 (adds the journal column; older
+databases and backups are upgraded automatically).
+
+### Added
+
+- **Blind practice.** Random start (20–80% into the data); symbol shown as `BLIND`;
+  times moved by a random whole number of weeks (260–1560) and prices by a random whole
+  number of ticks, so weekday, time of day, P&L and R are unchanged. The server never
+  sends real times, prices or the symbol while the session is hidden (checked by tests
+  and by the independent oracle), the dataset preview answers `423 blind-lock`, and
+  **Reveal** or finishing the data shows the real values. Disguise parameters use the
+  operating system's cryptographic random source.
+- **Session file import** (`Import session file`). Exported session JSON now carries a
+  SHA-256 fingerprint of the dataset's bars; import refuses other data, re-checks every
+  fill against its bar, the commission total and the position, and validates drawings
+  and journal entries. Files from 0.1.x (no fingerprint) ask you to choose the dataset.
+- **Full backup and restore** (`Back up everything` / `Restore from backup`): one SQLite
+  file with all datasets, bars, sessions, drawings and journal entries. Restore checks the
+  file read-only first (integrity check, allow-listed tables and indexes only, no
+  triggers or views, known schema version, foreign keys, valid JSON), upgrades older
+  backups on a copy, swaps in one transaction and keeps the previous database as
+  `candledrill.db.before-restore-<timestamp>`.
+- **Backup reminder** card after a few changes without a backup in 14 days; dismissable,
+  stored only in the browser.
+- **Drawing tools:** rectangle and long/short **R tool** (entry, stop, target, live
+  risk:reward). Select to drag a drawing or its handles; Delete/Backspace or × removes it.
+  Shapes are clipped to the plot area.
+- **Linked charts** in split view: mirrored crosshair and right-edge time alignment
+  (`Link charts` toggle, remembered).
+- **Trade journal** tab: tags and a note per trade; bar-based MAE/MFE in ticks and R;
+  results by exchange-local hour and weekday. Tags and notes are added to the trades CSV
+  (`tags`, `note` columns, formula-injection safe) and the session JSON.
+- **Independent Python oracle** (`tools/oracle/`, standard library only, `npm run
+oracle`, runs in CI): re-derives fills, positions, P&L, commission, R and MAE/MFE for
+  1000 random sessions, checks blind disguise exactness and leakage in real server
+  responses, and the backup/restore round trip with SQLite's own integrity check.
+- **Long-data benchmark** (`npm run bench`, 500,000 one-minute bars) with results in
+  [docs/PERFORMANCE.md](docs/PERFORMANCE.md) and limits in the README.
+- README: **Commitments** and **Your data** sections (EN and 繁體中文).
+
+### Changed
+
+- `tradesToCsv` gains `tags` and `note` columns (appended at the end).
+- Price axis, drawing prices and fill markers use the dataset's tick precision (a 0.25 tick no longer
+  shows one decimal).
+- Blind sessions are named "Blind <date>" by default so the symbol does not leak into
+  the session list.
+
+### Fixed
+
+- Clicks on the chart right after a drag were sometimes lost (now handled with native
+  pointer events).
 
 ## [0.1.1] - 2026-10-08
 
@@ -127,6 +185,7 @@ First public release.
   no-market-data and attribution checks, gitleaks secret scan) and a Playwright
   headless smoke test, both in CI.
 
-[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Kinfxhk/candledrill/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/Kinfxhk/candledrill/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Kinfxhk/candledrill/releases/tag/v0.1.0

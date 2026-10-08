@@ -5,7 +5,7 @@ and close, so the order of prices inside it is unknown. This page lists the rule
 CandleDrill uses, so every practice result can be explained and reproduced. It is not
 a model of a real exchange.
 
-Current versions: **engine 0.1.1, fill model v2.** Both appear in every HTML report, in
+Current versions: **engine 0.2.0, fill model v2.** Both appear in every HTML report, in
 session JSON exports (`simulationPolicy`) and at `GET /api/health`. The fill model
 version changes whenever a rule that can change a fill price, a fill time or a rule
 outcome changes.
@@ -136,5 +136,14 @@ Two things fall outside that guarantee:
 - all data and the source code are on your own computer.
 
 So CandleDrill protects you against seeing the future _by accident_. It is not an
-anti-cheating system. A blind-practice mode that skips the preview is planned for
-v0.2.
+anti-cheating system.
+
+**Blind practice** (0.2.0) narrows the first gap. While a blind session on a dataset is
+running, the dataset's bar API (and so the library preview) answers `423 blind-lock`,
+the session starts at a random point, and every response carries disguised values only:
+times shifted by a random whole number of weeks (260–1560), prices by a random whole
+number of ticks, symbol `BLIND`. Because both shifts are exact, fills, commission, P&L
+and R are identical to an undisguised run on the same bars (a property test and the
+independent oracle in `tools/oracle/` check this). Reveal or the end of the data lifts
+the lock. The disguise defeats casual recognition only: a distinctive price path can still
+be recognised, and the database on your disk holds the real values.

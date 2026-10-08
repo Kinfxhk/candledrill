@@ -3,7 +3,7 @@
 services:
   candledrill:
     build: .
-    image: candledrill:0.1.1
+    image: candledrill:0.2.0
     ports:
       # Host loopback only. CandleDrill has no authentication; do not expose it to a network.
       - '127.0.0.1:4870:4870'
