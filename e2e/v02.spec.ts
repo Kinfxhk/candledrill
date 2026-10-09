@@ -2,6 +2,7 @@
 // v0.2: blind practice, drawing tools, session file import, backup and restore, reminder.
 import { copyFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { generateDemo } from './helpers.js';
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -14,21 +15,7 @@ function watchErrors(page: Page): string[] {
 
 /** Generate demo data and wait until the new dataset is selected (the form is prefilled). */
 async function demo(page: Page) {
-  const list = async () =>
-    (await (await page.request.get('/api/datasets')).json()).datasets as { id: number }[];
-  const before = (await list()).length;
-  await page.click('#btn-demo');
-  let now = await list();
-  for (let i = 0; i < 50 && now.length === before; i++) {
-    await page.waitForTimeout(100);
-    now = await list();
-  }
-  const id = now.at(-1)!.id;
-  await expect(page.locator(`#dataset-list li[data-id="${id}"]`)).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
-  await expect(page.locator('#new-session-form input[name=name]')).not.toHaveValue('');
+  await generateDemo(page);
 }
 
 async function newSession(page: Page, name: string, blind = false) {
@@ -40,6 +27,7 @@ async function newSession(page: Page, name: string, blind = false) {
     await expect(form.locator('input[name=name]')).toHaveValue(/^Blind /);
   }
   await form.locator('input[name=name]').fill(name);
+  await expect(form.locator('input[name=name]')).toHaveValue(name);
   await form.locator('button[type=submit]').click();
   await expect(page.locator('#practice-root')).toBeVisible();
 }
@@ -107,7 +95,16 @@ test('blind practice hides the period, symbol and preview until revealed', async
   const errors = watchErrors(page);
   const bodies: string[] = [];
   page.on('response', async (r) => {
-    if (r.url().includes('/api/sessions')) bodies.push(await r.text().catch(() => ''));
+    const url = r.url();
+    if (!url.includes('/api/sessions')) return;
+    // Skip GET /api/sessions (the shared library list). Specs share one in-memory DB, so
+    // earlier tests may leave sessions whose *names* contain the demo symbol (default
+    // prefill). That is not a blind-mode leak of *this* session.
+    const path = new URL(url).pathname;
+    if ((path === '/api/sessions' || path === '/api/sessions/') && r.request().method() === 'GET') {
+      return;
+    }
+    bodies.push(await r.text().catch(() => ''));
   });
   await page.goto('/');
   await demo(page);
@@ -128,7 +125,17 @@ test('blind practice hides the period, symbol and preview until revealed', async
   await page.locator('#dataset-list li').last().click();
   await expect(page.locator('#preview-locked')).toBeVisible();
   await expect(page.locator('#session-table')).toContainText('blind');
+  // This session's own create/open/step responses must not leak the real symbol.
   for (const b of bodies) expect(b).not.toContain(symbol);
+  const list = (await (await page.request.get('/api/sessions')).json()).sessions as {
+    id: number;
+    name: string;
+  }[];
+  const mine = list.find((s) => s.name === 'Blind e2e');
+  expect(mine).toBeTruthy();
+  expect(JSON.stringify(mine)).not.toContain(symbol);
+  const detail = await (await page.request.get(`/api/sessions/${mine!.id}`)).json();
+  expect(JSON.stringify(detail)).not.toContain(symbol);
 
   // Reveal.
   await page.click('nav.tabs button[data-view=practice]');
