@@ -38,6 +38,11 @@ export interface SessionFile {
   } | null;
 }
 
+/** Full SQLite backups retain runtime history; portable session imports have transport limits. */
+export interface SessionValidationOptions {
+  readonly source?: 'backup';
+}
+
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj =>
   typeof v === 'object' &&
@@ -52,7 +57,13 @@ const oneOf = <T extends string>(v: unknown, list: readonly T[]): v is T =>
   typeof v === 'string' && (list as readonly string[]).includes(v);
 
 /** Every number finite, no deep nesting, no oversized strings or arrays, no odd keys. */
-function shapeIssues(v: unknown, path: string, depth: number, out: string[]): void {
+function shapeIssues(
+  v: unknown,
+  path: string,
+  depth: number,
+  out: string[],
+  options: SessionValidationOptions,
+): void {
   if (out.length > 20) return;
   if (depth > MAX_DEPTH) {
     out.push(`${path}: nested too deeply`);
@@ -61,15 +72,16 @@ function shapeIssues(v: unknown, path: string, depth: number, out: string[]): vo
   if (typeof v === 'number') {
     if (!Number.isFinite(v)) out.push(`${path}: not a finite number`);
   } else if (typeof v === 'string') {
-    if (v.length > 2000) out.push(`${path}: text too long`);
+    if (options.source !== 'backup' && v.length > 2000) out.push(`${path}: text too long`);
   } else if (Array.isArray(v)) {
-    if (v.length > MAX_IMPORT_RECORDS) out.push(`${path}: too many items`);
-    else v.forEach((x, i) => shapeIssues(x, `${path}[${i}]`, depth + 1, out));
+    if (options.source !== 'backup' && v.length > MAX_IMPORT_RECORDS)
+      out.push(`${path}: too many items`);
+    else v.forEach((x, i) => shapeIssues(x, `${path}[${i}]`, depth + 1, out, options));
   } else if (v !== null && typeof v === 'object') {
     for (const k of Object.keys(v)) {
       if (k === '__proto__' || k === 'constructor' || k === 'prototype' || k.length > 64)
         out.push(`${path}: key "${k.slice(0, 64)}" not allowed`);
-      else shapeIssues((v as Obj)[k], `${path}.${k}`, depth + 1, out);
+      else shapeIssues((v as Obj)[k], `${path}.${k}`, depth + 1, out, options);
     }
   } else if (typeof v !== 'boolean' && v !== null) out.push(`${path}: unexpected value`);
 }
@@ -153,8 +165,12 @@ function drawingIssues(d: unknown): string[] {
  * Parse and check the outer layer of a session file. Returns the file or a list of
  * problems. The state still has to be checked against the bars with checkSessionState.
  */
-export function parseSessionFile(text: string): { file?: SessionFile; issues: string[] } {
-  if (text.length > MAX_SESSION_FILE_BYTES) return { issues: ['file too large'] };
+export function parseSessionFile(
+  text: string,
+  options: SessionValidationOptions = {},
+): { file?: SessionFile; issues: string[] } {
+  if (options.source !== 'backup' && text.length > MAX_SESSION_FILE_BYTES)
+    return { issues: ['file too large'] };
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -166,9 +182,13 @@ export function parseSessionFile(text: string): { file?: SessionFile; issues: st
   if (raw.formatVersion !== SESSION_FILE_VERSION)
     return { issues: [`unsupported formatVersion (this version reads ${SESSION_FILE_VERSION})`] };
   const issues: string[] = [];
-  shapeIssues(raw, 'file', 0, issues);
+  shapeIssues(raw, 'file', 0, issues, options);
   if (issues.length) return { issues };
-  if (!isStr(raw.name, 80) || raw.name.trim() === '') issues.push('name: invalid');
+  if (
+    !isStr(raw.name, 80) ||
+    (options.source === 'backup' ? raw.name.length === 0 : raw.name.trim() === '')
+  )
+    issues.push('name: invalid');
   if (!isInt(raw.startTime)) issues.push('startTime: invalid');
   issues.push(...settingsIssues(raw.settings));
   issues.push(...drawingIssues(raw.drawings ?? []));
@@ -204,7 +224,7 @@ export function parseSessionFile(text: string): { file?: SessionFile; issues: st
   return {
     issues: [],
     file: {
-      name: (raw.name as string).trim(),
+      name: options.source === 'backup' ? (raw.name as string) : (raw.name as string).trim(),
       startTime: raw.startTime as number,
       settings: raw.settings as unknown as SessionSettings,
       state: raw.state as unknown as SessionState,
@@ -227,10 +247,11 @@ export function checkSessionState(
   bars: readonly Bar[],
   settings: SessionSettings,
   state: unknown,
+  options: SessionValidationOptions = {},
 ): string[] {
   const out: string[] = [];
   const shape: string[] = [];
-  shapeIssues(state, 'state', 0, shape);
+  shapeIssues(state, 'state', 0, shape, options);
   if (shape.length) return shape;
   if (!isObj(state)) return ['state: missing'];
   if (bars.length === 0) return ['dataset has no bars'];
