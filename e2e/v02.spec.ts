@@ -103,6 +103,58 @@ test('a delayed step from the previous session cannot change the newly opened se
   }
 });
 
+test('a delayed journal response cannot replace the statistics tab', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  await demo(page);
+  await newSession(page, 'Journal race');
+  await page.getByTestId('btn-buy').click();
+  await expect(page.getByTestId('orders')).toContainText('MKT');
+  await page.getByTestId('btn-step').click();
+  await expect
+    .poll(async () => (await sessionByName(page, 'Journal race')).state.trading.fills.length)
+    .toBeGreaterThan(0);
+  const view = await sessionByName(page, 'Journal race');
+  if (view.state.trading.trades.length === 0) {
+    await page.getByTestId('btn-flatten').click();
+    await expect(page.getByTestId('orders')).toContainText('MKT');
+    await page.getByTestId('btn-step').click();
+  }
+  await expect(page.getByTestId('trades-table').locator('tr:has(td)')).toHaveCount(1);
+
+  let release!: () => void;
+  let arrived!: () => void;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  const ready = new Promise<void>((resolve) => (arrived = resolve));
+  const path = `/api/sessions/${view.session.id}/journal`;
+  await page.route(`**${path}`, async (route) => {
+    const response = await route.fetch();
+    arrived();
+    await gate;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.getByTestId('tab-journal').click();
+    await ready;
+    await page.getByTestId('tab-stats').click();
+    await expect(page.getByTestId('stats')).toBeVisible();
+    const content = await page.getByTestId('stats').textContent();
+    const response = page.waitForResponse((r) => r.url().endsWith(path));
+    release();
+    await (await response).finished();
+    await page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+    await expect(page.getByTestId('stats')).toBeVisible();
+    await expect(page.getByTestId('stats')).toHaveText(content!);
+    await expect(page.getByTestId('journal-table')).toHaveCount(0);
+    expect(errors).toEqual([]);
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: 'wait' });
+  }
+});
+
 test('blind practice hides the period, symbol and preview until revealed', async ({ page }) => {
   const errors = watchErrors(page);
   const bodies: string[] = [];
