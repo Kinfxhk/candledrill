@@ -26,6 +26,19 @@ Postponed with reason: **daylight-saving-aware (IANA) session calendars**. Blind
 depends on whole-week time shifts and the engine on fixed-offset trading days; changing
 both safely is a design change larger than a minor release.
 
+## [0.2.5] - 2026-10-10
+
+### Fixed
+
+- **A late journal response no longer replaces Statistics or a newer journal
+  render.** Switching away from Journal (or refreshing Journal for another
+  session) while a journal request was still in flight could overwrite the
+  newer tab with stale journal HTML, because the bottom panel reused one DOM
+  node and the error path did not check connectivity. Each refresh now mounts a
+  fresh panel so pending responses keep a detached node; scroll position is
+  restored after synchronous renders. Thanks to
+  [@agent-rapi](https://github.com/agent-rapi) (#4).
+
 ## [0.2.4] - 2026-10-09
 
 ### Fixed
