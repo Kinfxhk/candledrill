@@ -26,6 +26,22 @@ Postponed with reason: **daylight-saving-aware (IANA) session calendars**. Blind
 depends on whole-week time shifts and the engine on fixed-offset trading days; changing
 both safely is a design change larger than a minor release.
 
+## [0.2.3] - 2026-10-09
+
+### Fixed
+
+- **Switching practice sessions no longer lets a late response overwrite the new
+  session.** A slow `step` / `place` / load from the previous session could still
+  land after you had already opened another one, and the UI would show the old
+  bars, position and working orders. The practice client now tags each request with
+  a generation and ignores responses from an older generation. Thanks to
+  [@agent-rapi](https://github.com/agent-rapi) (#1).
+- **Restore no longer replaces the library with empty or invalid backup data.**
+  A corrupt or incomplete backup JSON could wipe datasets and sessions. The
+  server now validates the runtime payload before swapping the database file, and
+  keeps the current library if validation fails. Thanks to
+  [@agent-rapi](https://github.com/agent-rapi) (#2).
+
 ## [0.2.2] - 2026-10-08
 
 ### Fixed
@@ -251,7 +267,8 @@ First public release.
   no-market-data and attribution checks, gitleaks secret scan) and a Playwright
   headless smoke test, both in CI.
 
-[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/Kinfxhk/candledrill/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/Kinfxhk/candledrill/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Kinfxhk/candledrill/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Kinfxhk/candledrill/compare/v0.1.1...v0.2.0
