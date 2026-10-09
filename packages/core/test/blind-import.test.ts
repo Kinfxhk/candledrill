@@ -5,6 +5,8 @@ import {
   BLIND_MIN_WEEKS,
   WEEK_SECONDS,
   blindIssues,
+  applyFill,
+  emptyTrading,
   checkSessionState,
   createSession,
   dayKeyOf,
@@ -265,12 +267,72 @@ describe('session file import checks', () => {
     return s;
   };
 
+  it('checks financial totals through scale-in, partial close, reversal and an open partial trade', () => {
+    const state = createSession(bars, SETTINGS, bars[200]!.time);
+    let trading = emptyTrading(bars[200]!.close);
+    const fills = [
+      { side: 'buy' as const, qty: 2 },
+      { side: 'buy' as const, qty: 1 },
+      { side: 'sell' as const, qty: 1 },
+      { side: 'sell' as const, qty: 4 },
+      { side: 'buy' as const, qty: 1 },
+    ];
+    fills.forEach((fill, i) => {
+      const b = bars[200 + i]!;
+      trading = applyFill(trading, SETTINGS, {
+        ...fill,
+        price: b.close,
+        time: b.time,
+        orderId: 0,
+        role: 'rule',
+      });
+      trading = { ...trading, lastClose: b.close };
+      const current = { ...state, cursor: 200 + i, trading };
+      expect(checkSessionState(bars, SETTINGS, current)).toEqual([]);
+      const forged = structuredClone(current);
+      forged.trading = { ...forged.trading, realizedPnl: trading.realizedPnl + 1 };
+      expect(checkSessionState(bars, SETTINGS, forged)).toContain(
+        'state.trading.realizedPnl does not match the fills',
+      );
+    });
+    const current = { ...state, cursor: 204, trading };
+    const alteredAverage = {
+      ...current,
+      trading: {
+        ...trading,
+        position: { ...trading.position!, avgPrice: trading.position!.avgPrice + 1 },
+      },
+    };
+    expect(checkSessionState(bars, SETTINGS, alteredAverage).length).toBeGreaterThan(0);
+    const alteredTrade = structuredClone(current);
+    alteredTrade.trading = {
+      ...alteredTrade.trading,
+      trades: alteredTrade.trading.trades.map((t) => ({
+        ...t,
+        grossPnl: t.grossPnl + 1,
+        netPnl: t.netPnl + 1,
+      })),
+    };
+    expect(checkSessionState(bars, SETTINGS, alteredTrade).length).toBeGreaterThan(0);
+  });
+
   it('base session is accepted', () => {
     expect(base.trading.fills.length).toBeGreaterThan(0);
     expect(checkSessionState(bars, SETTINGS, base)).toEqual([]);
   });
 
   const cases: [string, (s: Loose) => void][] = [
+    ['fabricated realized profit', (s) => (s.trading.realizedPnl += 1)],
+    ['wrong last close', (s) => (s.trading.lastClose += 1)],
+    ['wrong average entry', (s) => (s.trading.position.avgPrice += 1)],
+    ['fabricated open-trade gross profit', (s) => (s.trading.openTrade.grossPnl += 1)],
+    [
+      'commission and total changed together',
+      (s) => {
+        s.trading.fills[0].commission += 1;
+        s.trading.commissionPaid += 1;
+      },
+    ],
     ['fill price moved far outside its bar', (s) => (s.trading.fills[0].price += 50)],
     ['fill time not a bar', (s) => (s.trading.fills[0].time += 1)],
     [
