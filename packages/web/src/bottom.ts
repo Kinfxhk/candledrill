@@ -302,7 +302,9 @@ export const journalTab: BottomTab = {
           ),
         );
       })
-      .catch((err: Error) => panel.replaceChildren(el('p', { class: 'muted' }, err.message)));
+      .catch((err: Error) => {
+        if (panel.isConnected) panel.replaceChildren(el('p', { class: 'muted' }, err.message));
+      });
     void s;
   },
 };
@@ -310,7 +312,7 @@ export const journalTab: BottomTab = {
 export class BottomPanel {
   private active: string;
   private readonly bar: HTMLElement;
-  private readonly panel: HTMLElement;
+  private panel: HTMLElement;
   private last: { s: SessionSettings; st: SessionStateDto; id: number } | undefined;
 
   constructor(
@@ -345,8 +347,14 @@ export class BottomPanel {
       this.bar.children[i]!.setAttribute('aria-selected', String(tab.id === this.active)),
     );
     if (!this.last) return;
+    // Each render owns its DOM: pending journal responses retain a detached panel.
+    const scrollTop = this.panel.scrollTop;
+    const panel = el('div', { class: 'tabpanel', role: 'tabpanel' });
+    this.panel.replaceWith(panel);
+    this.panel = panel;
     this.tabs
       .find((x) => x.id === this.active)!
       .render(this.panel, this.last.s, this.last.st, this.last.id);
+    this.panel.scrollTop = scrollTop;
   }
 }
