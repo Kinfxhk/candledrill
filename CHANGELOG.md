@@ -26,6 +26,17 @@ Postponed with reason: **daylight-saving-aware (IANA) session calendars**. Blind
 depends on whole-week time shifts and the engine on fixed-offset trading days; changing
 both safely is a design change larger than a minor release.
 
+## [0.2.4] - 2026-10-09
+
+### Fixed
+
+- **Import and restore no longer accept sessions whose profit contradicts fill
+  accounting.** A session file with no fills but a huge `realizedPnl` was
+  accepted (HTTP 201) and could pass a profit target on the next step. The
+  shared session validator now replays fills through the engine and rejects
+  forged or inconsistent financial totals with HTTP 400, without inserting the
+  session. Thanks to [@agent-rapi](https://github.com/agent-rapi) (#3).
+
 ## [0.2.3] - 2026-10-09
 
 ### Fixed
@@ -267,7 +278,8 @@ First public release.
   no-market-data and attribution checks, gitleaks secret scan) and a Playwright
   headless smoke test, both in CI.
 
-[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/Kinfxhk/candledrill/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/Kinfxhk/candledrill/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/Kinfxhk/candledrill/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Kinfxhk/candledrill/compare/v0.2.0...v0.2.1
