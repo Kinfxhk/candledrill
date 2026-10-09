@@ -222,6 +222,34 @@ describe('session file import', () => {
     expect(copy.state.trading.trades.length).toBeGreaterThan(0);
   });
 
+  it('rejects fabricated profit in an otherwise valid no-fill session without inserting it', async () => {
+    const { a, ds } = await setup();
+    const created = await a.inject({
+      method: 'POST',
+      url: '/api/sessions',
+      payload: {
+        datasetId: ds.id,
+        name: 'No trades',
+        startTime: ds.firstTime + 7200,
+        settings: SETTINGS,
+      },
+    });
+    const forged = JSON.parse(await exported(a, created.json().session.id));
+    forged.state.trading.realizedPnl = 1_000_000;
+    const result = await a.inject({
+      method: 'POST',
+      url: '/api/sessions/import',
+      payload: {
+        file: JSON.stringify(forged),
+      },
+    });
+    expect(result.statusCode).toBe(400);
+    expect(result.json().issues).toContain('state.trading.realizedPnl does not match the fills');
+    expect((await a.inject({ method: 'GET', url: '/api/sessions' })).json().sessions).toHaveLength(
+      1,
+    );
+  });
+
   it('blind sessions keep their disguise through export and import', async () => {
     const { a, ds } = await setup();
     const id = await practised(a, ds, true);
@@ -385,6 +413,7 @@ describe('backup and restore', () => {
     for (const sql of [
       "UPDATE sessions SET settings_json='{}', state_json='{}'",
       "UPDATE sessions SET state_json='{}'",
+      "UPDATE sessions SET state_json=json_set(state_json, '$.trading.realizedPnl', 1000000)",
       "UPDATE sessions SET settings_json='[]'",
       'UPDATE datasets SET tick_size=0',
       'UPDATE datasets SET timeframe_seconds=-60',

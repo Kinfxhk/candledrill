@@ -9,7 +9,7 @@
 // must add up. A file edited by hand or matched to the wrong data is rejected.
 
 import type { Bar } from './types.js';
-import { MAX_ORDER_QTY } from './orders.js';
+import { applyFill, emptyTrading, MAX_ORDER_QTY, type Fill } from './orders.js';
 import { validateSettings, type SessionSettings, type SessionState } from './session.js';
 
 export const SESSION_FILE_FORMAT = 'candledrill-session';
@@ -367,5 +367,63 @@ export function checkSessionState(
   if (tr.openTrade !== null && !isObj(tr.openTrade)) out.push('state.trading.openTrade: invalid');
   if ((tr.openTrade === null) !== (pos === null))
     out.push('state.trading.openTrade does not match the position');
+  // Reuse the engine's rounded accounting, without accumulating copies of its history.
+  // Risk annotations cannot be reconstructed from fills (entry stop-loss is not stored).
+  if (!out.length) {
+    let ledger = emptyTrading(bars[cursor]!.close);
+    let closedCount = 0;
+    let previousTime = -Infinity;
+    const sameMoney = (a: unknown, b: number) => isNum(a) && Math.abs(a - b) <= 1e-7;
+    for (const fill of fills as Fill[]) {
+      if (fill.time < previousTime) {
+        out.push('fills are not in execution order');
+        break;
+      }
+      previousTime = fill.time;
+      ledger = applyFill({ ...ledger, fills: [], trades: [] }, settings, {
+        orderId: fill.orderId,
+        side: fill.side,
+        qty: fill.qty,
+        price: fill.price,
+        time: fill.time,
+        role: fill.role,
+      });
+      if (!sameMoney(fill.commission, ledger.fills[0]!.commission))
+        out.push('fill commission does not match the settings');
+      const closed = ledger.trades[0];
+      if (closed) {
+        const actual = trades[closedCount++] as Obj | undefined;
+        if (
+          !actual ||
+          ['grossPnl', 'commission', 'netPnl'].some(
+            (k) => !sameMoney(actual[k], closed[k as 'grossPnl' | 'commission' | 'netPnl']),
+          )
+        )
+          out.push('trade accounting does not match the fills');
+      }
+    }
+    if (closedCount !== trades.length) out.push('trade count does not match the fills');
+    if (!sameMoney(tr.realizedPnl, ledger.realizedPnl))
+      out.push('state.trading.realizedPnl does not match the fills');
+    if (!sameMoney(tr.commissionPaid, ledger.commissionPaid))
+      out.push('state.trading.commissionPaid does not match the fills');
+    if (!sameMoney(tr.lastClose, bars[cursor]!.close))
+      out.push('state.trading.lastClose does not match the cursor bar');
+    if (isObj(pos) && ledger.position && !close(pos.avgPrice as number, ledger.position.avgPrice))
+      out.push('state.trading.position.avgPrice does not match the fills');
+    if (isObj(tr.openTrade) && ledger.openTrade) {
+      for (const key of [
+        'entryQty',
+        'entryValue',
+        'exitQty',
+        'exitValue',
+        'maxQty',
+        'commission',
+        'grossPnl',
+      ] as const)
+        if (!sameMoney(tr.openTrade[key], ledger.openTrade[key]))
+          out.push(`state.trading.openTrade.${key} does not match the fills`);
+    }
+  }
   return out.slice(0, 50);
 }
