@@ -5,13 +5,14 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { expect, test, type Page } from '@playwright/test';
+import { generateDemo } from './helpers.js';
 
 async function startPractice(page: Page, name: string) {
   await page.goto('/');
-  await page.click('#btn-demo');
+  await generateDemo(page);
   const form = page.locator('#new-session-form');
-  await expect(form).toBeVisible();
   await form.locator('input[name=name]').fill(name);
+  await expect(form.locator('input[name=name]')).toHaveValue(name);
   await form.locator('button[type=submit]').click();
   await expect(page.locator('#practice-root')).toBeVisible();
   // A limit order far below the market stays working: the UI could still write.

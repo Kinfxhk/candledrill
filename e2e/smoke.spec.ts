@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Core flow: demo data -> new session -> replay -> bracket order -> trade recorded.
 import { expect, test, type Page } from '@playwright/test';
+import { generateDemo } from './helpers.js';
 
 async function sessionState(page: Page) {
   const list = await (await page.request.get('/api/sessions')).json();
@@ -23,10 +24,10 @@ test('replay and bracket order flow', async ({ page }) => {
   await expect(attribution.locator('a[href="https://www.tradingview.com/"]')).toBeVisible();
 
   // Synthetic demo data (never real market data) and a new session.
-  await page.click('#btn-demo');
+  await generateDemo(page);
   const form = page.locator('#new-session-form');
-  await expect(form).toBeVisible();
   await form.locator('input[name=name]').fill('E2E smoke');
+  await expect(form.locator('input[name=name]')).toHaveValue('E2E smoke');
   await form.locator('button[type=submit]').click();
   await expect(page.locator('#practice-root')).toBeVisible();
 
