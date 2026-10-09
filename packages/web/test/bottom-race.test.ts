@@ -11,6 +11,7 @@ class Element {
   attrs: Record<string, string> = {};
   className = '';
   textContent = '';
+  scrollTop = 0;
   listeners: Record<string, () => void> = {};
   constructor(private readonly root = false) {}
   get isConnected(): boolean {
@@ -155,6 +156,15 @@ describe('journal response ownership', () => {
     old.resolve(result());
     await flush();
     expect(f.panel().children).toEqual(content);
+  });
+
+  it('preserves scroll position when refreshing synchronous tab contents', () => {
+    vi.spyOn(sessionsApi, 'journal').mockReturnValue(new Promise(() => {}));
+    const f = fixture();
+    f.switchToStats();
+    f.panel().scrollTop = 120;
+    f.bottom.render(settings, withTrades, 1);
+    expect(f.panel().scrollTop).toBe(120);
   });
 
   it('shows current request failures and successful journal data', async () => {

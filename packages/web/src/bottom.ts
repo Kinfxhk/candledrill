@@ -348,11 +348,13 @@ export class BottomPanel {
     );
     if (!this.last) return;
     // Each render owns its DOM: pending journal responses retain a detached panel.
+    const scrollTop = this.panel.scrollTop;
     const panel = el('div', { class: 'tabpanel', role: 'tabpanel' });
     this.panel.replaceWith(panel);
     this.panel = panel;
     this.tabs
       .find((x) => x.id === this.active)!
       .render(this.panel, this.last.s, this.last.st, this.last.id);
+    this.panel.scrollTop = scrollTop;
   }
 }
