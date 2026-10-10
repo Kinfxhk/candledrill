@@ -202,6 +202,22 @@ version (currently **fill model v3**) in every report. Full details and limitati
   (theme, language, linked charts, the backup-reminder counter), so clearing it loses
   nothing important.
 
+## Completion summary
+
+When a session finishes, passes its target or breaches a rule, playback pauses and
+a dismissible summary presents the existing statistics. Closed-trade net results
+include commissions; any open position and its unrealized P&L are shown separately.
+The summary can be reopened without changing the session.
+
+Review prompts select at most two unique trades: the lowest net P&L and the largest
+MAE in R with complete positive risk data. If no valid R metric exists, the second
+prompt uses a separately labelled ticks fallback. Ties use the lowest trade ID; a
+trade selected twice shows both reasons. Missing excursions leave the net prompt
+available. These prompts are not judgments or trading signals: MAE uses whole-bar
+extremes, including the entry and exit bars, and is an upper bound. MFE giveback
+ranking is deferred because scale-ins and partial exits need clearer semantics.
+Use **Open journal** to inspect the selected trade IDs.
+
 ## Performance and limits
 
 Measured with `npm run bench` and `scripts/bench-browser.ts` on **500,000 synthetic
@@ -353,6 +369,10 @@ the library's logo link is kept). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PART
 - **效能**：50 萬根 1 分鐘K線，匯入約 2.5 秒，在第 40 萬根開始練習約 1.8 秒見到圖表，
   逐根前進約 65 毫秒（詳見 [docs/PERFORMANCE.md](docs/PERFORMANCE.md)）。每次匯入上限
   100 萬根；瀏覽器只保留最近 5 萬根已揭示K線，所以數據再長亦不會變慢。
+- **完成摘要**：完成、達標或違規時暫停播放，顯示可收起及重開的統計摘要；已平倉成績與
+  未平倉浮盈虧分開。最多挑出兩筆交易（最低淨盈虧、最大 MAE），重複選中會合併原因。
+  MAE 優先以有效 R 排名，沒有 R 時才用清楚標示的 ticks；同分選最小交易編號。這些只係
+  重睇提示，並非交易好壞判斷；可打開日誌按編號查看。
 - **獨立核對**：`tools/oracle/` 內有一個獨立的 Python 程式，用數千個隨機練習重新計算成交、
   盈虧、佣金、R、MAE／MFE，並檢查盲練不洩漏真實資料及備份還原完全一致；CI 每次都會執行。
 - **成交規則**：詳見 [docs/FILL-MODEL.md](docs/FILL-MODEL.md)（英文）。報告會列明引擎及成交

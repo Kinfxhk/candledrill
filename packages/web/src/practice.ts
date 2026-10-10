@@ -24,6 +24,7 @@ import {
   type PriceLineSpec,
 } from './chart.js';
 import { SidePanel } from './side.js';
+import { CompletionSummary } from './summary.js';
 import {
   BottomPanel,
   exportTab,
@@ -56,6 +57,7 @@ interface ChartPane {
 export class PracticeView {
   private meta: SessionMeta | undefined;
   private state: SessionStateDto | undefined;
+  private summary: CompletionSummary | undefined;
   private bars: Bar[] = [];
   private cursorTime = 0;
   private panes: ChartPane[] = [];
@@ -128,6 +130,8 @@ export class PracticeView {
   }
 
   close(): void {
+    this.summary?.destroy();
+    this.summary = undefined;
     this.generation++;
     this.pause();
     this.inFlight = false;
@@ -249,11 +253,18 @@ export class PracticeView {
     const side = el('aside', { class: 'side', 'data-testid': 'side' });
     const workspace = el('div', { class: 'workspace' }, charts, side);
     const bottom = el('div', { class: 'bottom', 'data-testid': 'bottom' });
+    const summary = el('section', {
+      class: 'completion-summary',
+      'data-testid': 'completion-summary',
+      'aria-label': t('summary.title'),
+    });
+    summary.hidden = true;
     // Blind: no calendar jump (it would show dates); stepping and playing are enough.
     jumpLabel.hidden = this.blindHidden;
     jumpBtn.hidden = this.blindHidden;
-    this.root.replaceChildren(banner, revealBanner, toolbar, workspace, bottom);
+    this.root.replaceChildren(banner, revealBanner, toolbar, summary, workspace, bottom);
     this.els = {
+      summary,
       banner,
       play,
       step,
@@ -306,6 +317,13 @@ export class PracticeView {
       exportTab,
       ...PracticeView.extraTabs,
     ]);
+
+    this.summary = new CompletionSummary(summary, () => {
+      this.bottom?.select('journal');
+      (
+        this.els.bottom?.querySelector('[data-testid=tab-journal]') as HTMLButtonElement | null
+      )?.focus();
+    });
 
     play.addEventListener('click', () => (this.playing ? this.pause() : this.play()));
     step.addEventListener('click', () => void this.step(1));
@@ -563,6 +581,7 @@ export class PracticeView {
 
   // ---------------------------------------------------------------- state
   private applyView(view: SessionViewDto): void {
+    if (view.state.status !== 'active' && this.state?.status !== view.state.status) this.pause();
     this.state = view.state;
     this.cursorTime = view.cursorTime;
     this.render();
@@ -713,6 +732,8 @@ export class PracticeView {
     const ji = this.els.jumpInput as HTMLInputElement;
     if (!ji.value || fromLocalInput(ji.value, off) <= this.cursorTime)
       ji.value = toLocalInput(this.cursorTime + 3600, off);
+    this.els.summary?.setAttribute('aria-label', t('summary.title'));
+    this.summary?.update(this.meta.settings, this.state, this.meta.id);
     const st = this.state.status;
     const banner = this.els.banner!;
     banner.className = `status-banner ${st === 'active' ? '' : `show ${st}`}`;
