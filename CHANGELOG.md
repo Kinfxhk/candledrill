@@ -6,11 +6,18 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Live order-ticket risk preview for fresh entries from flat: cost-inclusive stop
+  loss, percentage of current equity and net target reward:risk for each side.
+  Expandable details separate price risk, commission and slippage. Assumptions
+  and unsupported states are explicit; estimates do not guarantee fills or losses.
+
 Still planned:
 
 - Per-session command queue, session revision and idempotent commands (no stale
   responses after quick session switches or retries)
-- Numeric order-modify dialog (stop-loss/take-profit/price) and a pre-trade risk preview
+- Numeric order-modify dialog (stop-loss/take-profit/price)
 - Toolbar reorganisation, resizable panels, simpler chart markers
 - Correct handling of partial higher-timeframe buckets at the start of trimmed history
 - CSV import: conflicting-duplicate detection, source line numbers, data-quality summary
