@@ -695,6 +695,10 @@ svg.draw-overlay .handle:hover,
 svg.draw-overlay .handle.active {
   fill: var(--accent);
 }
+svg.draw-overlay .order-handle {
+  pointer-events: all;
+  cursor: ns-resize;
+}
 svg.draw-overlay .del {
   pointer-events: all;
   cursor: pointer;

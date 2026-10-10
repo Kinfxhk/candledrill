@@ -290,7 +290,7 @@ def check_server(srv):
 
 
 def main():
-    data = json.load(open(sys.argv[1] if len(sys.argv) > 1 else "oracle-cases.json"))
+    data = json.load(open(sys.argv[1] if len(sys.argv) > 1 else "oracle-cases.json", encoding="utf-8"))
     for ci, c in enumerate(data["sessions"]):
         checked["sessions"] += 1
         checked["modifications"] += c.get("modifications", 0)

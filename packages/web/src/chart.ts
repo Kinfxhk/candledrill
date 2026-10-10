@@ -60,6 +60,8 @@ export interface PriceLineSpec {
   color: string;
   title: string;
   dashed?: boolean;
+  /** If set, the line gets a draggable handle on the price scale. */
+  orderId?: number;
 }
 
 export interface MarkerSpec {
@@ -141,6 +143,15 @@ export class PriceChart {
   private editHandler: ((d: Drawing) => void) | undefined;
   private deleteHandler: ((id: string) => void) | undefined;
   private labeler: ((d: Extract<Drawing, { kind: 'position' }>) => string) | undefined;
+  private orderLineSpecs: PriceLineSpec[] = [];
+  private orderLineById = new Map<number, IPriceLine>();
+  private orderDragHandler: ((orderId: number, price: number) => Promise<void>) | undefined;
+  private orderDrag: {
+    orderId: number;
+    startPrice: number;
+    priceLine: IPriceLine;
+    handle: SVGRectElement;
+  } | null = null;
 
   constructor(
     private readonly container: HTMLElement,
@@ -331,16 +342,31 @@ export class PriceChart {
 
   setPriceLines(lines: readonly PriceLineSpec[]): void {
     for (const pl of this.priceLines) this.candles.removePriceLine(pl);
-    this.priceLines = lines.map((l) =>
-      this.candles.createPriceLine({
+    this.orderLineSpecs = [...lines];
+    this.orderLineById.clear();
+    this.priceLines = lines.map((l) => {
+      const pl = this.candles.createPriceLine({
         price: l.price,
         color: l.color,
         lineWidth: 1,
         lineStyle: l.dashed ? LineStyle.Dashed : LineStyle.Solid,
         axisLabelVisible: true,
         title: l.title,
-      }),
-    );
+      });
+      if (l.orderId !== undefined) this.orderLineById.set(l.orderId, pl);
+      return pl;
+    });
+    this.overlaySig = '';
+    this.renderOverlay();
+    if (
+      !this.raf &&
+      (this.drawings.length || this.orderLineSpecs.some((l) => l.orderId !== undefined))
+    )
+      this.loop();
+  }
+
+  onOrderLineDrag(handler: (orderId: number, price: number) => Promise<void>): void {
+    this.orderDragHandler = handler;
   }
 
   /** Render user drawings. `snap` maps a real time to a bar time of this chart's timeframe. */
@@ -391,7 +417,8 @@ export class PriceChart {
       this.raf = 0;
       if (!this.overlay.isConnected) return;
       this.renderOverlay();
-      if (this.drawings.length) this.loop();
+      if (this.drawings.length || this.orderLineSpecs.some((l) => l.orderId !== undefined))
+        this.loop();
     });
   }
 
@@ -452,7 +479,10 @@ export class PriceChart {
         ];
       return [this.xOf(d.t1), this.yOf(d.p1), this.xOf(d.t2), this.yOf(d.p2)];
     });
-    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}`;
+    const orderPts = this.orderLineSpecs.map((l) =>
+      l.orderId === undefined ? null : this.yOf(l.price),
+    );
+    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}`;
     if (sig === this.overlaySig) return;
     this.overlaySig = sig;
     const nodes: SVGElement[] = [];
@@ -589,7 +619,28 @@ export class PriceChart {
     defs.append(clip);
     const g = svg('g', { 'clip-path': `url(#${clipId})` });
     g.append(...nodes);
-    this.overlay.replaceChildren(defs, g);
+    const orderGroup = svg('g', { class: 'order-handles' });
+    for (const spec of this.orderLineSpecs) {
+      const orderId = spec.orderId;
+      if (orderId === undefined) continue;
+      const y = this.yOf(spec.price);
+      if (y === null) continue;
+      const h = svg('rect', {
+        x: w - 12,
+        y: y - 5,
+        width: 12,
+        height: 10,
+        rx: 2,
+        fill: spec.color,
+        stroke: this.theme.text,
+        'stroke-width': 1,
+        class: 'order-handle',
+        'data-order-id': String(orderId),
+      });
+      h.addEventListener('pointerdown', (ev) => this.startOrderDrag(ev, orderId));
+      orderGroup.append(h);
+    }
+    this.overlay.replaceChildren(defs, g, orderGroup);
   }
 
   private readonly clipId = `clip-${Math.random().toString(36).slice(2)}`;
@@ -638,6 +689,57 @@ export class PriceChart {
     window.addEventListener('pointerup', up);
     this.overlaySig = '';
     this.renderOverlay();
+  }
+
+  private startOrderDrag(ev: PointerEvent, orderId: number): void {
+    ev.stopPropagation();
+    ev.preventDefault();
+    const priceLine = this.orderLineById.get(orderId);
+    const handler = this.orderDragHandler;
+    if (!priceLine || !handler) return;
+    const spec = this.orderLineSpecs.find((l) => l.orderId === orderId);
+    if (!spec) return;
+    const startPrice = spec.price;
+    const handle = this.overlay.querySelector(`rect[data-order-id="${orderId}"]`) as SVGRectElement;
+    this.orderDrag = { orderId, startPrice, priceLine, handle };
+    this.overlay.classList.add('dragging');
+    let moved = false;
+    const move = (e: PointerEvent) => {
+      const rect = this.overlay.getBoundingClientRect();
+      const p = this.priceAt(e.clientY - rect.top);
+      const drag = this.orderDrag;
+      if (p === null || !drag) return;
+      moved = true;
+      spec.price = p;
+      drag.priceLine.applyOptions({ price: p });
+      if (drag.handle) {
+        const y = this.yOf(p);
+        if (y !== null) drag.handle.setAttribute('y', String(y - 5));
+      }
+    };
+    const up = async () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      this.overlay.classList.remove('dragging');
+      const drag = this.orderDrag;
+      this.orderDrag = null;
+      if (!drag || !moved) {
+        this.overlaySig = '';
+        this.renderOverlay();
+        return;
+      }
+      try {
+        await handler(drag.orderId, spec.price);
+      } catch {
+        // The caller shows the error. Snap the line back to the last accepted price.
+        drag.priceLine.applyOptions({ price: drag.startPrice });
+        spec.price = drag.startPrice;
+      }
+      this.overlaySig = '';
+      this.renderOverlay();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   }
 
   private dragged(
