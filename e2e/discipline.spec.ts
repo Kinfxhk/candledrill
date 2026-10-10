@@ -22,6 +22,23 @@ test('optional discipline shows a bilingual pause while flatten and replay remai
   await page.getByTestId('btn-step').click();
   await expect(page.getByTestId('discipline-paused')).toContainText('next trading day');
   await expect(page.getByTestId('position')).toContainText('Long');
+  const sessions = (await (await page.request.get('/api/sessions')).json()).sessions;
+  const id = sessions.find((session: { name: string }) => session.name === 'Discipline E2E').id;
+  const before = (await (await page.request.get(`/api/sessions/${id}`)).json()).state.trading;
+  const rejection = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/sessions/${id}/orders`) && response.request().method() === 'POST',
+  );
+  await page.getByTestId('btn-buy').click();
+  expect((await rejection).status()).toBe(400);
+  const after = (await (await page.request.get(`/api/sessions/${id}`)).json()).state.trading;
+  expect(after).toEqual(before);
+  expect(
+    after.orders.filter(
+      (order: { status: string; role: string }) =>
+        order.status === 'working' && order.role === 'entry',
+    ),
+  ).toHaveLength(0);
   await page.getByTestId('btn-flatten').click();
   await page.getByTestId('btn-step').click();
   await expect(page.getByTestId('position')).toContainText('Flat');
