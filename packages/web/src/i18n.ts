@@ -4,6 +4,8 @@
 export type Lang = 'en' | 'zh-Hant';
 
 export const en = {
+  'nav.library': 'Library',
+  'nav.practice': 'Practice',
   'risk.title': 'Risk preview',
   'risk.details': 'Cost breakdown',
   'risk.assumptions': 'Estimate assumptions',
@@ -29,8 +31,6 @@ export const en = {
     'Estimate uses the requested price. Gaps can change entry and exit prices.',
   'risk.costAssumption':
     'Commission applies on both sides. Entry slippage applies to market/stop orders, exit slippage to stops; target limits have none. Estimates are not loss guarantees.',
-  'nav.library': 'Library',
-  'nav.practice': 'Practice',
   'nav.about': 'About',
   'theme.toggle': 'Toggle light/dark theme',
   'lang.toggle': '中文',
@@ -300,6 +300,8 @@ export const en = {
 export type MessageKey = keyof typeof en;
 
 export const zhHant: Record<MessageKey, string> = {
+  'nav.library': '資料庫',
+  'nav.practice': '練習',
   'risk.title': '風險預覽',
   'risk.details': '成本明細',
   'risk.assumptions': '估算假設',
@@ -324,8 +326,6 @@ export const zhHant: Record<MessageKey, string> = {
   'risk.priceAssumption': '估算以指定價格為基準。跳空可改變入場及離場價格。',
   'risk.costAssumption':
     '佣金按雙邊計。市價及止蝕單入場計滑點，止蝕離場亦計滑點；止賺限價單不計滑點。估算不保證損失上限。',
-  'nav.library': '資料庫',
-  'nav.practice': '練習',
   'nav.about': '關於',
   'theme.toggle': '切換淺色／深色主題',
   'lang.toggle': 'EN',
