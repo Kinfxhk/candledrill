@@ -33,6 +33,26 @@
       <button type="button" class="ghost" id="about-open" data-i18n="nav.about">About</button>
     </header>
 
+    <div class="card reminder update-banner" id="update-banner" role="status" hidden>
+      <span id="update-banner-text"></span>
+      <span class="spacer"></span>
+      <a
+        class="small primary"
+        id="update-open"
+        href="https://github.com/Kinfxhk/candledrill/releases"
+        target="_blank"
+        rel="noopener noreferrer"
+        data-i18n="update.open"
+        >View release</a
+      >
+      <button type="button" class="small ghost" id="update-later" data-i18n="update.later">
+        Later
+      </button>
+      <button type="button" class="small ghost" id="update-dismiss" data-i18n="update.dismiss">
+        Don't show for this version
+      </button>
+    </div>
+
     <main>
       <section class="view library active" id="view-library" aria-labelledby="h-datasets">
         <div class="left">
@@ -227,6 +247,19 @@ Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/</pre>
           >github.com/Kinfxhk/candledrill</a
         >
       </p>
+      <p class="muted" id="about-version"></p>
+      <label class="field update-check">
+        <span class="row">
+          <input type="checkbox" id="update-enable" checked />
+          <span data-i18n="update.enable">Check for updates on startup</span>
+        </span>
+      </label>
+      <div class="row" style="margin: 8px 0">
+        <button type="button" class="small" id="update-check-now" data-i18n="update.check">
+          Check for updates
+        </button>
+        <span class="muted" id="update-check-status" aria-live="polite"></span>
+      </div>
       <p class="muted" data-i18n="shortcuts"></p>
       <form method="dialog"><button class="primary" data-i18n="about.close">Close</button></form>
     </dialog>

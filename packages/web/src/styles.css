@@ -642,6 +642,10 @@ p.small {
 .reminder[hidden] {
   display: none;
 }
+.update-banner {
+  margin: 8px 12px 0;
+  flex-wrap: wrap;
+}
 .notice {
   border-left: 3px solid var(--accent);
   padding: 6px 10px;

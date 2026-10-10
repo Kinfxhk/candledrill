@@ -7,6 +7,15 @@ import { LibraryView } from './library.js';
 import { PracticeView } from './practice.js';
 import { el, fmtTime, fromLocalInput, toast } from './format.js';
 import { loadBackup, shouldRemind } from './reminder.js';
+import {
+  dismissForVersion,
+  dismissLater,
+  loadUpdatePrefs,
+  shouldShowUpdate,
+  UPDATE_PREFS_KEY,
+  type UpdateInfo,
+  type UpdatePrefs,
+} from './updates.js';
 
 const PREFS_KEY = 'candledrill.prefs';
 interface Prefs {
@@ -251,13 +260,96 @@ document.getElementById('lang-toggle')!.addEventListener('click', () => {
   applyI18n();
   library.rerender();
   practice.render();
+  renderUpdateBanner();
+  syncAboutUpdateUi();
+  document.getElementById('update-check-status')!.textContent = '';
 });
 const about = document.getElementById('about-dialog') as HTMLDialogElement;
-document.getElementById('about-open')!.addEventListener('click', () => about.showModal());
+document.getElementById('about-open')!.addEventListener('click', () => {
+  syncAboutUpdateUi();
+  about.showModal();
+});
+
+// ------------------------------------------------------------------ update notice (no auto-download)
+let updatePrefs: UpdatePrefs = loadUpdatePrefs(localStorage.getItem(UPDATE_PREFS_KEY));
+const saveUpdatePrefs = () => localStorage.setItem(UPDATE_PREFS_KEY, JSON.stringify(updatePrefs));
+let latestUpdate: UpdateInfo | null = null;
+let currentRelease: string | null = null;
+
+function renderUpdateBanner(): void {
+  const banner = document.getElementById('update-banner')!;
+  const show = shouldShowUpdate(updatePrefs, latestUpdate, Date.now());
+  banner.hidden = !show;
+  if (!show || !latestUpdate) return;
+  document.getElementById('update-banner-text')!.textContent = t('update.text', {
+    latest: latestUpdate.latest,
+    current: latestUpdate.current,
+  });
+  (document.getElementById('update-open') as HTMLAnchorElement).href = latestUpdate.url;
+}
+
+function syncAboutUpdateUi(): void {
+  (document.getElementById('update-enable') as HTMLInputElement).checked = updatePrefs.checkEnabled;
+  const ver = document.getElementById('about-version')!;
+  const current = latestUpdate?.current ?? currentRelease;
+  ver.textContent = current ? t('update.current', { current }) : '';
+}
+
+async function refreshUpdateCheck(opts: { manual?: boolean } = {}): Promise<void> {
+  const status = document.getElementById('update-check-status')!;
+  if (opts.manual) status.textContent = t('update.checking');
+  try {
+    const r = await api.updates();
+    if (r.available && r.newer && r.latest) {
+      latestUpdate = { current: r.current, latest: r.latest, url: r.url, name: r.name };
+      if (opts.manual)
+        status.textContent = t('update.available', { latest: r.latest, current: r.current });
+    } else {
+      latestUpdate = null;
+      if (opts.manual) {
+        status.textContent = r.available
+          ? t('update.uptoDate', { current: r.current })
+          : t('update.unavailable');
+      }
+    }
+  } catch {
+    latestUpdate = null;
+    if (opts.manual) status.textContent = t('update.unavailable');
+  }
+  renderUpdateBanner();
+  syncAboutUpdateUi();
+}
+
+document.getElementById('update-later')!.addEventListener('click', () => {
+  updatePrefs = dismissLater(updatePrefs, Date.now());
+  saveUpdatePrefs();
+  renderUpdateBanner();
+});
+document.getElementById('update-dismiss')!.addEventListener('click', () => {
+  if (!latestUpdate) return;
+  updatePrefs = dismissForVersion(updatePrefs, latestUpdate.latest);
+  saveUpdatePrefs();
+  renderUpdateBanner();
+});
+document.getElementById('update-enable')!.addEventListener('change', (ev) => {
+  updatePrefs = {
+    ...updatePrefs,
+    checkEnabled: (ev.target as HTMLInputElement).checked,
+  };
+  saveUpdatePrefs();
+  if (!updatePrefs.checkEnabled) {
+    latestUpdate = null;
+    renderUpdateBanner();
+  } else void refreshUpdateCheck();
+});
+document.getElementById('update-check-now')!.addEventListener('click', () => {
+  void refreshUpdateCheck({ manual: true });
+});
 
 renderReminder();
 try {
-  await api.health();
+  const health = await api.health();
+  if (typeof health.releaseVersion === 'string') currentRelease = health.releaseVersion;
   await library.reload();
   // Resume the last practice session (state is persisted server-side in SQLite).
   const last = Number(localStorage.getItem('candledrill.lastSession'));
@@ -265,6 +357,7 @@ try {
     const { sessions } = await sessionsApi.list();
     if (sessions.some((s) => s.id === last)) await openSession(last);
   }
+  if (updatePrefs.checkEnabled) void refreshUpdateCheck();
 } catch {
   toast(t('err.network'), 'error');
 }

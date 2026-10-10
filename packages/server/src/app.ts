@@ -15,6 +15,7 @@ import {
 import { deleteDataset, getBars, getDataset, insertDataset, listDatasets, type Db } from './db.js';
 import { BarCache, blindLockedDatasets, registerSessionRoutes } from './sessions.js';
 import { MAX_RESTORE_BYTES, RestoreError, backupBytes, restoreBackup } from './backup.js';
+import { checkForUpdate, readReleaseVersion, type UpdatesFetch } from './updates.js';
 
 export const APP_NAME = 'CandleDrill';
 export const APP_VERSION = '0.2.0';
@@ -37,6 +38,8 @@ export interface AppOptions {
   readonly apiToken?: string;
   /** Path of the SQLite file; a restore saves the previous database next to it. */
   readonly databasePath?: string;
+  /** Injected fetch for the optional GitHub release check (tests / offline). */
+  readonly fetchUpdates?: UpdatesFetch;
 }
 
 /** Header that must carry the per-launch API token on state-changing requests. */
@@ -121,15 +124,27 @@ export function buildApp(opts: AppOptions): FastifyInstance {
     void app.register(fastifyStatic, { root: opts.staticDir, index: ['index.html'] });
   }
 
+  const releaseVersion = readReleaseVersion();
+
   app.get('/api/health', async () => ({
     status: 'ok',
     name: APP_NAME,
     version: APP_VERSION,
+    releaseVersion,
     engineVersion: ENGINE_VERSION,
     fillModelVersion: FILL_MODEL_VERSION,
     telemetry: false,
     notice: CANDLEDRILL_RISK_NOTICE_EN,
   }));
+
+  // Public GitHub Releases lookup, proxied so the browser never leaves loopback (CSP).
+  // Failures return available:false — the UI stays silent, no scary errors.
+  app.get('/api/updates', async () =>
+    checkForUpdate({
+      current: releaseVersion,
+      ...(opts.fetchUpdates ? { fetchImpl: opts.fetchUpdates } : {}),
+    }),
+  );
 
   // Same-origin pages read the per-launch token here. Browsers block cross-origin reads
   // (no CORS headers) and the Host check above blocks DNS rebinding.
