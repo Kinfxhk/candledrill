@@ -117,6 +117,10 @@ respective owners and appear here only for plain factual comparison.
 - **Simulated orders**: market, limit, stop; bracket orders with stop-loss and
   take-profit (OCO); atomic modify (re-validated, logged) and cancel; flatten all. Commission per contract and
   slippage in ticks.
+- **Order-ticket risk preview**: for fresh entries from flat with no pending entry orders,
+  estimates stop loss, current-equity percentage and target reward:risk, with separate
+  commission/slippage breakdowns. Market estimates reference the last close; gaps
+  can change actual fills. These estimates are not loss guarantees.
 - **Positions and P&L**: average price, open and closed P&L, equity, trade log,
   fills, markers and order lines on the chart.
 - **Statistics**: win rate, expectancy, profit factor, average R-multiple, max
