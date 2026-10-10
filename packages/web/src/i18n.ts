@@ -153,11 +153,23 @@ export const en = {
   'pr.orders': 'Working orders',
   'pr.noOrders': 'No working orders.',
   'pr.cancel': 'Cancel',
+  'pr.modify': 'Edit',
+  'pr.modifyTitle': 'Modify order',
+  'pr.riskPreview': 'Risk preview',
+  'pr.riskNa': 'N/A — no stop',
+  'pr.slPrice': 'Stop-loss price',
+  'pr.tpPrice': 'Take-profit price',
   'pr.rules': 'Practice rules',
   'pr.noRules': 'No rules set for this session.',
   'pr.dailyLoss': 'Daily loss used',
   'pr.trailing': 'Trailing drawdown used',
   'pr.target': 'Target progress',
+  'pr.ddPeak': 'Peak equity',
+  'pr.ddFloor': 'Trailing floor',
+  'pr.ddCurrent': 'Current drawdown',
+  'pr.ddBuffer': 'Buffer to breach',
+  'pr.drawdownNote':
+    'Drawdown is measured on closing equity (the equity at the end of each bar). Intra-bar moves are not counted.',
   'pr.trades': 'Trades',
   'pr.stats': 'Statistics',
   'pr.export': 'Export',
@@ -257,7 +269,7 @@ export const en = {
   'wd.fri': 'Fri',
   'wd.sat': 'Sat',
   shortcuts:
-    'Keys: Space play/pause · → next bar · Shift+→ +10 · B buy · S sell · F flatten · Esc cancel drawing',
+    'Keys: Space play/pause · → next bar · Shift+→ +10 · [ or - slower · ] or = faster · B buy · S sell · F flatten · Esc cancel drawing',
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -406,11 +418,22 @@ export const zhHant: Record<MessageKey, string> = {
   'pr.orders': '未成交訂單',
   'pr.noOrders': '沒有未成交訂單。',
   'pr.cancel': '取消',
+  'pr.modify': '修改',
+  'pr.modifyTitle': '修改訂單',
+  'pr.riskPreview': '風險預覽',
+  'pr.riskNa': '不適用 — 無止蝕',
+  'pr.slPrice': '止蝕價',
+  'pr.tpPrice': '止賺價',
   'pr.rules': '練習規則',
   'pr.noRules': '這個練習沒有設定規則。',
   'pr.dailyLoss': '每日虧損已用',
   'pr.trailing': '追蹤回撤已用',
   'pr.target': '目標進度',
+  'pr.ddPeak': '最高權益',
+  'pr.ddFloor': '追蹤下限',
+  'pr.ddCurrent': '目前回撤',
+  'pr.ddBuffer': '距離觸發',
+  'pr.drawdownNote': '回撤以每根K線收市後的權益（收市權益）計算，K線進行中的波動不計。',
   'pr.trades': '交易',
   'pr.stats': '統計',
   'pr.export': '匯出',
@@ -503,7 +526,7 @@ export const zhHant: Record<MessageKey, string> = {
   'wd.fri': '週五',
   'wd.sat': '週六',
   shortcuts:
-    '快捷鍵：空白鍵 播放／暫停 · → 下一根 · Shift+→ +10 · B 買入 · S 沽出 · F 平倉 · Esc 取消畫線',
+    '快捷鍵：空白鍵 播放／暫停 · → 下一根 · Shift+→ +10 · [ 或 - 減速 · ] 或 = 加速 · B 買入 · S 沽出 · F 平倉 · Esc 取消畫線',
 };
 
 const dictionaries: Record<Lang, Record<MessageKey, string>> = { en, 'zh-Hant': zhHant };

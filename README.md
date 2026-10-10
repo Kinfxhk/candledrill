@@ -6,7 +6,7 @@ at a time without seeing the future, place simulated orders, and review your
 results. Everything runs on your own computer, with no account, no subscription and
 no telemetry.
 
-> **Status: v0.2.7.** Free local practice tool. Expect rough edges; please report bugs
+> **Status: v0.2.8.** Free local practice tool. Expect rough edges; please report bugs
 > in the issue tracker. See the [CHANGELOG](CHANGELOG.md) for what changed.
 
 ![CandleDrill practice screen with synthetic demo data: two synchronised timeframes with a shared crosshair, a long R tool drawing, an open bracket position, order ticket and trade log](docs/screenshot.png)
@@ -95,7 +95,7 @@ respective owners and appear here only for plain factual comparison.
   timestamp format and time zone detection, preview), strict validation (OHLC
   consistency, duplicates, ordering) with a row-level report. A deterministic
   synthetic generator makes demo data in one click.
-- **Replay without look-ahead**: step one bar, ten bars, play at 1–120 bars/s,
+- **Replay without look-ahead**: step one bar, ten bars, play at 0.5–120 bars/s,
   jump forward to a date. The server keeps the full series, and a practice session
   only ever receives bars up to the replay cursor. Note: the data library shows a
   preview of the dataset (its most recent bars) before you start, so in a normal
@@ -338,20 +338,12 @@ the library's logo link is kept). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PART
 不收集任何使用數據。
 
 - **介面供桌面瀏覽器使用**，不保證手機寬度（約 390px）的版面。
-- **現階段**：v0.2.2。已經在最後價或穿過市價的限價單會被拒絕（買入限價高於或等於最後價、沽出限價低於或等於最後價），不會在下一根開市自動成交。v0.2.1 沿用 v0.2.0 的功能，另外：價格軸小數位跟最小跳動（0.25 顯示兩位，不再把
-  4145.75 顯示成 4145.5）；中文介面翻譯規則原因、出場原因、訂單類型及練習狀態；練習規則
-  註明每根K線收市才檢查；市價單止蝕由最後收市價起計；已實現盈虧註明含手續費；匯入 CSV
-  時提示最小跳動預設 0.01，數據集列表會顯示該值。v0.2.0 新增：
-  - **盲練**：隨機起點；代號顯示為 `BLIND`；日期移動隨機整數週（星期及時間不變），價格移動
-    隨機整數個最小價位（盈虧及 R 不變）；盲練期間資料庫預覽會鎖住；按「揭曉」或完成後才顯示
-    真實代號、日期及價格。只防一眼認出，並非加密保證。
-  - **Session 檔匯入**（附K線 SHA-256 指紋核對，逐筆成交對回K線）及**整個資料庫備份／還原**
-    （還原前先唯讀檢查，舊資料庫會另存為 `candledrill.db.before-restore-<時間>`）；有備份提醒卡。
-  - **畫線工具**：矩形、長／短倉 R 工具（入場、止蝕、目標及風險回報比），可拖曳修改、刪除。
-  - **雙圖連動**：十字線同步，時間軸對齊（可關閉）。
-  - **交易日誌**：每筆交易可加標籤及筆記，MAE／MFE（以K線高低計，屬上限），按時段及星期統計。
-  - 其他功能：CSV 匯入、練習期間不傳送未來K線的回放、多時間框架、市價／限價／止蝕單及括號單、
-    持倉與盈虧、統計報告及匯出、自訂練習規則、中英介面及深淺色主題。
+- **現階段**：v0.2.8。v0.2.8 新增：回放速度可選 **0.5×/s**，可用 `[`/`]` 或 `-`/`=` 快捷鍵調速；
+  未成交訂單可點「修改」開啟數字對話框，或直接拖曳圖表右側的價格手柄改價（非法價格會彈回並提示）；
+  落單前顯示風險預覽；設有追蹤回撤時，規則區會顯示最高權益、追蹤下限、目前回撤及距離觸發，
+  並註明以收市權益計算。v0.2.2 起，已經在最後價或穿過市價的限價單會被拒絕，不會在下一根開市自動成交。
+  v0.2.0–v0.2.2 其他重點：盲練、Session 檔匯入與整庫備份／還原、畫線工具、雙圖連動、交易日誌、
+  中英介面及深淺色主題。
 - **承諾**：永久免費，不設收費解鎖、等候時間或次數限制；無廣告、無追蹤、無帳戶；
   macOS、Linux、Windows 均可使用（Windows 每次改動都有自動測試）；永不連接經紀商；
   移除功能前會先標示棄用一個版本。
