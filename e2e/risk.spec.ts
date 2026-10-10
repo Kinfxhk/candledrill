@@ -2,7 +2,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { generateDemo } from './helpers.js';
 
-async function freshSession(page: Page, name: string) {
+async function freshSession(page: Page, name: string, trailing?: number) {
   await page.goto('/');
   await generateDemo(page);
   const form = page.locator('#new-session-form');
@@ -10,6 +10,7 @@ async function freshSession(page: Page, name: string) {
   await expect(form.locator('input[name=name]')).not.toHaveValue('');
   await form.locator('input[name=name]').fill(name);
   await form.locator('input[name=pointValue]').fill('50');
+  if (trailing) await form.locator('input[name=trailing]').fill(String(trailing));
   await form.locator('button[type=submit]').click();
   await expect(page.locator('#practice-root')).toBeVisible();
   await expect(page.locator('.toolbar strong')).toHaveText(name);
@@ -97,4 +98,29 @@ test('working entries and open positions have explanatory unsupported previews',
   await expect(page.getByTestId('position')).toContainText('Long');
   await expect(page.getByTestId('risk-buy')).toContainText('fresh entries from flat only');
   await expect(page.getByTestId('risk-buy-loss')).toHaveCount(0);
+});
+
+test('enhanced risk preview retains upstream drawdown, speed and numeric order modification', async ({
+  page,
+}) => {
+  const view = await freshSession(page, 'Risk upstream integration', 5000);
+  await expect(page.getByTestId('risk-preview')).toHaveCount(1);
+  await expect(page.getByTestId('rules')).toContainText('45,000.00');
+  await page.getByTestId('speed').selectOption('0.5');
+  await expect(page.getByTestId('speed')).toHaveValue('0.5');
+  await page.getByTestId('type-limit').click();
+  const price = view.state.trading.lastClose - 20 * view.session.settings.tickSize;
+  await page.getByTestId('price').fill(String(price));
+  await page.getByTestId('sl-ticks').fill('8');
+  await page.getByTestId('btn-buy').click();
+  await expect(page.getByTestId('modify-1')).toBeVisible();
+  await page.getByTestId('modify-1').click();
+  await expect(page.getByTestId('modify-dialog')).toBeVisible();
+  await page.getByTestId('modify-price').fill(String(price - view.session.settings.tickSize));
+  await page.getByTestId('modify-submit').click();
+  await expect(page.getByTestId('modify-dialog')).not.toBeVisible();
+  const updated = await (await page.request.get(`/api/sessions/${view.session.id}`)).json();
+  expect(updated.state.trading.orders[0].price).toBe(price - view.session.settings.tickSize);
+  await expect(page.getByTestId('risk-buy')).toContainText('entry order is already working');
+  await expect(page.getByTestId('rules')).toContainText('45,000.00');
 });

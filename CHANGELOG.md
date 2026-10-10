@@ -8,7 +8,7 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ### Added
 
-- Live order-ticket risk preview for fresh entries from flat: cost-inclusive stop
+- Extend the v0.2.8 order-ticket risk preview for fresh entries from flat: cost-inclusive stop
   loss, percentage of current equity and net target reward:risk for each side.
   Expandable details separate price risk, commission and slippage. Assumptions
   and unsupported states are explicit; estimates do not guarantee fills or losses.
@@ -17,11 +17,9 @@ Still planned:
 
 - Per-session command queue, session revision and idempotent commands (no stale
   responses after quick session switches or retries)
-- Numeric order-modify dialog (stop-loss/take-profit/price)
 - Toolbar reorganisation, resizable panels, simpler chart markers
 - Correct handling of partial higher-timeframe buckets at the start of trimmed history
 - CSV import: conflicting-duplicate detection, source line numbers, data-quality summary
-- Drag-to-modify working orders on the chart
 - Intrabar (high/low-based) practice-rule checks; currently rules use bar closes
 - Optional fixed-spread cost model (clearly labelled as an assumption, not historical
   spreads)
@@ -32,6 +30,33 @@ Still planned:
 Postponed with reason: **daylight-saving-aware (IANA) session calendars**. Blind practice
 depends on whole-week time shifts and the engine on fixed-offset trading days; changing
 both safely is a design change larger than a minor release.
+
+## [0.2.8] - 2026-10-11
+
+### Added
+
+- **Playback speed 0.5 bars/s** in the practice speed selector, keeping 1–120 bars/s.
+  The carry math now works for fractional speeds. Keyboard shortcuts `[` / `]` and `-` / `=`
+  change speed without touching the mouse.
+- **Drawdown visibility panel**: when a trailing drawdown is set, the rules area shows the
+  peak closing equity, the trailing floor, the current drawdown and the buffer to breach.
+  A note documents that drawdown and practice rules use **closing equity**.
+- **Numeric modify-order dialog** for working orders. Each working order has an edit button
+  that opens a dialog for its price, stop-loss and take-profit (absolute prices). Illegal
+  prices are rejected with the same clear engine message used by the API; the dialog stays
+  open for correction.
+- **Pre-trade risk preview** on the order ticket: money risk from quantity × stop distance
+  (tick size × point value), or N/A when no stop is set.
+- **Drag limit, stop and bracket SL/TP lines** vertically on the chart. Grab the small handle
+  on the right-hand price scale, drag to a new price (snapped to tick), and release to commit
+  via the existing `modifyOrder` API. An illegal price snaps the line back and shows the
+  rejection message.
+
+### Fixed
+
+- **Oracle script encoding on Windows:** `tools/oracle/check.py` now opens its JSON input
+  with an explicit UTF-8 encoding, so `npm run oracle` no longer fails with a `cp950`
+  (or other locale) decode error on Windows.
 
 ## [0.2.7] - 2026-10-10
 
