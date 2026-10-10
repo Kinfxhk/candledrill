@@ -14,6 +14,7 @@ describe('i18n', () => {
     const root = fileURLToPath(new URL('..', import.meta.url));
     const files = [
       'index.html',
+      'src/main.ts',
       'src/practice.ts',
       'src/side.ts',
       'src/bottom.ts',

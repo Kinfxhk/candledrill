@@ -85,9 +85,22 @@ export async function request<T>(
   return json as T;
 }
 
+export interface UpdateCheckResponse {
+  current: string;
+  latest: string | null;
+  newer: boolean;
+  url: string;
+  name: string | null;
+  available: boolean;
+}
+
 export const api = {
   health: () =>
-    request<{ status: string; version: string; telemetry: boolean }>('GET', '/api/health'),
+    request<{ status: string; version: string; releaseVersion?: string; telemetry: boolean }>(
+      'GET',
+      '/api/health',
+    ),
+  updates: () => request<UpdateCheckResponse>('GET', '/api/updates'),
   datasets: () => request<{ datasets: DatasetRow[] }>('GET', '/api/datasets'),
   createSynthetic: (seed: number, startDate: string, days: number) =>
     request<{ dataset: DatasetRow }>('POST', '/api/datasets/synthetic', { seed, startDate, days }),

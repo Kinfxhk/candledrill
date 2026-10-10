@@ -204,7 +204,20 @@ export const en = {
   'stat.streakL': 'Longest loss streak',
   'stat.largestWin': 'Largest win',
   'stat.largestLoss': 'Largest loss',
+  'update.text':
+    'CandleDrill {latest} is available (you have {current}). Opens the GitHub release page — nothing is downloaded automatically.',
+  'update.open': 'View release',
+  'update.later': 'Later',
+  'update.dismiss': "Don't show for this version",
+  'update.check': 'Check for updates',
+  'update.checking': 'Checking…',
+  'update.uptoDate': 'You are on the latest release ({current}).',
+  'update.available': 'Update available: {latest} (you have {current}).',
+  'update.unavailable': 'Could not check for updates (offline or GitHub unreachable).',
+  'update.enable': 'Check for updates on startup',
+  'update.current': 'This build: {current}',
   'about.title': 'About CandleDrill',
+
   'about.body':
     'CandleDrill (K線操練場) is free software (AGPL-3.0-or-later) for practising chart reading and trade management on historical or synthetic bars. It runs only on your computer, binds to 127.0.0.1, has no accounts and sends no telemetry.',
   'about.notAffiliated':
@@ -441,7 +454,20 @@ export const zhHant: Record<MessageKey, string> = {
   'stat.streakL': '最長連敗',
   'stat.largestWin': '最大單筆盈利',
   'stat.largestLoss': '最大單筆虧損',
+  'update.text':
+    'CandleDrill {latest} 已推出（你目前是 {current}）。會開啟 GitHub 發佈頁，不會自動下載。',
+  'update.open': '查看發佈',
+  'update.later': '稍後',
+  'update.dismiss': '今版唔再提示',
+  'update.check': '檢查更新',
+  'update.checking': '檢查中…',
+  'update.uptoDate': '已是最新版本（{current}）。',
+  'update.available': '有新版本：{latest}（你目前是 {current}）。',
+  'update.unavailable': '未能檢查更新（離線或未能連接 GitHub）。',
+  'update.enable': '啟動時檢查更新',
+  'update.current': '今次建置：{current}',
   'about.title': '關於 CandleDrill',
+
   'about.body':
     'CandleDrill（K線操練場）是自由軟件（AGPL-3.0-or-later），用歷史或合成K線練習看圖及交易管理。只在你的電腦運行，只綁定 127.0.0.1，不需要帳戶，亦不會傳送任何使用數據。',
   'about.notAffiliated':
