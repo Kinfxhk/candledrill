@@ -6,15 +6,6 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
-### Added
-
-- **Optional “new version available” notice (no auto-download).** On startup the
-  local server asks GitHub’s public Releases API (proxied at `GET /api/updates` so
-  the browser stays on loopback under CSP). If a newer tag exists, a dismissible
-  banner offers Later / Don’t show for this version and a link to the release page.
-  About includes a startup-check toggle (default on) and a manual Check for updates.
-  Offline or failed lookups stay silent. Never downloads or replaces binaries.
-
 Still planned:
 
 - Per-session command queue, session revision and idempotent commands (no stale
@@ -34,6 +25,17 @@ Still planned:
 Postponed with reason: **daylight-saving-aware (IANA) session calendars**. Blind practice
 depends on whole-week time shifts and the engine on fixed-offset trading days; changing
 both safely is a design change larger than a minor release.
+
+## [0.2.6] - 2026-10-10
+
+### Added
+
+- **Optional “new version available” notice (no auto-download).** On startup the
+  local server asks GitHub’s public Releases API (proxied at `GET /api/updates` so
+  the browser stays on loopback under CSP). If a newer tag exists, a dismissible
+  banner offers Later / Don’t show for this version and a link to the release page.
+  About includes a startup-check toggle (default on) and a manual Check for updates.
+  Offline or failed lookups stay silent. Never downloads or replaces binaries.
 
 ## [0.2.5] - 2026-10-10
 
