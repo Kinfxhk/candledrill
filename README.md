@@ -307,6 +307,14 @@ design change than this release.
   `127.0.0.1`. Do not expose CandleDrill to a network; it has no login.
 - See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
+## Review a closed trade
+
+Use **View on chart** in Trades or Journal to pause playback and focus the entry/exit
+interval with up to five loaded bars of context on each side. Each chart keeps its
+timeframe. **Return to current bar** restores the current view. Navigation does not
+advance the session, change orders or edit drawings. It is disabled until blind
+practice is revealed, or if the trade interval is outside the loaded history.
+
 ## Third-party attribution
 
 Charts are rendered with [TradingView Lightweight Charts™](https://www.tradingview.com/lightweight-charts/)
@@ -333,6 +341,8 @@ the library's logo link is kept). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PART
   - **畫線工具**：矩形、長／短倉 R 工具（入場、止蝕、目標及風險回報比），可拖曳修改、刪除。
   - **雙圖連動**：十字線同步，時間軸對齊（可關閉）。
   - **交易日誌**：每筆交易可加標籤及筆記，MAE／MFE（以K線高低計，屬上限），按時段及星期統計。
+    交易及日誌的「在圖表查看」會暫停播放並定位入場至出場區間；「返回目前K線」恢復目前視窗，
+    不會改動練習進度、訂單或畫線。盲練未揭曉或交易歷史未完整載入時停用。
   - 其他功能：CSV 匯入、練習期間不傳送未來K線的回放、多時間框架、市價／限價／止蝕單及括號單、
     持倉與盈虧、統計報告及匯出、自訂練習規則、中英介面及深淺色主題。
 - **承諾**：永久免費，不設收費解鎖、等候時間或次數限制；無廣告、無追蹤、無帳戶；

@@ -13,6 +13,7 @@ import {
   workingOrders,
   type Bar,
   type OrderRequest,
+  type Trade,
 } from '@candledrill/core';
 import { sessionsApi, type SessionMeta, type SessionStateDto, type SessionViewDto } from './api.js';
 import {
@@ -69,6 +70,7 @@ export class PracticeView {
   private els: Record<string, HTMLElement> = {};
   private side: SidePanel | undefined;
   private bottom: BottomPanel | undefined;
+  private reviewingTradeId: number | undefined;
   private drawings: Drawing[] = [];
   private blindAxisLang: string | undefined;
   private drawMode: DrawMode | null = null;
@@ -141,6 +143,7 @@ export class PracticeView {
     this.els = {};
     this.side = undefined;
     this.bottom = undefined;
+    this.reviewingTradeId = undefined;
     this.root.replaceChildren();
     this.root.hidden = true;
     document.getElementById('practice-empty')!.hidden = false;
@@ -179,6 +182,13 @@ export class PracticeView {
       type: 'datetime-local',
       'aria-label': t('pr.jump'),
       'data-testid': 'jump-input',
+    });
+    const returnLive = btn('pr.returnLive', '', 'btn-return-live');
+    returnLive.hidden = true;
+    const reviewStatus = el('span', {
+      class: 'muted',
+      role: 'status',
+      'data-testid': 'review-status',
     });
     const jumpBtn = btn('pr.go', '', 'btn-jump');
     const clock = el('span', { class: 'clock', 'data-testid': 'clock' });
@@ -232,6 +242,8 @@ export class PracticeView {
       el('span', { class: 'sep' }),
       jumpLabel,
       jumpBtn,
+      returnLive,
+      reviewStatus,
       el('span', { class: 'sep' }),
       split,
       link,
@@ -263,6 +275,8 @@ export class PracticeView {
       bottom,
       jumpInput,
       jumpBtn,
+      returnLive,
+      reviewStatus,
       split,
       hline,
       tline,
@@ -296,14 +310,18 @@ export class PracticeView {
       cancel: (oid) => this.mutate(() => sessionsApi.cancelOrder(m.id, oid)),
       flatten: () => this.mutate(() => sessionsApi.flatten(m.id)),
     });
-    this.bottom = new BottomPanel(bottom, [
-      tradesTab,
-      journalTab,
-      statsTab,
-      fillsTab,
-      exportTab,
-      ...PracticeView.extraTabs,
-    ]);
+    const generation = this.generation;
+    this.bottom = new BottomPanel(
+      bottom,
+      [tradesTab, journalTab, statsTab, fillsTab, exportTab, ...PracticeView.extraTabs],
+      {
+        unavailable: (trade) => this.tradeViewReason(trade),
+        view: (id) => {
+          if (generation === this.generation) this.focusTrade(id);
+        },
+      },
+    );
+    returnLive.addEventListener('click', () => this.returnToCurrent());
 
     play.addEventListener('click', () => (this.playing ? this.pause() : this.play()));
     step.addEventListener('click', () => void this.step(1));
@@ -461,13 +479,73 @@ export class PracticeView {
     p.agg = new BarAggregator(p.tf, this.aggOpts());
     for (const b of this.bars) p.agg.push(b);
     p.chart.setBars(aggregateBars(this.bars, p.tf, this.aggOpts()));
-    requestAnimationFrame(() => p.chart.showRecent(150));
+    requestAnimationFrame(() => {
+      if (!this.panes.includes(p)) return;
+      const trade = this.state?.trading.trades.find((t) => t.id === this.reviewingTradeId);
+      if (trade && !this.tradeViewReason(trade)) {
+        for (const pane of this.panes) pane.muteUntil = Date.now() + 200;
+        this.focusPane(p, trade);
+      } else p.chart.showRecent(150);
+    });
     p.chart.setDrawings(this.drawings, (time) => this.snap(p, time));
     this.decorate();
   }
 
   private resetCharts(): void {
     for (const p of this.panes) this.resetPane(p);
+  }
+
+  private tradeViewReason(trade: Pick<Trade, 'openTime' | 'closeTime'>): MessageKey | null {
+    if (this.blindHidden) return 'pr.reviewBlind';
+    if (
+      !this.bars.length ||
+      trade.openTime < this.bars[0]!.time ||
+      trade.closeTime > this.bars.at(-1)!.time
+    )
+      return 'pr.reviewMissing';
+    return null;
+  }
+
+  private focusPane(pane: ChartPane, trade: Trade): boolean {
+    return pane.chart.focusInterval(
+      this.snap(pane, trade.openTime),
+      this.snap(pane, trade.closeTime),
+    );
+  }
+
+  private focusTrade(id: number): void {
+    const trade = this.state?.trading.trades.find((t) => t.id === id);
+    if (!trade) return;
+    const reason = this.tradeViewReason(trade);
+    if (reason || this.inFlight) {
+      toast(t(reason ?? 'pr.reviewBusy'));
+      return;
+    }
+    this.pause();
+    // Prevent linked-pane scroll events from overriding each pane's focused interval.
+    for (const pane of this.panes) pane.muteUntil = Date.now() + 200;
+    if (!this.panes.length || !this.panes.every((pane) => this.focusPane(pane, trade))) {
+      toast(t('pr.reviewMissing'));
+      return;
+    }
+    this.reviewingTradeId = id;
+    this.renderReviewControls();
+  }
+
+  private returnToCurrent(): void {
+    this.reviewingTradeId = undefined;
+    for (const pane of this.panes) pane.muteUntil = Date.now() + 200;
+    for (const pane of this.panes) pane.chart.showRecent(150);
+    this.renderReviewControls();
+  }
+
+  private renderReviewControls(): void {
+    if (this.els.returnLive) this.els.returnLive.hidden = this.reviewingTradeId === undefined;
+    if (this.els.reviewStatus)
+      this.els.reviewStatus.textContent =
+        this.reviewingTradeId === undefined
+          ? ''
+          : t('pr.reviewingTrade', { id: this.reviewingTradeId });
   }
 
   /** Snap a real time to the bar start of a pane's timeframe. */
@@ -707,6 +785,7 @@ export class PracticeView {
     (this.els.step as HTMLButtonElement).disabled = ended;
     (this.els.step10 as HTMLButtonElement).disabled = ended;
     (this.els.play as HTMLButtonElement).disabled = ended;
+    this.renderReviewControls();
     this.decorate();
     this.side?.render(this.meta.settings, this.state);
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);
