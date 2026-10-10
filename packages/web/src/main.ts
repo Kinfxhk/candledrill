@@ -84,6 +84,8 @@ async function createSession(ds: DatasetRow, form: HTMLFormElement): Promise<voi
         dailyLossLimit: num(form, 'dailyLoss'),
         trailingDrawdown: num(form, 'trailing'),
         profitTarget: num(form, 'target'),
+        maxDailyTradeCycles: num(form, 'maxDailyTradeCycles'),
+        maxConsecutiveLosses: num(form, 'maxConsecutiveLosses'),
         utcOffsetMinutes: utcOffset,
         dayStartMinutes: Number(hh) * 60 + Number(mm),
       },

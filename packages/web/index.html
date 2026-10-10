@@ -191,7 +191,16 @@
                 ><span data-i18n="ns.target">Profit target</span
                 ><input name="target" type="number" min="0" step="any"
               /></label>
+              <label class="field"
+                ><span data-i18n="ns.maxDailyTradeCycles">Daily trade cycles</span
+                ><input name="maxDailyTradeCycles" type="number" min="1" step="1"
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.maxConsecutiveLosses">Consecutive closed losses</span
+                ><input name="maxConsecutiveLosses" type="number" min="1" step="1"
+              /></label>
             </div>
+            <p class="muted" data-i18n="ns.disciplineNote"></p>
             <label class="row blind-toggle"
               ><input type="checkbox" name="blind" data-testid="ns-blind" />
               <strong data-i18n="ns.blind">Blind practice</strong></label

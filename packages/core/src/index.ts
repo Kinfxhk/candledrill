@@ -76,6 +76,8 @@ export {
   estimatedExitCost,
   sessionStats,
   ruleStatus,
+  disciplineStatus,
+  type DisciplineStatus,
   upgradeState,
   dayKeyOf,
   type RuleStatus,

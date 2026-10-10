@@ -125,6 +125,21 @@ respective owners and appear here only for plain factual comparison.
 - **Practice rules** (optional): daily loss limit, trailing drawdown, profit
   target. A breach or target hit closes positions and locks trading for that
   session, so you can rehearse a rule-based routine.
+- **Entry discipline** (optional, blank = off): maximum daily trade cycles and maximum
+  consecutive losing completed trades pause new exposure until the next exchange-local
+  trading day (`utcOffsetMinutes` / `dayStartMinutes`). A flat-to-open execution or
+  reversal opens one cycle; order submissions, scale-ins and partial exits do not.
+  Completed trades are counted in execution order, including multiple closes on one bar.
+  Negative **net** P&L extends the day's loss streak; zero or positive P&L resets it.
+  Once the loss threshold has been reached, a later winning close cannot unpause that day.
+  Both counters reset at the next trading-day boundary, including positions held overnight.
+  The engine checks each queued execution, so reaching either limit also blocks scale-ins.
+  Reductions, protective exits, flattening and replay remain available. An oversized
+  reversal is cancelled in full if paused, or if its closing leg would trigger the loss
+  pause; submit a separate reduction/flatten instead. Cancelled entries do not resume
+  automatically; unfilled orders that never triggered can execute after the day reset.
+  Settings and counters resume from saved fills/trades; older imports keep both rules off.
+  These educational practice rules do not guarantee trading results.
 - **Drawings**: horizontal and trend lines, rectangles, and a **long/short R tool**
   (entry, stop and target with the live risk:reward ratio, default stop 20 ticks and
   target 40 ticks). Select a drawing to drag it or its handles; **Delete** or the ×
@@ -160,7 +175,7 @@ version (currently **fill model v3**) in every report. Full details and limitati
   outside the bar.
 - If one bar touches both the stop-loss and the take-profit, the **stop-loss is
   assumed to fill first**.
-- Drawdown and practice rules are evaluated on each bar's close. The profit target
+- Drawdown and equity practice rules are evaluated on each bar's close. The profit target
   counts only **after estimated exit commission and slippage**.
 - At the end of the data an open position **stays open**, valued at the last close.
   Working orders are cancelled and Flatten is disabled, because there is no later bar.
