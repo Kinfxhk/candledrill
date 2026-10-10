@@ -6,16 +6,33 @@ at a time without seeing the future, place simulated orders, and review your
 results. Everything runs on your own computer, with no account, no subscription and
 no telemetry.
 
-> **Status: v0.2.2.** Same practice tools as v0.2.1. A limit already at or through
-> the last price is rejected instead of filling at the next open (fill model v3; see
-> the [CHANGELOG](CHANGELOG.md)). Expect rough edges; please report bugs in the issue
-> tracker.
+> **Status: v0.2.7.** Free local practice tool. Expect rough edges; please report bugs
+> in the issue tracker. See the [CHANGELOG](CHANGELOG.md) for what changed.
 
 ![CandleDrill practice screen with synthetic demo data: two synchronised timeframes with a shared crosshair, a long R tool drawing, an open bracket position, order ticket and trade log](docs/screenshot.png)
 
 <sub>Screenshot uses generated `SYNTH-` demo data, not real market prices.</sub>
 
 Hands-on guide in Traditional Chinese: [docs/guide.zh-Hant.md](docs/guide.zh-Hant.md).
+
+## Beginner install（新手安裝）
+
+You only need a desktop computer (macOS, Windows or Linux), a browser, and about five minutes.
+No account, no Docker required for the default path.
+
+1. **Install Node.js 22 or newer** from [nodejs.org](https://nodejs.org/) (LTS is fine).  
+   After installing, open a terminal and check: `node -v` (should show `v22` or higher).
+2. **Download CandleDrill** (pick one):
+   - With Git: `git clone https://github.com/Kinfxhk/candledrill.git` then `cd candledrill`
+   - Or download the ZIP from GitHub → **Code → Download ZIP**, unzip, and `cd` into the folder
+3. **Install dependencies once:** `npm ci`  
+   (No C++ build tools needed; SQLite comes as a prebuilt binary.)
+4. **Start the app:** `npm start`
+5. **Open in your browser:** <http://127.0.0.1:4870/>  
+   Click **Generate demo data**, fill in the session form, then **Start practising**.
+
+Data stays on your machine (`~/.candledrill/candledrill.db`). Prefer Docker? See [Quick start → Docker](#docker) below.  
+中文逐步說明見 [使用教學：安裝](docs/guide.zh-Hant.md#安裝四行指令)。
 
 ## Risk notice
 
