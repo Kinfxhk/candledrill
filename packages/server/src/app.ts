@@ -80,7 +80,13 @@ export function buildApp(opts: AppOptions): FastifyInstance {
   const { db } = opts;
   const now = opts.now ?? (() => new Date());
   const logger = typeof opts.logger === 'string' ? { level: opts.logger } : (opts.logger ?? false);
-  const app = Fastify({ logger, bodyLimit: 64 * 1024 });
+  // Reject unknown JSON fields (additionalProperties: false) instead of Fastify's
+  // default removeAdditional: true, which silently strips typos such as stoploss.
+  const app = Fastify({
+    logger,
+    bodyLimit: 64 * 1024,
+    ajv: { customOptions: { removeAdditional: false } },
+  });
 
   const apiToken = opts.apiToken ?? randomBytes(32).toString('base64url');
   const expectedToken = Buffer.from(apiToken);

@@ -26,6 +26,19 @@ Postponed with reason: **daylight-saving-aware (IANA) session calendars**. Blind
 depends on whole-week time shifts and the engine on fixed-offset trading days; changing
 both safely is a design change larger than a minor release.
 
+## [0.2.7] - 2026-10-10
+
+### Fixed
+
+- **Unknown JSON fields are rejected with HTTP 400** instead of being silently
+  stripped by Fastify’s default `removeAdditional: true`. A typo such as
+  `stoploss` (instead of `stopLoss`) on place-order no longer places an order
+  with no stop. Schemas that already set `additionalProperties: false` now
+  honour that rejection.
+- **Windows test runner:** skip Microsoft Store fake `python3` (exit 9009) when
+  looking for a Python interpreter in the price-axis check; `npm run oracle`
+  uses the same portable `scripts/run-python.mjs` helper.
+
 ## [0.2.6] - 2026-10-10
 
 ### Added

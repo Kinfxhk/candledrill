@@ -115,7 +115,10 @@ describe('review 2026-10-08 labels', () => {
     let ran: ReturnType<typeof spawnSync> | undefined;
     for (const bin of ['python3', 'python']) {
       const result = spawnSync(bin, [script], { encoding: 'utf8' });
-      if (result.error && (result.error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      const err = result.error as NodeJS.ErrnoException | undefined;
+      // A Microsoft Store "python3" alias on some Windows machines exists but exits with
+      // 9009 instead of spawning an interpreter; skip it and try the next candidate.
+      if (err?.code === 'ENOENT' || result.status === 9009) continue;
       ran = result;
       break;
     }
