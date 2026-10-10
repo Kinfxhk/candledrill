@@ -44,7 +44,16 @@ test('risk ticket updates live, respects each side and never submits while editi
       `${((100 * loss) / s.startingBalance).toFixed(2)}%`,
     );
   }
+  await page.locator('[data-risk-focus=buy]').click();
+  await page.locator('[data-risk-focus=assumptions]').click();
   await page.getByTestId('qty').fill('3');
+  await expect(page.locator('[data-risk-detail=buy]')).toHaveAttribute('open', '');
+  await expect(page.locator('[data-risk-detail=assumptions]')).toHaveAttribute('open', '');
+  await page.locator('[data-risk-focus=buy]').focus();
+  await page
+    .getByTestId('qty')
+    .evaluate((input) => input.dispatchEvent(new Event('input', { bubbles: true })));
+  await expect(page.locator('[data-risk-focus=buy]')).toBeFocused();
   await expect(page.getByTestId('risk-buy-loss')).toHaveText(money(loss * 1.5));
   await page.getByTestId('type-limit').click();
   await expect(page.getByTestId('risk-buy')).toContainText('Unavailable');
@@ -59,6 +68,8 @@ test('risk ticket updates live, respects each side and never submits while editi
   await expect(page.getByTestId('risk-buy')).toContainText('Unavailable');
   await page.getByTestId('qty').fill('2');
   await page.click('#lang-toggle');
+  await expect(page.locator('[data-risk-detail=buy]')).toHaveAttribute('open', '');
+  await expect(page.locator('[data-risk-detail=assumptions]')).toHaveAttribute('open', '');
   await expect(page.getByTestId('risk-preview')).toContainText('風險預覽');
   await expect(page.getByTestId('risk-preview')).toContainText('估算不保證損失上限');
   await expect(page.getByTestId('risk-buy-loss')).toHaveText(
@@ -68,7 +79,8 @@ test('risk ticket updates live, respects each side and never submits while editi
   const after = await (await page.request.get(`/api/sessions/${view.session.id}`)).json();
   expect(after.state).toEqual(view.state);
   expect(errors).toEqual([]);
-  await page.screenshot({ path: '/tmp/candledrill-risk-preview.png', fullPage: true });
+  await page.click('#lang-toggle');
+  await page.screenshot({ path: testInfo.outputPath('risk-preview.png'), fullPage: true });
 });
 
 test('working entries and open positions have explanatory unsupported previews', async ({

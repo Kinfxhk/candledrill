@@ -33,6 +33,7 @@ export class SidePanel {
   private readonly priceRow: HTMLElement;
   private readonly ordersBox: HTMLElement;
   private readonly riskBox: HTMLElement;
+  private readonly riskExpanded = new Map<string, boolean>();
   private readonly positionBox: HTMLElement;
   private readonly rulesBox: HTMLElement;
   readonly extra: HTMLElement;
@@ -201,6 +202,22 @@ export class SidePanel {
   private renderRisk(): void {
     if (!this.settings || !this.state) return;
     const settings = this.settings;
+    this.riskBox
+      .querySelectorAll<HTMLDetailsElement>('details[data-risk-detail]')
+      .forEach((detail) => {
+        this.riskExpanded.set(detail.dataset.riskDetail!, detail.open);
+      });
+    const focus = document.activeElement?.getAttribute('data-risk-focus');
+    const details = (id: string, label: MessageKey, ...children: HTMLElement[]) =>
+      el(
+        'details',
+        {
+          'data-risk-detail': id,
+          ...(this.riskExpanded.get(id) ? { open: '' } : {}),
+        },
+        el('summary', { class: 'small', 'data-risk-focus': id }, t(label)),
+        ...children,
+      );
     const reasons: Record<
       Exclude<ReturnType<typeof previewRisk>['unavailable'], null>,
       MessageKey
@@ -256,22 +273,16 @@ export class SidePanel {
         { 'data-testid': `risk-${side}` },
         title,
         list(rows.slice(5)),
-        el(
-          'details',
-          {},
-          el('summary', { class: 'small' }, t('risk.details')),
-          list(rows.slice(0, 5)),
-        ),
+        details(side, 'risk.details', list(rows.slice(0, 5))),
       );
     });
     this.riskBox.replaceChildren(
       el('h4', {}, t('risk.title')),
       ...sides,
       el('p', { class: 'muted small' }, t('risk.notice')),
-      el(
-        'details',
-        {},
-        el('summary', { class: 'small' }, t('risk.assumptions')),
+      details(
+        'assumptions',
+        'risk.assumptions',
         el(
           'p',
           { class: 'muted small' },
@@ -280,6 +291,7 @@ export class SidePanel {
         el('p', { class: 'muted small' }, t('risk.costAssumption')),
       ),
     );
+    if (focus) this.riskBox.querySelector<HTMLElement>(`[data-risk-focus="${focus}"]`)?.focus();
   }
 
   render(settings: SessionSettings, state: SessionStateDto): void {
