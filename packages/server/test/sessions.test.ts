@@ -174,6 +174,34 @@ describe('order API', () => {
     expect(after.state.trading.trades).toHaveLength(1);
   });
 
+  it('rejects unknown order fields such as stoploss instead of stripping them', async () => {
+    const { a, ds } = await setup();
+    const created = (
+      await a.inject({
+        method: 'POST',
+        url: '/api/sessions',
+        payload: {
+          datasetId: ds.id,
+          name: 'typo',
+          startTime: ds.firstTime + 3600,
+          settings: SETTINGS,
+        },
+      })
+    ).json();
+    const id = created.session.id;
+    const last = created.state.trading.lastClose as number;
+    const typo = await a.inject({
+      method: 'POST',
+      url: `/api/sessions/${id}/orders`,
+      payload: { side: 'buy', type: 'market', qty: 1, stoploss: last - 20 },
+    });
+    expect(typo.statusCode).toBe(400);
+    expect(typo.json()).toMatchObject({ statusCode: 400 });
+    const open = (await a.inject({ method: 'GET', url: `/api/sessions/${id}` })).json();
+    expect(open.state.trading.position).toBeNull();
+    expect(open.state.trading.orders).toEqual([]);
+  });
+
   it('modifies a bracket atomically and logs before/after', async () => {
     const { a, ds } = await setup();
     const created = (
