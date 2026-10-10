@@ -4,6 +4,12 @@
 export type Lang = 'en' | 'zh-Hant';
 
 export const en = {
+  'pr.viewChart': 'View on chart',
+  'pr.returnLive': 'Return to current bar',
+  'pr.reviewingTrade': 'Viewing trade #{id}',
+  'pr.reviewBlind': 'Reveal blind practice before using trade navigation.',
+  'pr.reviewMissing': 'Trade history is not fully loaded in this view.',
+  'pr.reviewBusy': 'Wait for the current request before reviewing a trade.',
   'nav.library': 'Library',
   'nav.practice': 'Practice',
   'nav.about': 'About',
@@ -275,6 +281,12 @@ export const en = {
 export type MessageKey = keyof typeof en;
 
 export const zhHant: Record<MessageKey, string> = {
+  'pr.viewChart': '在圖表查看',
+  'pr.returnLive': '返回目前K線',
+  'pr.reviewingTrade': '正在查看交易 #{id}',
+  'pr.reviewBlind': '請先揭曉盲練，才使用交易定位。',
+  'pr.reviewMissing': '此畫面未載入完整交易歷史。',
+  'pr.reviewBusy': '請等待目前請求完成，再查看交易。',
   'nav.library': '資料庫',
   'nav.practice': '練習',
   'nav.about': '關於',

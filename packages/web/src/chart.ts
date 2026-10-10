@@ -24,6 +24,30 @@ import {
 import { roundToTick, tickDecimals, type Bar } from '@candledrill/core';
 import { weekdayName } from './labels.js';
 
+/** A bounded window within loaded, revealed bars; both trade endpoints must exist. */
+export function tradeWindow(
+  times: readonly number[],
+  start: number,
+  end: number,
+  context = 5,
+): { from: number; to: number } | null {
+  if (
+    !Number.isFinite(start) ||
+    !Number.isFinite(end) ||
+    end < start ||
+    !Number.isInteger(context) ||
+    context < 0
+  )
+    return null;
+  const first = times.indexOf(start);
+  const last = times.indexOf(end);
+  if (first < 0 || last < first) return null;
+  const from = Math.max(0, first - context);
+  const to = Math.min(times.length - 1, last + context);
+  // A single loaded bar still needs non-zero logical width; the extra slot has no data.
+  return { from, to: Math.max(from + 1, to) };
+}
+
 export interface ChartTheme {
   background: string;
   text: string;
@@ -820,6 +844,18 @@ export class PriceChart {
       wickUpColor: this.theme.up,
       wickDownColor: this.theme.down,
     });
+  }
+
+  /** Focus already-loaded history. Times use the same snapped buckets as fill markers. */
+  focusInterval(start: number, end: number): boolean {
+    const range = tradeWindow(
+      this.candles.data().map((bar) => Number(bar.time)),
+      Number(this.ts(start)),
+      Number(this.ts(end)),
+    );
+    if (!range) return false;
+    this.chart.timeScale().setVisibleLogicalRange(range);
+    return true;
   }
 
   scrollToEnd(): void {
