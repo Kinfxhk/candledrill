@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test, type Page } from '@playwright/test';
+import { generateDemo } from './helpers.js';
 
 async function freshSession(page: Page, name: string) {
   await page.goto('/');
-  await page.click('#btn-demo');
+  await generateDemo(page);
   const form = page.locator('#new-session-form');
   await expect(form).toBeVisible();
   await expect(form.locator('input[name=name]')).not.toHaveValue('');
@@ -11,6 +12,7 @@ async function freshSession(page: Page, name: string) {
   await form.locator('input[name=pointValue]').fill('50');
   await form.locator('button[type=submit]').click();
   await expect(page.locator('#practice-root')).toBeVisible();
+  await expect(page.locator('.toolbar strong')).toHaveText(name);
   const list = (await (await page.request.get('/api/sessions')).json()).sessions;
   const id = list.find((s: { name: string }) => s.name === name).id;
   return await (await page.request.get(`/api/sessions/${id}`)).json();
