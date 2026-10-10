@@ -237,12 +237,23 @@ export const en = {
   'status.breached': 'Breached',
   'status.passed': 'Passed',
   'status.finished': 'Finished',
+  'ns.maxDailyTradeCycles': 'Maximum daily trade cycles (optional)',
+  'ns.maxConsecutiveLosses': 'Maximum consecutive closed losses (optional)',
+  'ns.disciplineNote':
+    'Blank means off. New exposure pauses until the next exchange-local trading day. Scale-ins are not new cycles; zero-P&L closes break the loss streak. Reducing, protective exits and replay remain available. An oversized reversal is cancelled as a whole while paused. Practice rules do not guarantee results.',
+  'pr.disciplineOff': 'off',
+  'pr.disciplineCounts':
+    'Today: {cycles} trade cycles (limit {maxCycles}) · {streak} consecutive closed losses (limit {maxLosses})',
+  'pr.disciplineCyclesPaused':
+    'Daily cycle limit reached: new exposure is paused until the next trading day. Reducing and flattening remain available.',
+  'pr.disciplineLossPaused':
+    'Consecutive loss limit reached: new exposure is paused until the next trading day, including after a later winning close. Reducing and flattening remain available.',
   'reason.dailyLoss': 'daily loss limit {n}',
   'reason.trailing': 'trailing drawdown {n}',
   'reason.profitTarget': 'profit target {n}',
   'reason.endOfData': 'end of data',
   'pr.rulesBar':
-    'Rules are checked when each bar closes, not while the bar is still forming. A touch inside the bar does not close the position immediately.',
+    'Equity rules are checked when each bar closes, not while the bar is still forming. A touch inside the bar does not close the position immediately.',
   'pr.bracketHint':
     'For a market order, these ticks are counted from the last close, not from the fill price.',
   'imp.tickHint':
@@ -486,11 +497,21 @@ export const zhHant: Record<MessageKey, string> = {
   'status.breached': '已觸發',
   'status.passed': '已達標',
   'status.finished': '已完成',
+  'ns.maxDailyTradeCycles': '每日最多交易週期（可選）',
+  'ns.maxConsecutiveLosses': '最多連續已平倉虧損（可選）',
+  'ns.disciplineNote':
+    '留空即關閉。新增曝險會暫停至下一個交易所當地交易日。加倉不另計週期；零盈虧平倉會中斷虧損連續次數。減倉、保護單及重播仍可用。暫停期間會整筆取消超額反手單。練習規則不保證成果。',
+  'pr.disciplineOff': '關閉',
+  'pr.disciplineCounts':
+    '今日：{cycles} 個交易週期（上限 {maxCycles}）· 連續 {streak} 次已平倉虧損（上限 {maxLosses}）',
+  'pr.disciplineCyclesPaused': '已達每日交易週期上限：新增曝險暫停至下一交易日。仍可減倉及清倉。',
+  'pr.disciplineLossPaused':
+    '已達連續虧損上限：新增曝險暫停至下一交易日，其後盈利平倉亦不解除暫停。仍可減倉及清倉。',
   'reason.dailyLoss': '每日虧損上限 {n}',
   'reason.trailing': '追蹤回撤 {n}',
   'reason.profitTarget': '盈利目標 {n}',
   'reason.endOfData': '已到數據尾',
-  'pr.rulesBar': '規則在每根K線收市時檢查，盤中觸及不會即時平倉。',
+  'pr.rulesBar': '資金規則在每根K線收市時檢查，盤中觸及不會即時平倉。',
   'pr.bracketHint': '市價單由最後收市價起計，而不是由成交價起計。',
   'imp.tickHint': '預設為 0.01。期貨常用其他最小跳動（例如 0.25）。止蝕、止賺及盈虧都用這個數值。',
   'lib.tick': '最小跳動 {n}',

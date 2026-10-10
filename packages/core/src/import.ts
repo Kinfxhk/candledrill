@@ -100,12 +100,18 @@ const SETTINGS_KEYS = [
   'dayStartMinutes',
 ] as const;
 
+const OPTIONAL_SETTINGS_KEYS = ['maxDailyTradeCycles', 'maxConsecutiveLosses'] as const;
+
 function settingsIssues(s: unknown): string[] {
   if (!isObj(s)) return ['settings: missing'];
   const out: string[] = [];
   for (const k of SETTINGS_KEYS) if (!(k in s)) out.push(`settings.${k}: missing`);
   for (const k of Object.keys(s))
-    if (!(SETTINGS_KEYS as readonly string[]).includes(k)) out.push(`settings.${k}: unknown`);
+    if (
+      !(SETTINGS_KEYS as readonly string[]).includes(k) &&
+      !(OPTIONAL_SETTINGS_KEYS as readonly string[]).includes(k)
+    )
+      out.push(`settings.${k}: unknown`);
   if (out.length) return out;
   if (!isStr(s.symbol, 64) || s.symbol.length === 0) out.push('settings.symbol: invalid');
   for (const k of SETTINGS_KEYS.slice(1)) {

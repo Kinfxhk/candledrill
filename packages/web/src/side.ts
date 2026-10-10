@@ -2,6 +2,7 @@
 // Right-hand panel: order ticket, position, working orders and practice-rule meters.
 
 import {
+  disciplineStatus,
   roundToTick,
   ruleStatus,
   tickDecimals,
@@ -251,6 +252,33 @@ export class SidePanel {
       ...meter('pr.trailing', rs.trailingUsed, settings.trailingDrawdown),
       ...meter('pr.target', rs.targetProgress, settings.profitTarget),
     ];
+    if (settings.maxDailyTradeCycles || settings.maxConsecutiveLosses) {
+      const discipline = disciplineStatus(settings, state);
+      meters.push(
+        el(
+          'p',
+          { class: 'muted', 'data-testid': 'discipline-counts' },
+          t('pr.disciplineCounts', {
+            cycles: discipline.cycles,
+            streak: discipline.losingStreak,
+            maxCycles: settings.maxDailyTradeCycles ?? t('pr.disciplineOff'),
+            maxLosses: settings.maxConsecutiveLosses ?? t('pr.disciplineOff'),
+          }),
+        ),
+      );
+      if (discipline.reason)
+        meters.push(
+          el(
+            'p',
+            { role: 'status', 'data-testid': 'discipline-paused' },
+            t(
+              discipline.reason === 'daily-trade-cycle limit'
+                ? 'pr.disciplineCyclesPaused'
+                : 'pr.disciplineLossPaused',
+            ),
+          ),
+        );
+    }
     this.rulesBox.replaceChildren(
       ...(meters.length ? meters : [el('p', { class: 'muted' }, t('pr.noRules'))]),
     );

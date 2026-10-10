@@ -210,6 +210,8 @@ export const settingsSchema = {
     dailyLossLimit: nullablePositive,
     trailingDrawdown: nullablePositive,
     profitTarget: nullablePositive,
+    maxDailyTradeCycles: { type: ['integer', 'null'], minimum: 1 },
+    maxConsecutiveLosses: { type: ['integer', 'null'], minimum: 1 },
     utcOffsetMinutes: { type: 'integer', minimum: -840, maximum: 840 },
     dayStartMinutes: { type: 'integer', minimum: 0, maximum: 1439 },
   },

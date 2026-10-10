@@ -8,6 +8,7 @@
 import type { Bar } from './types.js';
 import { initialCursor, stepsUntil } from './replay.js';
 import {
+  applyFill,
   cancelAllWorking,
   cancelOrder,
   emptyTrading,
@@ -39,6 +40,9 @@ export interface SessionSettings {
   readonly dailyLossLimit: number | null;
   readonly trailingDrawdown: number | null;
   readonly profitTarget: number | null;
+  /** Optional entry pauses; absent/null = off. Both reset next exchange-local trading day. */
+  readonly maxDailyTradeCycles?: number | null;
+  readonly maxConsecutiveLosses?: number | null;
   /** Exchange-local clock used for daily bars and the trading-day boundary. */
   readonly utcOffsetMinutes: number;
   readonly dayStartMinutes: number;
@@ -67,6 +71,59 @@ export function dayKeyOf(time: number, settings: SessionSettings): number {
   return Math.floor(
     (time + settings.utcOffsetMinutes * 60 - settings.dayStartMinutes * 60) / 86_400,
   );
+}
+
+export interface DisciplineStatus {
+  readonly cycles: number;
+  readonly losingStreak: number;
+  readonly lossPause: boolean;
+  readonly reason: 'daily-trade-cycle limit' | 'consecutive-loss limit' | null;
+}
+
+/** Derive counts from executed history, including same-bar closes in execution order. */
+export function disciplineStatus(
+  settings: SessionSettings,
+  state: Pick<SessionState, 'dayKey' | 'trading'>,
+): DisciplineStatus {
+  let qty = 0;
+  let cycles = 0;
+  for (const fill of state.trading.fills) {
+    const next = qty + (fill.side === 'buy' ? fill.qty : -fill.qty);
+    if (
+      next !== 0 &&
+      (qty === 0 || Math.sign(next) !== Math.sign(qty)) &&
+      dayKeyOf(fill.time, settings) === state.dayKey
+    )
+      cycles++;
+    qty = next;
+  }
+  let losingStreak = 0;
+  let lossPause = false;
+  for (const trade of state.trading.trades) {
+    if (dayKeyOf(trade.closeTime, settings) !== state.dayKey) continue;
+    losingStreak = trade.netPnl < 0 ? losingStreak + 1 : 0;
+    if (settings.maxConsecutiveLosses && losingStreak >= settings.maxConsecutiveLosses)
+      lossPause = true;
+  }
+  return {
+    cycles,
+    losingStreak,
+    lossPause,
+    reason:
+      settings.maxDailyTradeCycles && cycles >= settings.maxDailyTradeCycles
+        ? 'daily-trade-cycle limit'
+        : lossPause
+          ? 'consecutive-loss limit'
+          : null,
+  };
+}
+
+function increasesExposure(
+  trading: TradingState,
+  req: Pick<OrderRequest, 'side' | 'qty'>,
+): boolean {
+  const qty = trading.position?.qty ?? 0;
+  return qty === 0 || qty > 0 === (req.side === 'buy') || req.qty > Math.abs(qty);
 }
 
 export interface RuleStatus {
@@ -230,6 +287,11 @@ export function validateSettings(s: SessionSettings): string[] {
     const v = s[k];
     if (v !== null && !pos(v)) errors.push(`${k} must be > 0 or null`);
   }
+  for (const key of ['maxDailyTradeCycles', 'maxConsecutiveLosses'] as const) {
+    const value = s[key];
+    if (value !== undefined && value !== null && (!Number.isSafeInteger(value) || value < 1))
+      errors.push(`${key} must be a positive integer or null`);
+  }
   if (!Number.isInteger(s.utcOffsetMinutes) || Math.abs(s.utcOffsetMinutes) > 840)
     errors.push('utcOffsetMinutes must be an integer within ±840');
   if (!Number.isInteger(s.dayStartMinutes) || s.dayStartMinutes < 0 || s.dayStartMinutes >= 1440)
@@ -286,6 +348,12 @@ export function sessionPlaceOrder(
   req: OrderRequest,
 ): SessionState {
   assertCanTrade(bars, state);
+  const reason =
+    settings.maxDailyTradeCycles || settings.maxConsecutiveLosses
+      ? disciplineStatus(settings, state).reason
+      : null;
+  if (reason && increasesExposure(state.trading, req))
+    throw new OrderError(`new exposure paused: ${reason}; resumes next trading day`);
   const { trading } = placeOrder(
     state.trading,
     costModel(settings),
@@ -347,7 +415,35 @@ export function stepSession(
     revealed.push(bar);
     const key = dayKeyOf(bar.time, settings);
     if (key !== s.dayKey) s = { ...s, dayKey: key, dayStartEquity: sessionEquity(settings, s) };
-    s = markEquity(settings, { ...s, cursor, trading: processBar(s.trading, costs, bar, cursor) });
+    s = markEquity(settings, {
+      ...s,
+      cursor,
+      trading: processBar(s.trading, costs, bar, cursor, (trading, order, price) => {
+        if (!settings.maxDailyTradeCycles && !settings.maxConsecutiveLosses) return null;
+        if (!increasesExposure(trading, order)) return null;
+        const current = disciplineStatus(settings, { dayKey: key, trading });
+        if (current.reason) return `new exposure paused: ${current.reason}`;
+        // A reversal closes a cycle before opening the opposite one. Do not let its
+        // opening part bypass a loss pause triggered by that closing execution.
+        if (
+          settings.maxConsecutiveLosses &&
+          trading.position &&
+          trading.position.qty > 0 !== (order.side === 'buy')
+        ) {
+          const projected = applyFill(trading, costs, {
+            orderId: order.id,
+            side: order.side,
+            qty: order.qty,
+            price,
+            time: bar.time,
+            role: order.role,
+          });
+          if (disciplineStatus(settings, { dayKey: key, trading: projected }).lossPause)
+            return 'new exposure paused: consecutive-loss limit';
+        }
+        return null;
+      }),
+    });
     s = applyRules(settings, s, bar);
   }
   if (atEnd(bars, s)) s = endOfData(s);

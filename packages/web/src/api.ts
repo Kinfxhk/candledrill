@@ -135,6 +135,8 @@ export interface SessionSettings {
   dailyLossLimit: number | null;
   trailingDrawdown: number | null;
   profitTarget: number | null;
+  maxDailyTradeCycles?: number | null;
+  maxConsecutiveLosses?: number | null;
   utcOffsetMinutes: number;
   dayStartMinutes: number;
 }

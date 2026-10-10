@@ -725,6 +725,7 @@ export function processBar(
   costs: CostModel,
   bar: Bar,
   index: number,
+  entryPause?: (trading: TradingState, order: Order, price: number) => string | null,
 ): TradingState {
   let s = t;
   const candidates = s.orders
@@ -741,6 +742,11 @@ export function processBar(
   for (const { o: original, trig } of candidates) {
     const o = s.orders.find((x) => x.id === original.id)!;
     if (o.status !== 'working') continue;
+    const pause = o.role === 'entry' ? entryPause?.(s, o, trig.price) : null;
+    if (pause) {
+      s = cancelOrder(s, o.id, pause);
+      continue;
+    }
     let qty = o.qty;
     if (o.role !== 'entry') {
       const pos = s.position;
