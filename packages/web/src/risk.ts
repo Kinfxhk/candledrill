@@ -138,7 +138,8 @@ export function previewRisk(
   }
   const equity = sessionEquity(settings, state);
   const percent = (100 * loss) / equity;
-  const equityPercent = equity > 0 && Number.isFinite(percent) ? percent : null;
+  const equityPercent =
+    equity > 0 && Number.isFinite(equity) && Number.isFinite(percent) ? percent : null;
   return {
     unavailable: null,
     entry,

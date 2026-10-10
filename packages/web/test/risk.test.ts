@@ -124,6 +124,16 @@ describe('flat-entry ticket risk preview', () => {
     }
   });
 
+  it('never reports zero percent for non-finite equity', () => {
+    for (const realizedPnl of [Infinity, NaN, 1e308]) {
+      const s = { ...settings, startingBalance: 1e308 };
+      const changed = { ...state, trading: { ...state.trading, realizedPnl } };
+      const p = available(s, changed);
+      expect(p.equityPercent).toBeNull();
+      expect(p.loss).toBe(258);
+    }
+  });
+
   it('marks missing stops, existing positions, queued entries and ended sessions unavailable', () => {
     expect(previewRisk(settings, state, { ...input, stopTicks: '' }, 'buy')).toEqual({
       unavailable: 'stop',
