@@ -56,6 +56,7 @@ interface ChartPane {
 export class PracticeView {
   private meta: SessionMeta | undefined;
   private state: SessionStateDto | undefined;
+  private summary: CompletionSummary | undefined;
   private bars: Bar[] = [];
   private cursorTime = 0;
   private panes: ChartPane[] = [];
@@ -70,7 +71,6 @@ export class PracticeView {
   private els: Record<string, HTMLElement> = {};
   private side: SidePanel | undefined;
   private bottom: BottomPanel | undefined;
-  private summary: CompletionSummary | undefined;
   private drawings: Drawing[] = [];
   private blindAxisLang: string | undefined;
   private drawMode: DrawMode | null = null;
@@ -129,6 +129,8 @@ export class PracticeView {
   }
 
   close(): void {
+    this.summary?.destroy();
+    this.summary = undefined;
     this.generation++;
     this.pause();
     this.inFlight = false;
@@ -143,8 +145,6 @@ export class PracticeView {
     this.els = {};
     this.side = undefined;
     this.bottom = undefined;
-    this.summary?.destroy();
-    this.summary = undefined;
     this.root.replaceChildren();
     this.root.hidden = true;
     document.getElementById('practice-empty')!.hidden = false;
@@ -711,6 +711,8 @@ export class PracticeView {
     const ji = this.els.jumpInput as HTMLInputElement;
     if (!ji.value || fromLocalInput(ji.value, off) <= this.cursorTime)
       ji.value = toLocalInput(this.cursorTime + 3600, off);
+    this.els.summary?.setAttribute('aria-label', t('summary.title'));
+    this.summary?.update(this.meta.settings, this.state, this.meta.id);
     const st = this.state.status;
     const banner = this.els.banner!;
     banner.className = `status-banner ${st === 'active' ? '' : `show ${st}`}`;
@@ -726,8 +728,6 @@ export class PracticeView {
     (this.els.step as HTMLButtonElement).disabled = ended;
     (this.els.step10 as HTMLButtonElement).disabled = ended;
     (this.els.play as HTMLButtonElement).disabled = ended;
-    this.els.summary?.setAttribute('aria-label', t('summary.title'));
-    this.summary?.update(this.meta.settings, this.state, this.meta.id);
     this.decorate();
     this.side?.render(this.meta.settings, this.state);
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);

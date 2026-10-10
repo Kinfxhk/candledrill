@@ -185,6 +185,22 @@ version (currently **fill model v3**) in every report. Full details and limitati
   (theme, language, linked charts, the backup-reminder counter), so clearing it loses
   nothing important.
 
+## Completion summary
+
+When a session finishes, passes its target or breaches a rule, playback pauses and
+a dismissible summary presents the existing statistics. Closed-trade net results
+include commissions; any open position and its unrealized P&L are shown separately.
+The summary can be reopened without changing the session.
+
+Review prompts select at most two unique trades: the lowest net P&L and the largest
+MAE in R with complete positive risk data. If no valid R metric exists, the second
+prompt uses a separately labelled ticks fallback. Ties use the lowest trade ID; a
+trade selected twice shows both reasons. Missing excursions leave the net prompt
+available. These prompts are not judgments or trading signals: MAE uses whole-bar
+extremes, including the entry and exit bars, and is an upper bound. MFE giveback
+ranking is deferred because scale-ins and partial exits need clearer semantics.
+Use **Open journal** to inspect the selected trade IDs.
+
 ## Performance and limits
 
 Measured with `npm run bench` and `scripts/bench-browser.ts` on **500,000 synthetic
@@ -306,22 +322,6 @@ design change than this release.
 - Loopback is not a sandbox: other software running on your computer can reach
   `127.0.0.1`. Do not expose CandleDrill to a network; it has no login.
 - See [SECURITY.md](SECURITY.md) to report a vulnerability.
-
-## Completion summary
-
-When a session finishes, passes its target or breaches a rule, playback pauses and
-a dismissible summary presents the existing statistics. Closed-trade net results
-include commissions; any open position and its unrealized P&L are shown separately.
-The summary can be reopened without changing the session.
-
-Review prompts select at most two unique trades: the lowest net P&L and the largest
-MAE in R with complete positive risk data. If no valid R metric exists, the second
-prompt uses a separately labelled ticks fallback. Ties use the lowest trade ID; a
-trade selected twice shows both reasons. Missing excursions leave the net prompt
-available. These prompts are not judgments or trading signals: MAE uses whole-bar
-extremes, including the entry and exit bars, and is an upper bound. MFE giveback
-ranking is deferred because scale-ins and partial exits need clearer semantics.
-Use **Open journal** to inspect the selected trade IDs.
 
 ## Third-party attribution
 
