@@ -20,7 +20,7 @@ const money = (v: number) =>
 
 test('risk ticket updates live, respects each side and never submits while editing', async ({
   page,
-}) => {
+}, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   const view = await freshSession(page, 'Risk preview');
