@@ -23,6 +23,7 @@ import {
   type PriceLineSpec,
 } from './chart.js';
 import { SidePanel } from './side.js';
+import { CompletionSummary } from './summary.js';
 import {
   BottomPanel,
   exportTab,
@@ -69,6 +70,7 @@ export class PracticeView {
   private els: Record<string, HTMLElement> = {};
   private side: SidePanel | undefined;
   private bottom: BottomPanel | undefined;
+  private summary: CompletionSummary | undefined;
   private drawings: Drawing[] = [];
   private blindAxisLang: string | undefined;
   private drawMode: DrawMode | null = null;
@@ -141,6 +143,8 @@ export class PracticeView {
     this.els = {};
     this.side = undefined;
     this.bottom = undefined;
+    this.summary?.destroy();
+    this.summary = undefined;
     this.root.replaceChildren();
     this.root.hidden = true;
     document.getElementById('practice-empty')!.hidden = false;
@@ -248,11 +252,18 @@ export class PracticeView {
     const side = el('aside', { class: 'side', 'data-testid': 'side' });
     const workspace = el('div', { class: 'workspace' }, charts, side);
     const bottom = el('div', { class: 'bottom', 'data-testid': 'bottom' });
+    const summary = el('section', {
+      class: 'completion-summary',
+      'data-testid': 'completion-summary',
+      'aria-label': t('summary.title'),
+    });
+    summary.hidden = true;
     // Blind: no calendar jump (it would show dates); stepping and playing are enough.
     jumpLabel.hidden = this.blindHidden;
     jumpBtn.hidden = this.blindHidden;
-    this.root.replaceChildren(banner, revealBanner, toolbar, workspace, bottom);
+    this.root.replaceChildren(banner, revealBanner, toolbar, summary, workspace, bottom);
     this.els = {
+      summary,
       banner,
       play,
       step,
@@ -304,6 +315,13 @@ export class PracticeView {
       exportTab,
       ...PracticeView.extraTabs,
     ]);
+
+    this.summary = new CompletionSummary(summary, () => {
+      this.bottom?.select('journal');
+      (
+        this.els.bottom?.querySelector('[data-testid=tab-journal]') as HTMLButtonElement | null
+      )?.focus();
+    });
 
     play.addEventListener('click', () => (this.playing ? this.pause() : this.play()));
     step.addEventListener('click', () => void this.step(1));
@@ -543,6 +561,7 @@ export class PracticeView {
 
   // ---------------------------------------------------------------- state
   private applyView(view: SessionViewDto): void {
+    if (view.state.status !== 'active' && this.state?.status !== view.state.status) this.pause();
     this.state = view.state;
     this.cursorTime = view.cursorTime;
     this.render();
@@ -707,6 +726,8 @@ export class PracticeView {
     (this.els.step as HTMLButtonElement).disabled = ended;
     (this.els.step10 as HTMLButtonElement).disabled = ended;
     (this.els.play as HTMLButtonElement).disabled = ended;
+    this.els.summary?.setAttribute('aria-label', t('summary.title'));
+    this.summary?.update(this.meta.settings, this.state, this.meta.id);
     this.decorate();
     this.side?.render(this.meta.settings, this.state);
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);

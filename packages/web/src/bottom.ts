@@ -342,6 +342,12 @@ export class BottomPanel {
     this.refresh();
   }
 
+  select(id: string): void {
+    if (!this.tabs.some((tab) => tab.id === id)) return;
+    this.active = id;
+    this.refresh();
+  }
+
   private refresh(): void {
     this.tabs.forEach((tab, i) =>
       this.bar.children[i]!.setAttribute('aria-selected', String(tab.id === this.active)),

@@ -307,6 +307,22 @@ design change than this release.
   `127.0.0.1`. Do not expose CandleDrill to a network; it has no login.
 - See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
+## Completion summary
+
+When a session finishes, passes its target or breaches a rule, playback pauses and
+a dismissible summary presents the existing statistics. Closed-trade net results
+include commissions; any open position and its unrealized P&L are shown separately.
+The summary can be reopened without changing the session.
+
+Review prompts select at most two unique trades: the lowest net P&L and the largest
+MAE in R with complete positive risk data. If no valid R metric exists, the second
+prompt uses a separately labelled ticks fallback. Ties use the lowest trade ID; a
+trade selected twice shows both reasons. Missing excursions leave the net prompt
+available. These prompts are not judgments or trading signals: MAE uses whole-bar
+extremes, including the entry and exit bars, and is an upper bound. MFE giveback
+ranking is deferred because scale-ins and partial exits need clearer semantics.
+Use **Open journal** to inspect the selected trade IDs.
+
 ## Third-party attribution
 
 Charts are rendered with [TradingView Lightweight Charts™](https://www.tradingview.com/lightweight-charts/)
@@ -335,6 +351,10 @@ the library's logo link is kept). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PART
   - **交易日誌**：每筆交易可加標籤及筆記，MAE／MFE（以K線高低計，屬上限），按時段及星期統計。
   - 其他功能：CSV 匯入、練習期間不傳送未來K線的回放、多時間框架、市價／限價／止蝕單及括號單、
     持倉與盈虧、統計報告及匯出、自訂練習規則、中英介面及深淺色主題。
+- **完成摘要**：完成、達標或違規時暫停播放，顯示可收起及重開的統計摘要；已平倉成績與
+  未平倉浮盈虧分開。最多挑出兩筆交易（最低淨盈虧、最大 MAE），重複選中會合併原因。
+  MAE 優先以有效 R 排名，沒有 R 時才用清楚標示的 ticks；同分選最小交易編號。這些只係
+  重睇提示，並非交易好壞判斷；可打開日誌按編號查看。
 - **承諾**：永久免費，不設收費解鎖、等候時間或次數限制；無廣告、無追蹤、無帳戶；
   macOS、Linux、Windows 均可使用（Windows 每次改動都有自動測試）；永不連接經紀商；
   移除功能前會先標示棄用一個版本。

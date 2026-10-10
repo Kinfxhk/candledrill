@@ -721,3 +721,12 @@ table.data.compact th {
 .groups h4 {
   margin: 8px 0 4px;
 }
+
+.completion-summary {
+  flex-shrink: 0;
+  max-height: 35vh;
+  overflow: auto;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}

@@ -4,6 +4,21 @@
 export type Lang = 'en' | 'zh-Hant';
 
 export const en = {
+  'summary.title': 'Session summary',
+  'summary.hide': 'Hide summary',
+  'summary.show': 'Show summary',
+  'summary.closedNet': 'Closed-trade net P&L (after commissions)',
+  'summary.open':
+    'Open position: {qty} contracts; unrealized P&L {pnl}. This is separate from closed-trade results.',
+  'summary.prompts':
+    'Review prompts, not judgments about trade quality. Ties use the lowest trade ID.',
+  'summary.lowestNet': 'Lowest net P&L: {value}',
+  'summary.maeR': 'Largest MAE: {value} R',
+  'summary.maeTicks': 'Largest MAE: {value} ticks (fallback: no valid R data)',
+  'summary.loading': 'Loading excursion metrics…',
+  'summary.unavailable': 'Excursion metrics unavailable; the net P&L prompt remains available.',
+  'summary.journal': 'Open journal',
+
   'nav.library': 'Library',
   'nav.practice': 'Practice',
   'nav.about': 'About',
@@ -263,6 +278,19 @@ export const en = {
 export type MessageKey = keyof typeof en;
 
 export const zhHant: Record<MessageKey, string> = {
+  'summary.title': '練習摘要',
+  'summary.hide': '收起摘要',
+  'summary.show': '顯示摘要',
+  'summary.closedNet': '已平倉淨盈虧（含手續費）',
+  'summary.open': '未平倉：{qty} 張；浮動盈虧 {pnl}。與已平倉成績分開顯示。',
+  'summary.prompts': '以下只提示值得重睇的交易，並非判斷交易好壞。同分按最小交易編號選取。',
+  'summary.lowestNet': '最低淨盈虧：{value}',
+  'summary.maeR': '最大 MAE：{value} R',
+  'summary.maeTicks': '最大 MAE：{value} ticks（沒有有效 R 數據時使用）',
+  'summary.loading': '正在載入價格偏離指標…',
+  'summary.unavailable': '價格偏離指標暫時不可用；仍可查看最低淨盈虧交易。',
+  'summary.journal': '打開交易日誌',
+
   'nav.library': '資料庫',
   'nav.practice': '練習',
   'nav.about': '關於',
