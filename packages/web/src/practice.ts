@@ -12,6 +12,7 @@ import {
   tickDecimals,
   workingOrders,
   type Bar,
+  type OrderChange,
   type OrderRequest,
 } from '@candledrill/core';
 import { sessionsApi, type SessionMeta, type SessionStateDto, type SessionViewDto } from './api.js';
@@ -39,7 +40,7 @@ import { statusReasonText } from './labels.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 
 const TIMEFRAMES = [60, 300, 900, 3600, 86400];
-const SPEEDS = [1, 2, 5, 10, 30, 60, 120];
+const SPEEDS = [0.5, 1, 2, 5, 10, 30, 60, 120];
 const TICK_MS = 100;
 
 type DrawMode = 'hline' | 'tline' | 'rect' | 'long' | 'short';
@@ -305,6 +306,7 @@ export class PracticeView {
     this.side = new SidePanel(side, {
       place: (req) => this.mutate(() => sessionsApi.placeOrder(m.id, req)),
       cancel: (oid) => this.mutate(() => sessionsApi.cancelOrder(m.id, oid)),
+      modify: (oid, change) => this.mutate(() => sessionsApi.modifyOrder(m.id, oid, change)),
       flatten: () => this.mutate(() => sessionsApi.flatten(m.id)),
     });
     this.bottom = new BottomPanel(bottom, [
@@ -454,6 +456,7 @@ export class PracticeView {
       (d) => void this.saveDrawings(this.drawings.map((x) => (x.id === d.id ? d : x))),
     );
     chart.onDrawingDelete((id) => this.deleteDrawing(id));
+    chart.onOrderLineDrag((orderId, price) => this.modifyOrderPrice(orderId, price));
     // Crosshair always follows across charts; the time axis follows when "Link charts" is on.
     chart.onCrosshair((time) => {
       for (const o of this.panes)
@@ -559,6 +562,23 @@ export class PracticeView {
     if (this.meta) await this.mutate(() => sessionsApi.placeOrder(this.meta!.id, req));
   }
 
+  private async modifyOrderPrice(orderId: number, price: number): Promise<void> {
+    if (!this.meta || !this.state) throw new Error('no session');
+    const o = workingOrders(this.state.trading).find((x) => x.id === orderId);
+    if (!o) throw new Error('order not found');
+    const change: OrderChange = o.role === 'entry' ? { price } : { price };
+    const generation = this.generation;
+    try {
+      const view = await sessionsApi.modifyOrder(this.meta.id, orderId, change);
+      if (generation !== this.generation) return;
+      this.applyView(view);
+    } catch (err) {
+      if (generation !== this.generation) throw err;
+      toast((err as Error).message, 'error');
+      throw err;
+    }
+  }
+
   // ---------------------------------------------------------------- state
   private applyView(view: SessionViewDto): void {
     if (view.state.status !== 'active' && this.state?.status !== view.state.status) this.pause();
@@ -662,6 +682,7 @@ export class PracticeView {
           o.role === 'stop-loss' ? theme.down : o.role === 'take-profit' ? theme.up : theme.accent,
         title: `${o.role === 'entry' ? o.type : o.role === 'stop-loss' ? 'SL' : 'TP'} ${o.side === 'buy' ? '+' : '-'}${o.qty}`,
         dashed: true,
+        orderId: o.id,
       }));
     if (tr.position) {
       lines.push({
@@ -741,6 +762,14 @@ export class PracticeView {
     this.resetCharts();
   }
 
+  private setSpeedIndex(delta: number): void {
+    const i = SPEEDS.indexOf(this.speed);
+    const next = i < 0 ? 2 : Math.min(Math.max(i + delta, 0), SPEEDS.length - 1);
+    this.speed = SPEEDS[next]!;
+    const sel = this.els.speed as HTMLSelectElement | undefined;
+    if (sel) sel.value = String(this.speed);
+  }
+
   private onKey(e: KeyboardEvent): void {
     if (
       !this.meta ||
@@ -772,6 +801,12 @@ export class PracticeView {
     } else if (e.key === 'f' || e.key === 'F') {
       if (this.meta && this.state?.status !== 'finished')
         void this.mutate(() => sessionsApi.flatten(this.meta!.id));
+    } else if (e.key === '[' || e.key === '-') {
+      e.preventDefault();
+      this.setSpeedIndex(-1);
+    } else if (e.key === ']' || e.key === '=') {
+      e.preventDefault();
+      this.setSpeedIndex(1);
     }
   }
 }
