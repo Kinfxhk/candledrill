@@ -75,7 +75,11 @@ export class IndicatorPanel {
         this.render();
         this.onChange(this.cfg);
       });
-      row.append(box, el('span', {}, t(`ind.${s.kind}` as const)));
+      const label =
+        (s.kind === 'sma' || s.kind === 'ema') && s.period
+          ? `${t(`ind.${s.kind}` as const)} ${s.period}`
+          : t(`ind.${s.kind}` as const);
+      row.append(box, el('span', {}, label));
       if (s.visible) row.append(this.renderControls(s, fb));
       g.append(row);
     }

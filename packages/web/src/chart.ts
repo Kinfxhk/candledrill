@@ -1053,6 +1053,7 @@ export class PriceChart {
     this.freehandPoints = [];
     this.freehandHandler = (pts) => {
       for (const p of pts) onPoint(p);
+      onDone();
     };
     this.freehandDone = onDone;
     this.overlay.classList.add('drawing-freehand');
@@ -1123,6 +1124,8 @@ export class PriceChart {
         overlayWanted.add('ov-bollinger-upper');
         overlayWanted.add('ov-bollinger-middle');
         overlayWanted.add('ov-bollinger-lower');
+      } else if (s.kind === 'sma' || s.kind === 'ema') {
+        overlayWanted.add(`ov-${s.kind}-${s.period ?? 0}`);
       } else {
         overlayWanted.add(`ov-${s.kind}`);
       }
@@ -1137,12 +1140,12 @@ export class PriceChart {
     for (const s of this.indicatorConfig.overlays) {
       if (!s.visible) continue;
       if (s.kind === 'sma' && s.period) {
-        const key = 'ov-sma';
+        const key = `ov-sma-${s.period}`;
         this.ensureOverlayLine(key, s).setData(
           this.indicatorLineData(sma(bars, s.period, s.source), bars),
         );
       } else if (s.kind === 'ema' && s.period) {
-        const key = 'ov-ema';
+        const key = `ov-ema-${s.period}`;
         this.ensureOverlayLine(key, s).setData(
           this.indicatorLineData(ema(bars, s.period, s.source), bars),
         );

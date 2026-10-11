@@ -29,8 +29,12 @@ export interface PaneIndicatorConfig {
 const INDICATOR_KEY = 'candledrill.indicators';
 
 export const DEFAULT_OVERLAYS: IndicatorSetting[] = [
-  { kind: 'sma', visible: false, period: 20, source: 'close', color: '#7cc4ff' },
-  { kind: 'ema', visible: false, period: 21, source: 'close', color: '#f2a93b' },
+  { kind: 'sma', visible: false, period: 9, source: 'close', color: '#7cc4ff' },
+  { kind: 'sma', visible: false, period: 20, source: 'close', color: '#4d8fd6' },
+  { kind: 'sma', visible: false, period: 50, source: 'close', color: '#2a5f9e' },
+  { kind: 'ema', visible: false, period: 9, source: 'close', color: '#f2a93b' },
+  { kind: 'ema', visible: false, period: 21, source: 'close', color: '#d4892a' },
+  { kind: 'ema', visible: false, period: 50, source: 'close', color: '#a96414' },
   { kind: 'bollinger', visible: false, period: 20, source: 'close', color: '#8d95a6', stdDev: 2 },
   { kind: 'vwap', visible: false, source: 'hlc3', color: '#9a6d00' },
 ];
@@ -104,7 +108,21 @@ function sanitizeConfig(raw: unknown): PaneIndicatorConfig {
   const r = raw as Record<string, unknown>;
   const merge = (arr: unknown, fallbacks: IndicatorSetting[]): IndicatorSetting[] => {
     if (!Array.isArray(arr)) return fallbacks.map((x) => ({ ...x }));
-    return fallbacks.map((fb, i) => sanitizeSetting(arr[i], fb));
+    if (arr.length === fallbacks.length)
+      return fallbacks.map((fb, i) => sanitizeSetting(arr[i], fb));
+    // Migrate shorter prefs (e.g. one SMA + one EMA) onto the new multi-line defaults.
+    const used = new Set<number>();
+    return fallbacks.map((fb) => {
+      const idx = arr.findIndex(
+        (x, i) =>
+          !used.has(i) && x && typeof x === 'object' && (x as { kind?: string }).kind === fb.kind,
+      );
+      if (idx >= 0) {
+        used.add(idx);
+        return sanitizeSetting(arr[idx], fb);
+      }
+      return { ...fb };
+    });
   };
   return {
     overlays: merge(r.overlays, defs.overlays),
