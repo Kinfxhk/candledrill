@@ -57,7 +57,7 @@ test('trade and journal navigation preserves session state across pane/timeframe
   await page.getByTestId('tab-journal').click();
   await page.getByTestId('journal-view-1').click();
   await expect(page.getByTestId('review-status')).toContainText('#1');
-  await page.click('#lang-toggle');
+  await page.locator('#lang-picker').selectOption('zh-Hant');
   await expect(page.getByTestId('btn-return-live')).toContainText('返回');
   await page.getByTestId('btn-return-live').click();
   await expect(page.getByTestId('btn-return-live')).toBeHidden();

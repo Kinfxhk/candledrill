@@ -73,6 +73,7 @@ type Pane = {
     setBarSeconds: ReturnType<typeof vi.fn>;
     setBars: ReturnType<typeof vi.fn>;
     setDrawings: ReturnType<typeof vi.fn>;
+    setIndicators: ReturnType<typeof vi.fn>;
   };
 };
 type Internals = {
@@ -121,6 +122,7 @@ beforeEach(async () => {
       setBarSeconds: vi.fn(),
       setBars: vi.fn(),
       setDrawings: vi.fn(),
+      setIndicators: vi.fn(),
     },
   }));
   requests = ['step', 'jump', 'placeOrder', 'flatten', 'saveDrawings'].map((method) =>

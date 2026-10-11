@@ -734,3 +734,110 @@ table.data.compact th {
   border-bottom: 1px solid var(--border);
   background: var(--panel);
 }
+
+.indicator-panel {
+  position: absolute;
+  top: 32px;
+  right: 8px;
+  z-index: 10;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 70vh;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: var(--shadow);
+}
+.indicator-panel h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.indicator-panel h5 {
+  margin: 10px 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.indicator-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.indicator-row input[type='checkbox'] {
+  margin-top: 2px;
+}
+.indicator-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 0 4px 20px;
+}
+.ind-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.ind-ctrl input[type='number'] {
+  width: 50px;
+  padding: 2px 4px;
+}
+.ind-ctrl input[type='color'] {
+  width: 28px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+}
+.chart-head {
+  position: relative;
+}
+
+.drawing-palette {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 5;
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 8px);
+  padding: 3px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  opacity: 0.85;
+  pointer-events: none;
+}
+.drawing-palette:hover {
+  opacity: 1;
+}
+.drawing-palette button {
+  padding: 2px 6px;
+  font-size: 11px;
+  pointer-events: auto;
+}
+.drawing-palette button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+svg.draw-overlay.drawing-freehand {
+  pointer-events: all;
+  cursor: crosshair;
+}
+.drawing-text {
+  cursor: move;
+  pointer-events: all;
+}
+.drawing-freehand-path {
+  pointer-events: all;
+  cursor: move;
+}

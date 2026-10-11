@@ -22,8 +22,8 @@ async function newSession(page: Page, name: string, blind = false) {
   const form = page.locator('#new-session-form');
   await expect(form).toBeVisible();
   await expect(form.locator('input[name=name]')).not.toHaveValue('');
+  await form.getByTestId('ns-blind').setChecked(blind);
   if (blind) {
-    await form.getByTestId('ns-blind').check();
     await expect(form.locator('input[name=name]')).toHaveValue(/^Blind /);
   }
   await form.locator('input[name=name]').fill(name);
@@ -176,6 +176,8 @@ test('blind practice hides the period, symbol and preview until revealed', async
   await page.click('nav.tabs button[data-view=library]');
   await page.locator('#dataset-list li').last().click();
   await expect(page.locator('#preview-locked')).toBeVisible();
+  // The blind preference stays on; clear it so the post-reveal check below sees an unlocked preview.
+  await page.getByTestId('ns-blind').uncheck();
   await expect(page.locator('#session-table')).toContainText('blind');
   // This session's own create/open/step responses must not leak the real symbol.
   for (const b of bodies) expect(b).not.toContain(symbol);
@@ -244,6 +246,7 @@ test('rectangle and long R tool: draw, drag the stop, delete', async ({ page }) 
 
   // Select the R tool (press its entry handle) and delete it with the × button.
   const entry = page.locator(`[data-drawing="${pos.id}"][data-part=entry]`);
+  await entry.waitFor({ state: 'visible' });
   const eb = (await entry.boundingBox())!;
   await page.mouse.move(eb.x + 5, eb.y + 5);
   await page.mouse.down();

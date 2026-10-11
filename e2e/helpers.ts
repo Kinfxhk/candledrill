@@ -24,5 +24,7 @@ export async function generateDemo(page: Page): Promise<void> {
     'true',
   );
   await expect(page.locator('#new-session-form')).toBeVisible();
+  // The blind checkbox defaults to on; most helpers expect a normal session.
+  await page.getByTestId('ns-blind').uncheck();
   await expect(page.locator('#new-session-form input[name=name]')).toHaveValue(/^SYNTH-/);
 }

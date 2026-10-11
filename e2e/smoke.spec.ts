@@ -66,7 +66,7 @@ test('replay and bracket order flow', async ({ page }) => {
   // Stats tab renders and the language toggle switches to Traditional Chinese.
   await page.getByTestId('tab-stats').click();
   await expect(page.getByTestId('stats')).toBeVisible();
-  await page.click('#lang-toggle');
+  await page.locator('#lang-picker').selectOption('zh-Hant');
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
 
   expect(errors).toEqual([]);

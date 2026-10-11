@@ -70,7 +70,7 @@ test('risk ticket updates live, respects each side and never submits while editi
   await page.getByTestId('qty').fill('0');
   await expect(page.getByTestId('risk-buy')).toContainText('Unavailable');
   await page.getByTestId('qty').fill('2');
-  await page.click('#lang-toggle');
+  await page.locator('#lang-picker').selectOption('zh-Hant');
   await expect(page.locator('[data-risk-detail=buy]')).toHaveAttribute('open', '');
   await expect(page.locator('[data-risk-detail=assumptions]')).toHaveAttribute('open', '');
   await expect(page.getByTestId('risk-preview')).toContainText('風險預覽');
@@ -82,7 +82,7 @@ test('risk ticket updates live, respects each side and never submits while editi
   const after = await (await page.request.get(`/api/sessions/${view.session.id}`)).json();
   expect(after.state).toEqual(view.state);
   expect(errors).toEqual([]);
-  await page.click('#lang-toggle');
+  await page.locator('#lang-picker').selectOption('en');
   await page.screenshot({ path: testInfo.outputPath('risk-preview.png'), fullPage: true });
 });
 

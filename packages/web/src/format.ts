@@ -21,10 +21,20 @@ export function fromLocalInput(value: string, utcOffsetMinutes = 0): number {
   return Number.isNaN(ms) ? Number.NaN : ms / 1000 - utcOffsetMinutes * 60;
 }
 
+const MONEY_LOCALE: Record<ReturnType<typeof getLang>, string> = {
+  en: 'en-US',
+  'zh-Hant': 'zh-Hant-HK',
+  'zh-Hans': 'zh-Hans-CN',
+  ja: 'ja-JP',
+  ko: 'ko-KR',
+};
+
 export function fmtMoney(v: number | null | undefined): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return '–';
-  const locale = getLang() === 'zh-Hant' ? 'zh-Hant-HK' : 'en-US';
-  return v.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return v.toLocaleString(MONEY_LOCALE[getLang()], {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function fmtNum(v: number | null | undefined, digits = 2): string {
