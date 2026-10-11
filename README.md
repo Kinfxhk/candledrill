@@ -6,7 +6,7 @@ at a time without seeing the future, place simulated orders, and review your
 results. Everything runs on your own computer, with no account, no subscription and
 no telemetry.
 
-> **Status: v0.2.8.** Free local practice tool. Expect rough edges; please report bugs
+> **Status: v0.2.9.** Free local practice tool. Expect rough edges; please report bugs
 > in the issue tracker. See the [CHANGELOG](CHANGELOG.md) for what changed.
 
 ![CandleDrill practice screen with synthetic demo data: two synchronised timeframes with a shared crosshair, a long R tool drawing, an open bracket position, order ticket and trade log](docs/screenshot.png)
@@ -366,7 +366,7 @@ the library's logo link is kept). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PART
 不收集任何使用數據。
 
 - **介面供桌面瀏覽器使用**，不保證手機寬度（約 390px）的版面。
-- **現階段**：v0.2.8。v0.2.8 新增：回放速度可選 **0.5×/s**，可用 `[`/`]` 或 `-`/`=` 快捷鍵調速；
+- **現階段**：v0.2.9。v0.2.9 新增：技術指標（SMA、EMA、布林帶、VWAP、RSI、MACD、ATR，只用已揭示K線計算）、文字／箭頭／手繪畫圖工具、簡體中文、日文及韓文介面；盲練預設開啟。v0.2.8 新增：回放速度可選 **0.5×/s**，可用 `[`/`]` 或 `-`/`=` 快捷鍵調速；
   未成交訂單可點「修改」開啟數字對話框，或直接拖曳圖表右側的價格手柄改價（非法價格會彈回並提示）；
   落單前顯示風險預覽；設有追蹤回撤時，規則區會顯示最高權益、追蹤下限、目前回撤及距離觸發，
   並註明以收市權益計算。v0.2.2 起，已經在最後價或穿過市價的限價單會被拒絕，不會在下一根開市自動成交。

@@ -220,6 +220,8 @@ export const zhHans: Record<MessageKey, string> = {
   'pr.exportTrades': '交易 CSV',
   'pr.exportReport': 'HTML 报告',
   'pr.exportSession': '练习 JSON',
+  'pr.exportBlindNote':
+    '练习 JSON 要揭晓或完成这个盲练后才可以导出，因为文件包含真实代号及偏移量。',
   'pr.exportNote': '导出文件在你电脑本地产生。交易 CSV 使用简单字段名称，方便导入其他交易日志。',
   'pr.assumption':
     '成交模型：订单只会在之后的K线成交；同一根K线同时触及止损及止盈时，假设先触止损。',

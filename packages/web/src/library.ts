@@ -141,6 +141,15 @@ export class LibraryView {
     const locked = document.getElementById('preview-locked')!;
     locked.hidden = true;
     const blind = (this.form.elements.namedItem('blind') as HTMLInputElement).checked;
+    // The cached list goes stale when a blind session starts or is revealed elsewhere, so
+    // read the current lock flag; a locked dataset is not requested (no 423 in the console).
+    const fresh = (await api.datasets()).datasets.find((d) => d.id === id);
+    if (this.selected !== ds) return; // another dataset was selected meanwhile
+    if (fresh?.blindLocked) {
+      this.chart.setBars([]);
+      locked.hidden = false;
+      return;
+    }
     try {
       const { bars } = await api.previewBars(id);
       if (blind) {
