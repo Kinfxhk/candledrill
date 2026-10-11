@@ -171,6 +171,8 @@ export const zhHans: Record<MessageKey, string> = {
   'ind.signal': '信号',
   'ind.color': '颜色',
   'pr.clearDrawings': '清除画线',
+  'pr.drawTools': '画图',
+  'pr.clearDrawingsConfirm': '清除此练习的全部画线？',
   'pr.drawHint': '在图表上点击放置画线。按 Esc 取消。',
   'pr.ticket': '下单',
   'pr.type': '类型',

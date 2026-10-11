@@ -177,6 +177,8 @@ export const ko: Record<MessageKey, string> = {
   'ind.signal': '시그널',
   'ind.color': '색상',
   'pr.clearDrawings': '그리기 지우기',
+  'pr.drawTools': '그리기',
+  'pr.clearDrawingsConfirm': '이 세션의 모든 그리기를 지울까요?',
   'pr.drawHint': '차트를 클릭하여 그리기를 배치하세요. Esc로 취소.',
   'pr.ticket': '주문 티켓',
   'pr.type': '유형',
