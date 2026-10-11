@@ -145,6 +145,10 @@ test('a delayed journal response cannot replace the statistics tab', async ({ pa
 
 test('blind practice hides the period, symbol and preview until revealed', async ({ page }) => {
   const errors = watchErrors(page);
+  let lockedPreviewRequests = 0;
+  page.on('response', (r) => {
+    if (r.status() === 423) lockedPreviewRequests++;
+  });
   const bodies: string[] = [];
   page.on('response', async (r) => {
     const url = r.url();
@@ -172,6 +176,12 @@ test('blind practice hides the period, symbol and preview until revealed', async
   await expect(page.locator('#practice-root')).not.toContainText(symbol);
   await expect(page.locator('.charts')).not.toContainText(/20\d\d-\d\d-\d\d/);
 
+  // Export: Session JSON (which carries the disguise) is withheld until the reveal.
+  await page.getByTestId('tab-export').click();
+  await expect(page.getByTestId('export-trades.csv')).toBeVisible();
+  await expect(page.getByTestId('export-session.json')).toHaveCount(0);
+  await expect(page.getByTestId('export-blind-note')).toBeVisible();
+
   // Library: the dataset preview is locked while the blind session runs.
   await page.click('nav.tabs button[data-view=library]');
   await page.locator('#dataset-list li').last().click();
@@ -197,10 +207,15 @@ test('blind practice hides the period, symbol and preview until revealed', async
   await page.getByTestId('btn-reveal').click();
   await expect(page.getByTestId('reveal-banner')).toContainText(symbol);
   await expect(page.getByTestId('reveal-banner')).toContainText(/20\d\d-\d\d-\d\d/);
+  await page.getByTestId('tab-export').click();
+  await expect(page.getByTestId('export-session.json')).toBeVisible();
+  await expect(page.getByTestId('export-blind-note')).toHaveCount(0);
   await page.click('nav.tabs button[data-view=library]');
   await page.locator('#dataset-list li').last().click();
   await expect(page.locator('#preview-locked')).toBeHidden();
   expect(errors).toEqual([]);
+  // The library knows the lock up front and never asks for a locked preview.
+  expect(lockedPreviewRequests).toBe(0);
 });
 
 test('rectangle and long R tool: draw, drag the stop, delete', async ({ page }) => {

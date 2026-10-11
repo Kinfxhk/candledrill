@@ -96,6 +96,8 @@ describe('blind mode', () => {
 
     const preview = await a.inject({ method: 'GET', url: `/api/datasets/${ds.id}/bars?limit=10` });
     expect(preview.statusCode).toBe(423);
+    const lockedList = (await a.inject({ method: 'GET', url: '/api/datasets' })).json();
+    expect(lockedList.datasets.find((d: { id: number }) => d.id === ds.id).blindLocked).toBe(true);
     expect(preview.json().code).toBe('blind-lock');
 
     const revealed = await a.inject({ method: 'POST', url: `/api/sessions/${id}/reveal` });
@@ -108,6 +110,8 @@ describe('blind mode', () => {
     expect(
       (await a.inject({ method: 'GET', url: `/api/datasets/${ds.id}/bars?limit=10` })).statusCode,
     ).toBe(200);
+    const unlocked = (await a.inject({ method: 'GET', url: '/api/datasets' })).json();
+    expect(unlocked.datasets.find((d: { id: number }) => d.id === ds.id).blindLocked).toBe(false);
   });
 
   it('each blind session gets its own random start and disguise', async () => {

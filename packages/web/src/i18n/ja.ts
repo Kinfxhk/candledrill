@@ -231,6 +231,8 @@ export const ja: Record<MessageKey, string> = {
   'pr.exportTrades': '取引 CSV',
   'pr.exportReport': 'HTML レポート',
   'pr.exportSession': 'セッション JSON',
+  'pr.exportBlindNote':
+    'セッション JSON はこのブラインド練習を公開または完了した後にエクスポートできます。ファイルには実際の銘柄とオフセットが含まれるためです。',
   'pr.exportNote':
     'エクスポートファイルはお使いのコンピュータでローカルに生成されます。取引 CSV は他のジャーナルにインポートしやすいシンプルな列名を使用します。',
   'pr.assumption':

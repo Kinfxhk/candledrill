@@ -234,6 +234,8 @@ export const en = {
   'pr.exportTrades': 'Trades CSV',
   'pr.exportReport': 'HTML report',
   'pr.exportSession': 'Session JSON',
+  'pr.exportBlindNote':
+    'Session JSON is available after you reveal or finish this blind session, because the file contains the real symbol and offsets.',
   'pr.exportNote':
     'Exports are generated locally from your session. The trades CSV uses plain column names so it can be imported into other journals.',
   'pr.assumption':
@@ -564,6 +566,8 @@ export const zhHant: Record<MessageKey, string> = {
   'pr.exportTrades': '交易 CSV',
   'pr.exportReport': 'HTML 報告',
   'pr.exportSession': '練習 JSON',
+  'pr.exportBlindNote':
+    '練習 JSON 要揭曉或完成這個盲練後才可以匯出，因為檔案包含真實代號及偏移量。',
   'pr.exportNote': '匯出檔案在你電腦本地產生。交易 CSV 使用簡單欄位名稱，方便匯入其他交易日誌。',
   'pr.assumption':
     '成交模型：訂單只會在之後的K線成交；同一根K線同時觸及止蝕及止賺時，假設先觸止蝕。',

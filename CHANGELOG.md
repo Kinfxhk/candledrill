@@ -8,9 +8,27 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ### Added
 
+- `GET /api/health` reports `apiVersion` (the HTTP API schema version). The app version is
+  `releaseVersion`.
+- `GET /api/datasets` marks each dataset with `blindLocked` while an unrevealed blind
+  session uses it.
+
 ### Changed
 
+- While a blind session is hidden, the Export tab no longer offers **Session JSON** and
+  explains why: the file must contain the real symbol and offsets so it can be imported
+  again. Trades CSV and the HTML report stay available (they contain no disguise data).
+
+### Deprecated
+
+- `version` in `GET /api/health`: same value as `apiVersion`, easy to mistake for the app
+  version. It will be removed in the next minor release.
+
 ### Fixed
+
+- README status line said v0.2.8 after the v0.2.9 release.
+- Selecting a blind-locked dataset in the library no longer requests its preview, which
+  logged a `423 Locked` error in the browser console.
 
 ## [0.2.9] - 2026-10-11
 
