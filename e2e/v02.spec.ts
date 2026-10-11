@@ -228,7 +228,8 @@ test('rectangle and long R tool: draw, drag the stop, delete', async ({ page }) 
   const cx = box.x + box.width * 0.6;
   const cy = box.y + box.height * 0.45;
 
-  await page.getByTestId('btn-long').click();
+  await page.getByTestId('drawing-palette-toggle').first().click();
+  await page.getByTestId('palette-long').first().click();
   await page.mouse.click(cx, cy);
   await expect(page.locator('[data-kind=risk]')).toHaveCount(1);
   await expect(page.locator('[data-testid^=rlabel-]')).toContainText(
@@ -251,7 +252,7 @@ test('rectangle and long R tool: draw, drag the stop, delete', async ({ page }) 
     .poll(async () => (await sessionByName(page, 'Draw e2e')).session.drawings[0].stop)
     .toBeLessThan(pos.stop);
 
-  await page.getByTestId('btn-rect').click();
+  await page.getByTestId('palette-rect').first().click();
   await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.3);
   await page.waitForTimeout(600);
   await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.5);
