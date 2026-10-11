@@ -6,7 +6,7 @@ at a time without seeing the future, place simulated orders, and review your
 results. Everything runs on your own computer, with no account, no subscription and
 no telemetry.
 
-> **Status: v0.2.9.** Free local practice tool. Expect rough edges; please report bugs
+> **Status: v0.2.10.** Free local practice tool. Expect rough edges; please report bugs
 > in the issue tracker. See the [CHANGELOG](CHANGELOG.md) for what changed.
 
 ![CandleDrill practice screen with synthetic demo data: two synchronised timeframes with a shared crosshair, a long R tool drawing, an open bracket position, order ticket and trade log](docs/screenshot.png)
