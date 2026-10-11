@@ -6,6 +6,31 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.12] - 2026-10-11
+
+### Changed
+
+- **Drawing tools UX (Option A):** each chart pane has a single **collapsible floating
+  palette** (Draw toggle). The duplicate top-toolbar drawing buttons are gone. Expanded
+  strip keeps hline / trendline / rect / text / arrow / freehand / long / short; **Clear**
+  is a labeled control with confirm (no bare × that looked like “close”). Esc cancels an
+  active draw mode first, then collapses the palette. Expand preference is stored in
+  `localStorage`.
+- Language changes now refresh floating palette labels, Blind badge, Indicators panel, and
+  drawing delete tooltips (create-time `t()` alone left them stuck in the old language).
+- README **Synthetic data** points at the separate MIT samples repo
+  [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)
+  for a longer Globex-like practice CSV. Import with symbol `PRACTICE-NQ-GLOBEX` (not
+  `SYNTH-`, which is reserved for the built-in generator), tick `0.25`, UTC offset `-300`.
+  This app still ships **no market data**; sample CSVs stay out of this repo.
+
+### Notes
+
+- AGPL-3.0 for the app. Practice samples in `candledrill-synth-samples` are synthetic /
+  MIT — not FirstRate or other vendor ticks.
+- No immediate follow-up tag planned; treat this as the stable practice-UX cut after
+  v0.2.9–v0.2.11 indicator / drawing / blind work.
+
 ## [0.2.11] - 2026-10-11
 
 ### Fixed
