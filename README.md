@@ -314,6 +314,11 @@ The demo generator produces 1-minute bars that look like an intraday market
 but are **entirely made up**; symbols always start with `SYNTH-`. Same seed gives
 byte-identical output, guarded by a golden snapshot test.
 
+For a longer Globex-like **practice CSV** (synthetic only — not market data), see
+[`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)
+(`SYNTH-NQ-GLOBEX_1min.csv`). Import with a non-`SYNTH-` symbol such as
+`PRACTICE-NQ-GLOBEX`, tick size `0.25`, and UTC offset `-300`.
+
 ## Roadmap
 
 Still planned (see [CHANGELOG](CHANGELOG.md)): a command queue with stale-response
