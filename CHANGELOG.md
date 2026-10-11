@@ -6,6 +6,13 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Extend the v0.2.8 order-ticket risk preview for fresh entries from flat: cost-inclusive stop
+  loss, percentage of current equity and net target reward:risk for each side.
+  Expandable details separate price risk, commission and slippage. Assumptions
+  and unsupported states are explicit; estimates do not guarantee fills or losses.
+
 Still planned:
 
 - Per-session command queue, session revision and idempotent commands (no stale
