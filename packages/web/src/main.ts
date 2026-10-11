@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import './styles.css';
 import { api, ApiError, sessionsApi, type DatasetRow } from './api.js';
-import { applyI18n, setLang, getLang, t, type Lang } from './i18n.js';
+import { applyI18n, setLang, t, type Lang } from './i18n.js';
 import { sessionStatusText } from './labels.js';
 import { LibraryView } from './library.js';
 import { PracticeView } from './practice.js';
@@ -21,26 +21,35 @@ const PREFS_KEY = 'candledrill.prefs';
 interface Prefs {
   lang: Lang;
   theme: 'dark' | 'light';
+  blind: boolean;
+}
+
+const SUPPORTED_LANGS: Lang[] = ['en', 'zh-Hant', 'zh-Hans', 'ja', 'ko'];
+
+function normalizeLang(raw: unknown): Lang {
+  if (SUPPORTED_LANGS.includes(raw as Lang)) return raw as Lang;
+  const nav = navigator.language.toLowerCase();
+  if (nav.startsWith('zh-tw') || nav.startsWith('zh-hk')) return 'zh-Hant';
+  if (nav.startsWith('zh')) return 'zh-Hans';
+  if (nav.startsWith('ja')) return 'ja';
+  if (nav.startsWith('ko')) return 'ko';
+  return 'en';
 }
 
 function loadPrefs(): Prefs {
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Partial<Prefs>;
-    const lang: Lang =
-      p.lang === 'zh-Hant' || p.lang === 'en'
-        ? p.lang
-        : navigator.language.startsWith('zh')
-          ? 'zh-Hant'
-          : 'en';
+    const lang = normalizeLang(p.lang);
     const theme =
       p.theme === 'light' || p.theme === 'dark'
         ? p.theme
         : matchMedia('(prefers-color-scheme: light)').matches
           ? 'light'
           : 'dark';
-    return { lang, theme };
+    const blind = typeof p.blind === 'boolean' ? p.blind : true;
+    return { lang, theme, blind };
   } catch {
-    return { lang: 'en', theme: 'dark' };
+    return { lang: 'en', theme: 'dark', blind: true };
   }
 }
 const prefs = loadPrefs();
@@ -89,11 +98,6 @@ async function createSession(ds: DatasetRow, form: HTMLFormElement): Promise<voi
       },
     });
     noteChange();
-    if (blind) {
-      // Next time start with a normal session again (and show the locked preview).
-      (form.elements.namedItem('blind') as HTMLInputElement).checked = false;
-      form.dispatchEvent(new Event('blind-reset'));
-    }
     await openSession(view.session.id);
   } catch (err) {
     toast((err as Error).message, 'error');
@@ -228,7 +232,17 @@ async function renderSessions(): Promise<void> {
   );
 }
 
-const library = new LibraryView({ createSession, renderSessions });
+const library = new LibraryView(
+  {
+    createSession,
+    renderSessions,
+    blindChanged: (checked) => {
+      prefs.blind = checked;
+      savePrefs();
+    },
+  },
+  () => prefs.blind,
+);
 
 function showView(name: 'library' | 'practice'): void {
   if (name === 'library') void renderSessions();
@@ -253,8 +267,11 @@ document.getElementById('theme-toggle')!.addEventListener('click', () => {
   library.applyTheme();
   practice.applyTheme();
 });
-document.getElementById('lang-toggle')!.addEventListener('click', () => {
-  prefs.lang = getLang() === 'en' ? 'zh-Hant' : 'en';
+const langPicker = document.getElementById('lang-picker') as HTMLSelectElement;
+langPicker.value = prefs.lang;
+langPicker.addEventListener('change', () => {
+  prefs.lang = normalizeLang(langPicker.value);
+  langPicker.value = prefs.lang;
   setLang(prefs.lang);
   savePrefs();
   applyI18n();

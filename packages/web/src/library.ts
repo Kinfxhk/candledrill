@@ -12,6 +12,8 @@ export interface LibraryHooks {
   createSession?: (ds: DatasetRow, form: HTMLFormElement) => Promise<void>;
   /** Re-render the sessions table (wired from M4 on). */
   renderSessions?: () => Promise<void>;
+  /** Called whenever the blind checkbox changes. */
+  blindChanged?: (checked: boolean) => void;
 }
 
 export class LibraryView {
@@ -22,13 +24,17 @@ export class LibraryView {
   private readonly form = document.getElementById('new-session-form') as HTMLFormElement;
   private readonly openImport: () => void;
 
-  constructor(private readonly hooks: LibraryHooks = {}) {
+  constructor(
+    private readonly hooks: LibraryHooks = {},
+    private readonly getBlindPref: () => boolean = () => true,
+  ) {
     this.openImport = setupImporter((ds) => void this.reload(ds.id));
     document.getElementById('btn-import')!.addEventListener('click', () => this.openImport());
     document.getElementById('btn-demo')!.addEventListener('click', () => void this.createDemo());
     const blind = this.form.elements.namedItem('blind') as HTMLInputElement;
     blind.addEventListener('change', () => {
       this.applyBlindToggle();
+      this.hooks.blindChanged?.(blind.checked);
       // Seeing the whole dataset right before a blind session would spoil it.
       if (blind.checked) this.chart?.setBars([]);
       else if (this.selected) void this.select(this.selected.id);
@@ -135,17 +141,19 @@ export class LibraryView {
     const locked = document.getElementById('preview-locked')!;
     locked.hidden = true;
     const blind = (this.form.elements.namedItem('blind') as HTMLInputElement).checked;
-    if (blind) this.chart.setBars([]);
-    else {
-      try {
-        const { bars } = await api.previewBars(id);
+    try {
+      const { bars } = await api.previewBars(id);
+      if (blind) {
+        // Do not spoil an about-to-be-blind session by showing the full dataset.
+        this.chart.setBars([]);
+      } else {
         this.chart.setBars(bars);
         this.chart.fit();
-      } catch (err) {
-        if (!(err instanceof ApiError && err.status === 423)) throw err;
-        this.chart.setBars([]);
-        locked.hidden = false;
       }
+    } catch (err) {
+      if (!(err instanceof ApiError && err.status === 423)) throw err;
+      this.chart.setBars([]);
+      locked.hidden = false;
     }
   }
 
@@ -178,6 +186,8 @@ export class LibraryView {
     this.form.hidden = false;
     const f = (n: string) => this.form.elements.namedItem(n) as HTMLInputElement;
     f('name').value = this.defaultName(ds);
+    f('blind').checked = this.getBlindPref();
+    this.applyBlindToggle();
     f('tickSize').value = String(ds.tickSize);
     f('utcOffset').value = String(ds.utcOffsetMinutes);
     if (ds.firstTime !== null && ds.lastTime !== null) {

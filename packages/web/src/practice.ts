@@ -24,6 +24,10 @@ import {
   type MarkerSpec,
   type PriceLineSpec,
 } from './chart.js';
+import { IndicatorPanel } from './indicator-panel.js';
+import { loadIndicatorConfig, type PaneIndicatorConfig } from './indicator-prefs.js';
+import { DrawingPalette } from './drawing-palette.js';
+import type { PaletteTool } from './drawing-palette.js';
 import { SidePanel } from './side.js';
 import { CompletionSummary } from './summary.js';
 import {
@@ -44,7 +48,7 @@ const TIMEFRAMES = [60, 300, 900, 3600, 86400];
 const SPEEDS = [0.5, 1, 2, 5, 10, 30, 60, 120];
 const TICK_MS = 100;
 
-type DrawMode = 'hline' | 'tline' | 'rect' | 'long' | 'short';
+type DrawMode = PaletteTool;
 
 interface ChartPane {
   tf: number;
@@ -79,6 +83,9 @@ export class PracticeView {
   private drawMode: DrawMode | null = null;
   private linkCharts = localStorage.getItem('candledrill.link') !== '0';
   private pendingPoint: { time: number; price: number } | null = null;
+  private indicatorConfig: PaneIndicatorConfig = loadIndicatorConfig();
+  private indicatorPanels: IndicatorPanel[] = [];
+  private palettes: DrawingPalette[] = [];
   /** Extra bottom tabs registered by later features (statistics, export). */
   static extraTabs: BottomTab[] = [];
 
@@ -138,6 +145,10 @@ export class PracticeView {
     this.pause();
     this.inFlight = false;
     for (const p of this.panes) p.chart.destroy();
+    this.indicatorPanels.forEach((p) => p.close());
+    this.indicatorPanels = [];
+    this.palettes.forEach((p) => p.destroy());
+    this.palettes = [];
     this.panes = [];
     this.meta = undefined;
     this.state = undefined;
@@ -361,6 +372,8 @@ export class PracticeView {
       this.resetPane(this.panes[1]!);
     } else {
       const p = this.panes.pop()!;
+      const palette = this.palettes.pop();
+      palette?.destroy();
       p.chart.destroy();
       p.cell.remove();
     }
@@ -372,11 +385,31 @@ export class PracticeView {
   }
 
   private setDrawMode(mode: DrawMode | null): void {
+    const prev = this.drawMode;
     this.drawMode = mode;
     this.pendingPoint = null;
+    for (const p of this.panes) p.chart.setPendingAnchor(null);
     for (const k of ['hline', 'tline', 'rect', 'long', 'short'] as const)
       this.els[k]?.setAttribute('aria-pressed', String(mode === k));
     this.els.charts?.classList.toggle('drawing', mode !== null);
+    for (const p of this.palettes) p.setActive(mode);
+    if (prev === 'freehand') for (const p of this.panes) p.chart.stopFreehand();
+    if (mode === 'freehand') {
+      for (const p of this.panes) {
+        const pts: { t: number; p: number }[] = [];
+        p.chart.startFreehand(
+          (pt) => pts.push(pt),
+          () => {
+            if (pts.length < 2) return;
+            const strokeId = `d${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+            void this.saveDrawings([
+              ...this.drawings,
+              { kind: 'freehand', id: strokeId, points: pts },
+            ]);
+          },
+        );
+      }
+    }
     if (mode)
       toast(
         t(
@@ -448,18 +481,27 @@ export class PracticeView {
     for (const x of TIMEFRAMES.filter((x) => x >= this.baseTf))
       select.append(el('option', { value: String(x) }, tfLabel(x)));
     select.value = String(tf);
-    const body = el('div', { class: 'chart-body' });
-    const cell = el(
+    const indBtn = el('button', { type: 'button', class: 'small ghost' }, t('pr.indicators'));
+    const head = el(
       'div',
-      { class: 'chart-cell' },
-      el('div', { class: 'chart-head' }, select),
-      body,
+      { class: 'chart-head' },
+      select,
+      el('span', { class: 'spacer' }),
+      indBtn,
     );
+    const body = el('div', { class: 'chart-body' });
+    const cell = el('div', { class: 'chart-cell' }, head, body);
     this.els.charts!.append(cell);
     const chart = new PriceChart(body, this.meta!.settings.utcOffsetMinutes * 60);
     chart.setTickSize(this.meta!.settings.tickSize);
     chart.setBarSeconds(tf);
     chart.setBlindAxis(this.blindHidden);
+    chart.setIndicators(this.indicatorConfig, this.aggOpts());
+    const palette = new DrawingPalette(body, {
+      select: (tool) => this.setDrawMode(tool),
+      clear: () => void this.saveDrawings([]),
+    });
+    this.palettes.push(palette);
     const pane: ChartPane = {
       tf,
       muteUntil: 0,
@@ -468,6 +510,15 @@ export class PracticeView {
       select,
       cell,
     };
+    const panel = new IndicatorPanel(head, (cfg) => {
+      this.indicatorConfig = cfg;
+      for (const p of this.panes) p.chart.setIndicators(cfg, this.aggOpts());
+    });
+    this.indicatorPanels.push(panel);
+    indBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      panel.open();
+    });
     chart.onClick((c) => this.onChartClick(pane, c.time, c.price));
     chart.setPositionLabeler((d) => this.positionLabel(d));
     chart.onDrawingEdit(
@@ -497,6 +548,7 @@ export class PracticeView {
 
   private resetPane(p: ChartPane): void {
     p.chart.setBarSeconds(p.tf);
+    p.chart.setIndicators(this.indicatorConfig, this.aggOpts());
     p.agg = new BarAggregator(p.tf, this.aggOpts());
     for (const b of this.bars) p.agg.push(b);
     p.chart.setBars(aggregateBars(this.bars, p.tf, this.aggOpts()));
@@ -605,15 +657,29 @@ export class PracticeView {
       ]);
       return;
     }
-    if (this.drawMode === 'tline' || this.drawMode === 'rect') {
+    if (this.drawMode === 'text') {
+      if (time === null) return;
+      const text = prompt(t('pr.textPrompt') ?? 'Text');
+      this.setDrawMode(null);
+      if (!text) return;
+      void this.saveDrawings([...this.drawings, { kind: 'text', id, t: time, price: px, text }]);
+      return;
+    }
+    if (this.drawMode === 'freehand') {
+      // Handled by pointer capture in PriceChart; the click itself does nothing.
+      return;
+    }
+    if (this.drawMode === 'tline' || this.drawMode === 'rect' || this.drawMode === 'arrow') {
       if (time === null) return;
       if (!this.pendingPoint) {
         this.pendingPoint = { time, price: px };
+        for (const p of this.panes) p.chart.setPendingAnchor({ t: time, p: px });
         return;
       }
       const a = this.pendingPoint;
       const kind = this.drawMode;
       this.setDrawMode(null);
+      for (const p of this.panes) p.chart.setPendingAnchor(null);
       if (a.time === time && kind === 'tline') return;
       void this.saveDrawings([
         ...this.drawings,

@@ -8,10 +8,37 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.2.9] - 2026-10-11
+
+### Added
+
+- **Technical indicators** on the practice chart: SMA, EMA, Bollinger Bands, session VWAP,
+  RSI, MACD and ATR. Indicators are computed from revealed bars only (no look-ahead) and
+  can be configured per chart pane from the new indicator panel.
+- **Drawing tools**: text labels, arrows and freehand lines, plus a floating drawing palette
+  on each chart. Trendlines now snap with a rubber-band second anchor while placing the
+  second point.
+- **Simplified Chinese, Japanese and Korean localisations** (`zh-Hans`, `ja`, `ko`), using
+  the new language dropdown in the header.
+
+### Changed
+
+- **Blind practice is now on by default** and the preference is persisted. The blind checkbox
+  is no longer auto-unchecked after creating a blind session, so users can start multiple
+  blind sessions without re-enabling the option each time.
 - Extend the v0.2.8 order-ticket risk preview for fresh entries from flat: cost-inclusive stop
   loss, percentage of current equity and net target reward:risk for each side.
   Expandable details separate price risk, commission and slippage. Assumptions
   and unsupported states are explicit; estimates do not guarantee fills or losses.
+
+### Fixed
+
+- Make the secret-scan script portable on Windows by replacing the bash wrapper with a
+  cross-platform Node script.
 
 Still planned:
 

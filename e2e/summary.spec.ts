@@ -73,7 +73,7 @@ for (const status of ['passed', 'breached'] as const) {
     await page.getByTestId('btn-summary').focus();
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('completion-details')).toHaveCount(0);
-    await page.click('#lang-toggle');
+    await page.locator('#lang-picker').selectOption('zh-Hant');
     await expect(page.getByTestId('completion-details')).toHaveCount(0);
     await page.getByTestId('btn-summary').click();
     await expect(page.getByTestId('completion-details')).toContainText('已平倉淨盈虧');

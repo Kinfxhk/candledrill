@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// UI strings. Original wording; keep both languages in sync (a unit test checks the keys).
+// UI strings. Original wording; keep all languages in sync (a unit test checks the keys).
 
-export type Lang = 'en' | 'zh-Hant';
+import { zhHans } from './i18n/zhHans.js';
+import { ja } from './i18n/ja.js';
+import { ko } from './i18n/ko.js';
+
+export type Lang = 'en' | 'zh-Hant' | 'zh-Hans' | 'ja' | 'ko';
 
 export const en = {
   'pr.viewChart': 'View on chart',
@@ -159,6 +163,27 @@ export const en = {
   'pr.tline': 'Trend line',
   'pr.clearDrawings': 'Clear drawings',
   'pr.drawHint': 'Click on the chart to place the drawing. Esc cancels.',
+  'pr.textTool': 'Text',
+  'pr.arrowTool': 'Arrow',
+  'pr.freehandTool': 'Freehand',
+  'pr.textPrompt': 'Annotation text',
+  'pr.indicators': 'Indicators',
+  'pr.indOverlays': 'Overlay',
+  'pr.indPanes': 'Pane',
+  'ind.sma': 'SMA',
+  'ind.ema': 'EMA',
+  'ind.bollinger': 'Bollinger',
+  'ind.vwap': 'VWAP',
+  'ind.rsi': 'RSI',
+  'ind.macd': 'MACD',
+  'ind.atr': 'ATR',
+  'ind.period': 'Period',
+  'ind.source': 'Source',
+  'ind.stdDev': 'StdDev',
+  'ind.fast': 'Fast',
+  'ind.slow': 'Slow',
+  'ind.signal': 'Signal',
+  'ind.color': 'Color',
   'pr.ticket': 'Order ticket',
   'pr.type': 'Type',
   'pr.market': 'Market',
@@ -470,6 +495,27 @@ export const zhHant: Record<MessageKey, string> = {
   'pr.tline': '趨勢線',
   'pr.clearDrawings': '清除畫線',
   'pr.drawHint': '在圖表上點擊放置畫線。按 Esc 取消。',
+  'pr.textTool': '文字',
+  'pr.arrowTool': '箭頭',
+  'pr.freehandTool': '手繪',
+  'pr.textPrompt': '標註文字',
+  'pr.indicators': '指標',
+  'pr.indOverlays': '主圖疊加',
+  'pr.indPanes': '副圖',
+  'ind.sma': 'SMA',
+  'ind.ema': 'EMA',
+  'ind.bollinger': '布林帶',
+  'ind.vwap': 'VWAP',
+  'ind.rsi': 'RSI',
+  'ind.macd': 'MACD',
+  'ind.atr': 'ATR',
+  'ind.period': '週期',
+  'ind.source': '來源',
+  'ind.stdDev': '標準差',
+  'ind.fast': '快線',
+  'ind.slow': '慢線',
+  'ind.signal': '訊號',
+  'ind.color': '顏色',
   'pr.ticket': '落單',
   'pr.type': '類型',
   'pr.market': '市價',
@@ -618,7 +664,13 @@ export const zhHant: Record<MessageKey, string> = {
     '快捷鍵：空白鍵 播放／暫停 · → 下一根 · Shift+→ +10 · [ 或 - 減速 · ] 或 = 加速 · B 買入 · S 沽出 · F 平倉 · Esc 取消畫線',
 };
 
-const dictionaries: Record<Lang, Record<MessageKey, string>> = { en, 'zh-Hant': zhHant };
+const dictionaries: Record<Lang, Record<MessageKey, string>> = {
+  en,
+  'zh-Hant': zhHant,
+  'zh-Hans': zhHans,
+  ja,
+  ko,
+};
 
 let current: Lang = 'en';
 
@@ -646,5 +698,12 @@ export function applyI18n(root: ParentNode = document): void {
   root.querySelectorAll<HTMLElement>('[data-i18n-aria]').forEach((el) => {
     el.setAttribute('aria-label', t(el.dataset.i18nAria as MessageKey));
   });
-  document.documentElement.lang = current === 'zh-Hant' ? 'zh-Hant' : 'en';
+  const htmlLang: Record<Lang, string> = {
+    en: 'en',
+    'zh-Hant': 'zh-Hant',
+    'zh-Hans': 'zh-Hans',
+    ja: 'ja',
+    ko: 'ko',
+  };
+  document.documentElement.lang = htmlLang[current];
 }
