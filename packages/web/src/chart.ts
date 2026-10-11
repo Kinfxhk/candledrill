@@ -28,6 +28,7 @@ import type { AggregateOptions } from '@candledrill/core';
 import { weekdayName } from './labels.js';
 import { atr, bollinger, ema, macd, rsi, sma, vwap } from './indicators.js';
 import type { PaneIndicatorConfig, IndicatorSetting } from './indicator-prefs.js';
+import { t } from './i18n.js';
 
 /** A bounded window within loaded, revealed bars; both trade endpoints must exist. */
 export function tradeWindow(
@@ -745,7 +746,7 @@ export class PriceChart {
             }),
           );
           const title = svg('title', {});
-          title.textContent = 'Delete';
+          title.textContent = t('pr.deleteDrawing');
           g.append(title);
           g.addEventListener('pointerdown', (ev) => {
             ev.preventDefault();

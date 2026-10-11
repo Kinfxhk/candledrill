@@ -210,14 +210,6 @@ export class PracticeView {
     const clock = el('span', { class: 'clock', 'data-testid': 'clock' });
     const split = btn('pr.split', '', 'btn-split');
     split.setAttribute('aria-pressed', 'false');
-    const hline = btn('pr.hline', '', 'btn-hline');
-    const tline = btn('pr.tline', '', 'btn-tline');
-    const rect = btn('pr.rect', '', 'btn-rect');
-    const longTool = btn('pr.longTool', '', 'btn-long');
-    const shortTool = btn('pr.shortTool', '', 'btn-short');
-    const clearDraw = btn('pr.clearDrawings', 'ghost', 'btn-clear-drawings');
-    for (const b of [hline, tline, rect, longTool, shortTool])
-      b.setAttribute('aria-pressed', 'false');
     const link = el('label', { class: 'row muted' });
     const linkBox = el('input', { type: 'checkbox', 'data-testid': 'link-charts' });
     linkBox.checked = this.linkCharts;
@@ -242,7 +234,15 @@ export class PracticeView {
       { class: 'toolbar' },
       el('strong', {}, m.name),
       m.settings.blind
-        ? el('span', { class: 'badge blind', 'data-testid': 'blind-badge' }, t('pr.blindBadge'))
+        ? el(
+            'span',
+            {
+              class: 'badge blind',
+              'data-testid': 'blind-badge',
+              'data-i18n': 'pr.blindBadge',
+            },
+            t('pr.blindBadge'),
+          )
         : el('span', { class: 'muted' }, m.settings.symbol),
       reveal,
       el('span', { class: 'sep' }),
@@ -263,12 +263,6 @@ export class PracticeView {
       el('span', { class: 'sep' }),
       split,
       link,
-      hline,
-      tline,
-      rect,
-      longTool,
-      shortTool,
-      clearDraw,
       el('span', { class: 'spacer' }),
       clock,
     );
@@ -301,33 +295,12 @@ export class PracticeView {
       returnLive,
       reviewStatus,
       split,
-      hline,
-      tline,
-      rect,
-      long: longTool,
-      short: shortTool,
       reveal,
       revealBanner,
       jumpLabel,
       link,
     };
     split.addEventListener('click', () => this.toggleSplit());
-    hline.addEventListener('click', () =>
-      this.setDrawMode(this.drawMode === 'hline' ? null : 'hline'),
-    );
-    tline.addEventListener('click', () =>
-      this.setDrawMode(this.drawMode === 'tline' ? null : 'tline'),
-    );
-    rect.addEventListener('click', () =>
-      this.setDrawMode(this.drawMode === 'rect' ? null : 'rect'),
-    );
-    longTool.addEventListener('click', () =>
-      this.setDrawMode(this.drawMode === 'long' ? null : 'long'),
-    );
-    shortTool.addEventListener('click', () =>
-      this.setDrawMode(this.drawMode === 'short' ? null : 'short'),
-    );
-    clearDraw.addEventListener('click', () => void this.saveDrawings([]));
     this.side = new SidePanel(side, {
       place: (req) => this.mutate(() => sessionsApi.placeOrder(m.id, req)),
       cancel: (oid) => this.mutate(() => sessionsApi.cancelOrder(m.id, oid)),
@@ -389,8 +362,6 @@ export class PracticeView {
     this.drawMode = mode;
     this.pendingPoint = null;
     for (const p of this.panes) p.chart.setPendingAnchor(null);
-    for (const k of ['hline', 'tline', 'rect', 'long', 'short'] as const)
-      this.els[k]?.setAttribute('aria-pressed', String(mode === k));
     this.els.charts?.classList.toggle('drawing', mode !== null);
     for (const p of this.palettes) p.setActive(mode);
     if (prev === 'freehand') for (const p of this.panes) p.chart.stopFreehand();
@@ -487,7 +458,11 @@ export class PracticeView {
     for (const x of TIMEFRAMES.filter((x) => x >= this.baseTf))
       select.append(el('option', { value: String(x) }, tfLabel(x)));
     select.value = String(tf);
-    const indBtn = el('button', { type: 'button', class: 'small ghost' }, t('pr.indicators'));
+    const indBtn = el(
+      'button',
+      { type: 'button', class: 'small ghost', 'data-i18n': 'pr.indicators' },
+      t('pr.indicators'),
+    );
     const head = el(
       'div',
       { class: 'chart-head' },
@@ -900,6 +875,7 @@ export class PracticeView {
     (this.els.step10 as HTMLButtonElement).disabled = ended;
     (this.els.play as HTMLButtonElement).disabled = ended;
     this.renderReviewControls();
+    this.renderDrawings();
     this.decorate();
     this.side?.render(this.meta.settings, this.state);
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);
@@ -934,7 +910,8 @@ export class PracticeView {
     )
       return;
     if (e.key === 'Escape') {
-      this.setDrawMode(null);
+      if (this.drawMode !== null) this.setDrawMode(null);
+      else for (const p of this.palettes) p.collapse();
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       const sel = this.panes.map((p) => p.chart.selectedDrawing).find((x) => x !== null);
       if (sel) this.deleteDrawing(sel);

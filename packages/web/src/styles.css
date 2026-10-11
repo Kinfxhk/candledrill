@@ -805,6 +805,7 @@ table.data.compact th {
   left: 4px;
   z-index: 5;
   display: flex;
+  align-items: flex-start;
   gap: 3px;
   flex-wrap: wrap;
   max-width: calc(100% - 8px);
@@ -813,16 +814,32 @@ table.data.compact th {
   border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: var(--shadow);
-  opacity: 0.85;
+  opacity: 0.9;
   pointer-events: none;
 }
-.drawing-palette:hover {
+.drawing-palette:hover,
+.drawing-palette:focus-within {
   opacity: 1;
+}
+.drawing-palette.collapsed {
+  opacity: 0.75;
+}
+.drawing-palette-tools {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 .drawing-palette button {
   padding: 2px 6px;
   font-size: 11px;
   pointer-events: auto;
+}
+.drawing-palette-toggle {
+  font-weight: 600;
+}
+.drawing-palette-clear {
+  margin-left: 2px;
 }
 .drawing-palette button[aria-pressed='true'] {
   border-color: var(--accent);

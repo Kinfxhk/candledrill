@@ -180,6 +180,8 @@ export const ja: Record<MessageKey, string> = {
   'ind.signal': 'シグナル',
   'ind.color': '色',
   'pr.clearDrawings': '描画を消去',
+  'pr.drawTools': '描画',
+  'pr.clearDrawingsConfirm': 'このセッションの描画をすべて消去しますか？',
   'pr.drawHint': 'チャートをクリックして描画を配置。Esc でキャンセル。',
   'pr.ticket': '注文チケット',
   'pr.type': 'タイプ',
