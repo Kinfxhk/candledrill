@@ -1,12 +1,36 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Bottom panel: tabs for trades, fills and (later) statistics and export.
 
-import { sessionStats } from '@candledrill/core';
+import { sessionStats, type Trade } from '@candledrill/core';
 import { sessionsApi, type SessionSettings, type SessionStateDto } from './api.js';
 import { t, type MessageKey } from './i18n.js';
 import { el, fmtMoney, fmtNum, fmtPct, fmtTime, signClass, toast } from './format.js';
 import { exitReasonText, orderRoleText, weekdayKeyText } from './labels.js';
 import { fmtPrice } from './side.js';
+
+export interface TradeNavigation {
+  unavailable(trade: Pick<Trade, 'openTime' | 'closeTime'>): MessageKey | null;
+  view(tradeId: number): void;
+}
+
+function tradeButton(trade: Trade, navigation: TradeNavigation, prefix: string): HTMLButtonElement {
+  const reason = navigation.unavailable(trade);
+  const label = `${t('pr.viewChart')} #${trade.id}`;
+  const button = el(
+    'button',
+    {
+      type: 'button',
+      class: 'small',
+      'data-testid': `${prefix}-view-${trade.id}`,
+      'aria-label': reason ? `${label}: ${t(reason)}` : label,
+      title: reason ? t(reason) : label,
+    },
+    t('pr.viewChart'),
+  );
+  button.disabled = reason !== null;
+  button.addEventListener('click', () => navigation.view(trade.id));
+  return button;
+}
 
 export interface BottomTab {
   key: MessageKey;
@@ -16,13 +40,14 @@ export interface BottomTab {
     settings: SessionSettings,
     state: SessionStateDto,
     sessionId: number,
+    navigation?: TradeNavigation,
   ): void;
 }
 
 export const tradesTab: BottomTab = {
   key: 'pr.trades',
   id: 'trades',
-  render(panel, s, state) {
+  render(panel, s, state, _id, navigation) {
     const trades = state.trading.trades;
     if (trades.length === 0) {
       panel.replaceChildren(el('p', { class: 'muted' }, t('pr.noTrades')));
@@ -53,6 +78,7 @@ export const tradesTab: BottomTab = {
         ),
       );
     }
+    if (navigation) head.append(el('th', {}, t('pr.viewChart')));
     const rows = [...trades]
       .reverse()
       .map((tr) =>
@@ -75,6 +101,7 @@ export const tradesTab: BottomTab = {
             ? el('td', { class: 'num muted', title: t('col.rNa') }, 'N/A')
             : el('td', { class: 'num' }, fmtNum(tr.rMultiple, 2)),
           el('td', {}, exitReasonText(tr.exitReason)),
+          ...(navigation ? [el('td', {}, tradeButton(tr, navigation, 'trades'))] : []),
         ),
       );
     panel.replaceChildren(
@@ -192,7 +219,7 @@ export const exportTab: BottomTab = {
 export const journalTab: BottomTab = {
   key: 'pr.journal',
   id: 'journal',
-  render(panel, s, state, id) {
+  render(panel, s, state, id, navigation) {
     const trades = state.trading.trades;
     if (trades.length === 0) {
       panel.replaceChildren(el('p', { class: 'muted' }, t('pr.noTrades')));
@@ -222,6 +249,7 @@ export const journalTab: BottomTab = {
               k === '#' ? '#' : t(k),
             ),
           );
+        if (navigation) head.append(el('th', {}, t('pr.viewChart')));
         const rows = [...trades].reverse().map((tr) => {
           const e = ex.get(tr.id);
           const entry = j.journal[String(tr.id)] ?? { tags: [], note: '' };
@@ -261,6 +289,7 @@ export const journalTab: BottomTab = {
             el('td', { class: 'num', 'data-testid': `mfe-${tr.id}` }, exc(e?.mfeTicks, e?.mfeR)),
             el('td', {}, tags),
             el('td', {}, note),
+            ...(navigation ? [el('td', {}, tradeButton(tr, navigation, 'journal'))] : []),
           );
         });
         const group = (title: MessageKey, rowsIn: typeof j.byHour) =>
@@ -318,6 +347,7 @@ export class BottomPanel {
   constructor(
     root: HTMLElement,
     private readonly tabs: BottomTab[],
+    private readonly navigation?: TradeNavigation,
   ) {
     this.active = tabs[0]!.id;
     this.bar = el('div', { class: 'tabbar', role: 'tablist' });
@@ -354,7 +384,7 @@ export class BottomPanel {
     this.panel = panel;
     this.tabs
       .find((x) => x.id === this.active)!
-      .render(this.panel, this.last.s, this.last.st, this.last.id);
+      .render(this.panel, this.last.s, this.last.st, this.last.id, this.navigation);
     this.panel.scrollTop = scrollTop;
   }
 }
