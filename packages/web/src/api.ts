@@ -98,7 +98,7 @@ export interface UpdateCheckResponse {
 
 export const api = {
   health: () =>
-    request<{ status: string; version: string; releaseVersion?: string; telemetry: boolean }>(
+    request<{ status: string; apiVersion?: string; releaseVersion?: string; telemetry: boolean }>(
       'GET',
       '/api/health',
     ),

@@ -6,6 +6,8 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.10] - 2026-10-11
+
 ### Added
 
 - `GET /api/health` reports `apiVersion` (the HTTP API schema version). The app version is
@@ -19,10 +21,10 @@ All notable changes to CandleDrill are documented here. The format follows
   explains why: the file must contain the real symbol and offsets so it can be imported
   again. Trades CSV and the HTML report stay available (they contain no disguise data).
 
-### Deprecated
+### Removed
 
-- `version` in `GET /api/health`: same value as `apiVersion`, easy to mistake for the app
-  version. It will be removed in the next minor release.
+- `version` in `GET /api/health` (deprecated in the #13 follow-up). Use `apiVersion` for the
+  HTTP schema and `releaseVersion` for the app version.
 
 ### Fixed
 

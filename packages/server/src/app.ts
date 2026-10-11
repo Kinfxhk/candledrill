@@ -136,8 +136,6 @@ export function buildApp(opts: AppOptions): FastifyInstance {
     status: 'ok',
     name: APP_NAME,
     apiVersion: APP_VERSION,
-    /** @deprecated Same as apiVersion; kept for one release. Use releaseVersion for the app. */
-    version: APP_VERSION,
     releaseVersion,
     engineVersion: ENGINE_VERSION,
     fillModelVersion: FILL_MODEL_VERSION,
