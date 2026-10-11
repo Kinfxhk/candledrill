@@ -146,14 +146,43 @@ function drawingIssues(d: unknown): string[] {
         dir * (x.target - x.entry) <= 0
       )
         out.push(`drawings[${i}]: invalid`);
-    } else if (x.kind === 'tline' || x.kind === 'rect') {
+    } else if (x.kind === 'tline' || x.kind === 'rect' || x.kind === 'arrow') {
+      const keys = Object.keys(x).filter((k) => k !== 'color');
       if (
-        Object.keys(x).length !== 6 ||
+        keys.length !== 6 ||
         !id(x.id) ||
         !isInt(x.t1) ||
         !isInt(x.t2) ||
         !isPos(x.p1) ||
-        !isPos(x.p2)
+        !isPos(x.p2) ||
+        (x.color !== undefined && typeof x.color !== 'string')
+      )
+        out.push(`drawings[${i}]: invalid`);
+    } else if (x.kind === 'text') {
+      const keys = Object.keys(x).filter((k) => k !== 'color');
+      if (
+        keys.length !== 5 ||
+        !id(x.id) ||
+        !isInt(x.t) ||
+        !isPos(x.price) ||
+        typeof x.text !== 'string' ||
+        x.text.length < 1 ||
+        x.text.length > 200 ||
+        (x.color !== undefined && typeof x.color !== 'string')
+      )
+        out.push(`drawings[${i}]: invalid`);
+    } else if (x.kind === 'freehand') {
+      const keys = Object.keys(x).filter((k) => k !== 'color');
+      if (
+        keys.length !== 3 ||
+        !id(x.id) ||
+        !Array.isArray(x.points) ||
+        x.points.length < 2 ||
+        x.points.length > 2000 ||
+        !x.points.every(
+          (pt) => isObj(pt) && isInt(pt.t) && isPos(pt.p) && Object.keys(pt).length === 2,
+        ) ||
+        (x.color !== undefined && typeof x.color !== 'string')
       )
         out.push(`drawings[${i}]: invalid`);
     } else out.push(`drawings[${i}]: unknown kind`);

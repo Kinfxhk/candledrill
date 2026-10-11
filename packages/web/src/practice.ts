@@ -400,11 +400,17 @@ export class PracticeView {
         p.chart.startFreehand(
           (pt) => pts.push(pt),
           () => {
-            if (pts.length < 2) return;
+            const stroke = [...pts];
+            pts.length = 0;
+            if (stroke.length < 2) {
+              this.setDrawMode(null);
+              return;
+            }
             const strokeId = `d${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+            this.setDrawMode(null);
             void this.saveDrawings([
               ...this.drawings,
-              { kind: 'freehand', id: strokeId, points: pts },
+              { kind: 'freehand', id: strokeId, points: stroke },
             ]);
           },
         );

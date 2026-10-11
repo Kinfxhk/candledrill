@@ -6,6 +6,15 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.11] - 2026-10-11
+
+### Fixed
+
+- SMA / EMA overlays support up to three periods at once (defaults 9 / 20 / 50 and 9 / 21 / 50).
+- Text, arrow and freehand drawings actually save: the drawings API schema now accepts
+  those kinds (they were only drawn in the UI), and freehand strokes call the save
+  callback when the pointer is released.
+
 ## [0.2.10] - 2026-10-11
 
 ### Added
