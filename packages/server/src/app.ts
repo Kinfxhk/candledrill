@@ -135,6 +135,8 @@ export function buildApp(opts: AppOptions): FastifyInstance {
   app.get('/api/health', async () => ({
     status: 'ok',
     name: APP_NAME,
+    apiVersion: APP_VERSION,
+    /** @deprecated Same as apiVersion; kept for one release. Use releaseVersion for the app. */
     version: APP_VERSION,
     releaseVersion,
     engineVersion: ENGINE_VERSION,
@@ -162,7 +164,10 @@ export function buildApp(opts: AppOptions): FastifyInstance {
   const cache = new BarCache(db);
   registerSessionRoutes(app, { db, cache, now });
 
-  app.get('/api/datasets', async () => ({ datasets: listDatasets(db) }));
+  app.get('/api/datasets', async () => {
+    const locked = blindLockedDatasets(db);
+    return { datasets: listDatasets(db).map((d) => ({ ...d, blindLocked: locked.has(d.id) })) };
+  });
 
   app.post<{
     Body: { seed: number; startDate: string; days: number; name?: string };

@@ -25,6 +25,8 @@ export interface DatasetRow {
   lastTime: number | null;
   utcOffsetMinutes: number;
   createdAt: string;
+  /** A running, unrevealed blind session uses this dataset; its bars are not served. */
+  blindLocked?: boolean;
 }
 
 export class ApiError extends Error {

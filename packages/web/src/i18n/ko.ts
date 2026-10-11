@@ -228,6 +228,8 @@ export const ko: Record<MessageKey, string> = {
   'pr.exportTrades': '거래 CSV',
   'pr.exportReport': 'HTML 보고서',
   'pr.exportSession': '세션 JSON',
+  'pr.exportBlindNote':
+    '세션 JSON은 이 블라인드 연습을 공개하거나 완료한 후 내보낼 수 있습니다. 파일에 실제 종목과 오프셋이 포함되기 때문입니다.',
   'pr.exportNote':
     '낳출 파일은 사용자의 컴퓨터에서 로컬로 생성됩니다. 거래 CSV는 다른 저널로 가져오기 쉬운 간단한 열 이름을 사용합니다.',
   'pr.assumption':

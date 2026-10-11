@@ -190,7 +190,10 @@ export const statsTab: BottomTab = {
 export const exportTab: BottomTab = {
   key: 'pr.export',
   id: 'export',
-  render(panel, _s, _state, id) {
+  render(panel, s, _state, id) {
+    // The session file must carry the disguise (symbol and offsets) to be re-importable,
+    // so offering it before the reveal would hand over the answer.
+    const blindHidden = s.blind?.revealed === false;
     const link = (key: MessageKey, file: string) =>
       el(
         'a',
@@ -208,9 +211,12 @@ export const exportTab: BottomTab = {
         { class: 'row' },
         link('pr.exportTrades', 'trades.csv'),
         link('pr.exportReport', 'report.html'),
-        link('pr.exportSession', 'session.json'),
+        ...(blindHidden ? [] : [link('pr.exportSession', 'session.json')]),
       ),
       el('p', { class: 'muted' }, t('pr.exportNote')),
+      ...(blindHidden
+        ? [el('p', { class: 'muted', 'data-testid': 'export-blind-note' }, t('pr.exportBlindNote'))]
+        : []),
     );
   },
 };
