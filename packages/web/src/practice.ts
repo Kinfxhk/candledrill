@@ -242,7 +242,15 @@ export class PracticeView {
       { class: 'toolbar' },
       el('strong', {}, m.name),
       m.settings.blind
-        ? el('span', { class: 'badge blind', 'data-testid': 'blind-badge' }, t('pr.blindBadge'))
+        ? el(
+            'span',
+            {
+              class: 'badge blind',
+              'data-testid': 'blind-badge',
+              'data-i18n': 'pr.blindBadge',
+            },
+            t('pr.blindBadge'),
+          )
         : el('span', { class: 'muted' }, m.settings.symbol),
       reveal,
       el('span', { class: 'sep' }),
@@ -487,7 +495,11 @@ export class PracticeView {
     for (const x of TIMEFRAMES.filter((x) => x >= this.baseTf))
       select.append(el('option', { value: String(x) }, tfLabel(x)));
     select.value = String(tf);
-    const indBtn = el('button', { type: 'button', class: 'small ghost' }, t('pr.indicators'));
+    const indBtn = el(
+      'button',
+      { type: 'button', class: 'small ghost', 'data-i18n': 'pr.indicators' },
+      t('pr.indicators'),
+    );
     const head = el(
       'div',
       { class: 'chart-head' },
@@ -900,6 +912,7 @@ export class PracticeView {
     (this.els.step10 as HTMLButtonElement).disabled = ended;
     (this.els.play as HTMLButtonElement).disabled = ended;
     this.renderReviewControls();
+    this.renderDrawings();
     this.decorate();
     this.side?.render(this.meta.settings, this.state);
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);

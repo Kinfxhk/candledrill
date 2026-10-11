@@ -30,6 +30,10 @@ describe('i18n', () => {
       'src/bottom.ts',
       'src/library.ts',
       'src/importer.ts',
+      'src/drawing-palette.ts',
+      'src/indicator-panel.ts',
+      'src/chart.ts',
+      'src/summary.ts',
     ];
     const used = new Set<string>();
     for (const f of files) {

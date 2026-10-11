@@ -185,12 +185,17 @@ export class SidePanel {
     this.dialogTpRow = label('pr.tpPrice', this.dialogTp);
     const dialogSubmit = el(
       'button',
-      { type: 'button', class: 'primary', 'data-testid': 'modify-submit' },
+      {
+        type: 'button',
+        class: 'primary',
+        'data-testid': 'modify-submit',
+        'data-i18n': 'pr.modify',
+      },
       t('pr.modify'),
     );
     const dialogCancel = el(
       'button',
-      { type: 'button', 'data-testid': 'modify-cancel' },
+      { type: 'button', 'data-testid': 'modify-cancel', 'data-i18n': 'pr.cancel' },
       t('pr.cancel'),
     );
     dialogSubmit.addEventListener('click', () => void this.submitModify());
@@ -198,7 +203,13 @@ export class SidePanel {
     this.dialog = el(
       'dialog',
       { 'data-testid': 'modify-dialog' },
-      el('h2', {}, t('pr.modifyTitle'), ' #', this.dialogOrderId),
+      el(
+        'h2',
+        {},
+        el('span', { 'data-i18n': 'pr.modifyTitle' }, t('pr.modifyTitle')),
+        ' #',
+        this.dialogOrderId,
+      ),
       el('div', { class: 'grid2', style: 'margin-top:12px' }, this.dialogPriceRow, el('span', {})),
       el('div', { class: 'grid2', style: 'margin-top:8px' }, this.dialogSlRow, this.dialogTpRow),
       el(
