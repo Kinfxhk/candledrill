@@ -143,7 +143,7 @@ More: [docs/PERFORMANCE.md](docs/PERFORMANCE.md), [SECURITY.md](SECURITY.md), [C
 
 ## 繁體中文簡介
 
-**K線操練場**係免費、開源、喺自己電腦跑嘅 K 線回放練習工具：匯入數據 → 逐根前進（睇唔到未來）→ 模擬落單 → 檢討。唔使帳戶、唔追蹤。
+**K線操練場**係免費、開源、喺自己電腦跑嘅 K 線回放練習工具：匯入數據 → 逐根前進（睇唔到未來）→ 模擬落單 → 檢討。唔使帳戶、唔追蹤。**介面供桌面瀏覽器使用**，唔保證手機闊度版面。
 
 - **安裝：** Node.js 22+ → `npm ci && npm start` → 開 <http://127.0.0.1:4870/> → **Generate demo data**。
 - **練習數據：** 內建 `SYNTH-` 示範；較長合成樣本見 [candledrill-synth-samples](https://github.com/Kinfxhk/candledrill-synth-samples)（匯入代號 `PRACTICE-NQ-GLOBEX`，tick `0.25`，utcOffset `-300`）。
