@@ -143,3 +143,35 @@ describe('GET /api/updates', () => {
     expect(quiet.json()).toMatchObject({ newer: false, latest: null, available: false });
   });
 });
+
+describe('checkForUpdate refresh / fail cache', () => {
+  it('refresh bypasses a cached unavailable result', async () => {
+    let calls = 0;
+    const boom: UpdatesFetch = async () => {
+      calls += 1;
+      throw new Error('offline');
+    };
+    const offline = await checkForUpdate({ current: '0.2.5', fetchImpl: boom, now: 1 });
+    expect(offline.available).toBe(false);
+    expect(calls).toBe(1);
+    // Without refresh, still within fail-cache window.
+    await checkForUpdate({ current: '0.2.5', fetchImpl: boom, now: 2_000 });
+    expect(calls).toBe(1);
+    const ok: UpdatesFetch = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        tag_name: 'v0.2.6',
+        name: 'n',
+        html_url: 'https://github.com/Kinfxhk/candledrill/releases/tag/v0.2.6',
+      }),
+    });
+    const fresh = await checkForUpdate({
+      current: '0.2.5',
+      fetchImpl: ok,
+      now: 3_000,
+      refresh: true,
+    });
+    expect(fresh).toMatchObject({ available: true, newer: true, latest: '0.2.6' });
+  });
+});

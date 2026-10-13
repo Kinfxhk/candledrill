@@ -102,7 +102,8 @@ export const api = {
       'GET',
       '/api/health',
     ),
-  updates: () => request<UpdateCheckResponse>('GET', '/api/updates'),
+  updates: (opts?: { refresh?: boolean }) =>
+    request<UpdateCheckResponse>('GET', opts?.refresh ? '/api/updates?refresh=1' : '/api/updates'),
   datasets: () => request<{ datasets: DatasetRow[] }>('GET', '/api/datasets'),
   createSynthetic: (seed: number, startDate: string, days: number) =>
     request<{ dataset: DatasetRow }>('POST', '/api/datasets/synthetic', { seed, startDate, days }),

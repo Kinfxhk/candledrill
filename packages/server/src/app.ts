@@ -145,9 +145,10 @@ export function buildApp(opts: AppOptions): FastifyInstance {
 
   // Public GitHub Releases lookup, proxied so the browser never leaves loopback (CSP).
   // Failures return available:false — the UI stays silent, no scary errors.
-  app.get('/api/updates', async () =>
+  app.get<{ Querystring: { refresh?: string } }>('/api/updates', async (req) =>
     checkForUpdate({
       current: releaseVersion,
+      refresh: req.query.refresh === '1' || req.query.refresh === 'true',
       ...(opts.fetchUpdates ? { fetchImpl: opts.fetchUpdates } : {}),
     }),
   );

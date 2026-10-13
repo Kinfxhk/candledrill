@@ -115,7 +115,15 @@ export type Drawing =
       target: number;
       color?: string;
     }
-  | { kind: 'text'; id: string; t: number; price: number; text: string; color?: string }
+  | {
+      kind: 'text';
+      id: string;
+      t: number;
+      price: number;
+      text: string;
+      color?: string;
+      fontSize?: number;
+    }
   | { kind: 'arrow'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | { kind: 'freehand'; id: string; points: { t: number; p: number }[]; color?: string };
 
@@ -143,10 +151,19 @@ function svg<K extends keyof SVGElementTagNameMap>(
   return e;
 }
 
-function arrowHeadPath(x: number, y: number, angle: number, size = 8): string {
-  const a1 = angle + Math.PI - 0.5;
-  const a2 = angle + Math.PI + 0.5;
-  return `M${x} ${y} L${x + size * Math.cos(a1)} ${y + size * Math.sin(a1)} M${x} ${y} L${x + size * Math.cos(a2)} ${y + size * Math.sin(a2)}`;
+function elStyleBar(): HTMLElement {
+  const bar = document.createElement('div');
+  bar.className = 'drawing-style-bar';
+  bar.dataset.testid = 'drawing-style-bar';
+  bar.hidden = true;
+  return bar;
+}
+
+/** Filled triangular arrow head; size is tip-to-base length in CSS pixels. */
+export function arrowHeadPath(x: number, y: number, angle: number, size = 12): string {
+  const a1 = angle + Math.PI - 0.45;
+  const a2 = angle + Math.PI + 0.45;
+  return `M${x} ${y} L${x + size * Math.cos(a1)} ${y + size * Math.sin(a1)} L${x + size * Math.cos(a2)} ${y + size * Math.sin(a2)} Z`;
 }
 
 type DragPart = 'p1' | 'p2' | 'body' | 'price' | 'entry' | 'stop' | 'target' | 't2';
@@ -175,6 +192,7 @@ export class PriceChart {
   private drawings: Drawing[] = [];
   private snapFn: (t: number) => number = (t) => t;
   private readonly overlay: SVGSVGElement;
+  private readonly styleBar: HTMLElement;
   private overlaySig = '';
   private raf = 0;
   private selected: string | null = null;
@@ -244,7 +262,8 @@ export class PriceChart {
     this.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     this.markers = createSeriesMarkers(this.candles, []);
     this.overlay = svg('svg', { class: 'draw-overlay', 'data-testid': 'draw-overlay' });
-    container.append(this.overlay);
+    this.styleBar = elStyleBar();
+    container.append(this.overlay, this.styleBar);
   }
 
   setTickSize(tickSize: number): void {
@@ -464,6 +483,7 @@ export class PriceChart {
     this.renderPriceLines();
     this.overlaySig = '';
     this.renderOverlay();
+    this.syncStyleBar();
     if (!this.raf) this.loop();
   }
 
@@ -584,12 +604,13 @@ export class PriceChart {
       body = false,
     ) => {
       if (x === null || y === null) return;
+      const size = body ? 10 : 6;
       const h = svg('rect', {
-        x: x - 5,
-        y: y - 5,
-        width: 10,
-        height: 10,
-        rx: body ? 5 : 2,
+        x: x - size / 2,
+        y: y - size / 2,
+        width: size,
+        height: size,
+        rx: body ? 5 : 1.5,
         class: `handle${body ? ' body' : ''}${this.selected === d.id ? ' active' : ''}`,
         'data-drawing': d.id,
         'data-part': part,
@@ -604,25 +625,45 @@ export class PriceChart {
       } else if (d.kind === 'text') {
         const [x, y] = p;
         if (x == null || y == null) return;
+        const fontSize = d.fontSize && d.fontSize > 0 ? d.fontSize : 13;
         const t = svg('text', {
           x,
           y: y - 6,
           fill: d.color ?? accent,
-          'font-size': '13px',
+          'font-size': `${fontSize}px`,
           'font-weight': '600',
           class: 'drawing-text',
           'data-drawing': d.id,
         });
         t.textContent = d.text;
+        t.addEventListener('dblclick', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          this.selected = d.id;
+          this.editTextContent(d);
+        });
         nodes.push(t);
         handle(d, 'body', x, y, true);
       } else if (d.kind === 'arrow') {
         const [x1, y1, x2, y2] = p;
         if (x1 == null || y1 == null || x2 == null || y2 == null) return;
         const color = d.color ?? accent;
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const head = 12;
+        const inset = head * 0.85;
+        const sx2 = x2 - Math.cos(angle) * inset;
+        const sy2 = y2 - Math.sin(angle) * inset;
         nodes.push(
-          svg('line', { x1, y1, x2, y2, stroke: color, 'stroke-width': 2 }),
-          this.arrowHead(x2, y2, Math.atan2(y2 - y1, x2 - x1), color),
+          svg('line', {
+            x1,
+            y1,
+            x2: sx2,
+            y2: sy2,
+            stroke: color,
+            'stroke-width': 3,
+            'stroke-linecap': 'round',
+          }),
+          this.arrowHead(x2, y2, angle, color),
         );
         handle(d, 'p1', x1, y1);
         handle(d, 'p2', x2, y2);
@@ -680,23 +721,33 @@ export class PriceChart {
         if (x1 == null || x2 == null || ye == null || ys == null || yt == null) return;
         const left = Math.min(x1, x2);
         const width = Math.max(4, Math.abs(x2 - x1));
+        const riskRect = svg('rect', {
+          x: left,
+          y: Math.min(ye, ys),
+          width,
+          height: Math.max(2, Math.abs(ys - ye)),
+          fill: withAlpha(this.theme.down, 0.2),
+          'data-kind': 'risk',
+          class: 'position-body',
+          'data-drawing': d.id,
+          'data-part': 'body',
+        });
+        const rewardRect = svg('rect', {
+          x: left,
+          y: Math.min(ye, yt),
+          width,
+          height: Math.max(2, Math.abs(yt - ye)),
+          fill: withAlpha(this.theme.up, 0.2),
+          'data-kind': 'reward',
+          class: 'position-body',
+          'data-drawing': d.id,
+          'data-part': 'body',
+        });
+        riskRect.addEventListener('pointerdown', (ev) => this.startDrag(ev, d, 'body'));
+        rewardRect.addEventListener('pointerdown', (ev) => this.startDrag(ev, d, 'body'));
         nodes.push(
-          svg('rect', {
-            x: left,
-            y: Math.min(ye, ys),
-            width,
-            height: Math.abs(ys - ye),
-            fill: withAlpha(this.theme.down, 0.2),
-            'data-kind': 'risk',
-          }),
-          svg('rect', {
-            x: left,
-            y: Math.min(ye, yt),
-            width,
-            height: Math.abs(yt - ye),
-            fill: withAlpha(this.theme.up, 0.2),
-            'data-kind': 'reward',
-          }),
+          riskRect,
+          rewardRect,
           svg('line', {
             x1: left,
             x2: left + width,
@@ -718,7 +769,8 @@ export class PriceChart {
           label.textContent = text;
           nodes.push(label);
         }
-        handle(d, 'entry', left, ye, true);
+        handle(d, 'body', left + width / 2, ye, true);
+        handle(d, 'entry', left, ye);
         handle(d, 'stop', left + width / 2, ys);
         handle(d, 'target', left + width / 2, yt);
         handle(d, 't2', left + width, ye);
@@ -815,8 +867,8 @@ export class PriceChart {
     return svg('path', {
       d: arrowHeadPath(x, y, angle),
       stroke: color,
-      'stroke-width': 2,
-      fill: 'none',
+      'stroke-width': 1,
+      fill: color,
     });
   }
 
@@ -825,6 +877,7 @@ export class PriceChart {
   private startDrag(ev: PointerEvent, d: Drawing, part: DragPart): void {
     ev.stopPropagation();
     this.selected = d.id;
+    this.syncStyleBar();
     const rect = this.overlay.getBoundingClientRect();
     const t0 = this.timeAt(ev.clientX - rect.left) ?? 0;
     const p0 = this.priceAt(ev.clientY - rect.top) ?? 0;
@@ -953,7 +1006,7 @@ export class PriceChart {
       return { ...d, t1: d.t1 + dt, t2: d.t2 + dt, p1: shiftP(d.p1), p2: shiftP(d.p2) };
     }
     let n = d;
-    if (part === 'entry')
+    if (part === 'body' || part === 'entry')
       n = {
         ...d,
         t1: d.t1 + dt,
@@ -1015,7 +1068,8 @@ export class PriceChart {
       (e) => {
         if (this.freehandMode) return;
         if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
-        if ((e.target as Element).closest?.('.handle, .del')) return;
+        if ((e.target as Element).closest?.('.handle, .del, .position-body, .drawing-style-bar'))
+          return;
         const rect = this.container.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -1078,6 +1132,68 @@ export class PriceChart {
     this.freehandPoints.push({ t, p });
   }
 
+  private syncStyleBar(): void {
+    const d = this.drawings.find((x) => x.id === this.selected);
+    if (!d || d.kind !== 'text') {
+      this.styleBar.hidden = true;
+      this.styleBar.replaceChildren();
+      return;
+    }
+    this.styleBar.hidden = false;
+    const color = document.createElement('input');
+    color.type = 'color';
+    color.value = d.color ?? '#7cc4ff';
+    color.title = t('pr.textColor');
+    color.dataset.testid = 'text-color';
+    color.addEventListener('input', () => {
+      const next = { ...d, color: color.value };
+      this.drawings = this.drawings.map((x) => (x.id === next.id ? next : x));
+      this.overlaySig = '';
+      this.renderOverlay();
+      this.editHandler?.(next);
+    });
+    const size = document.createElement('input');
+    size.type = 'number';
+    size.min = '8';
+    size.max = '48';
+    size.step = '1';
+    size.value = String(d.fontSize && d.fontSize > 0 ? d.fontSize : 13);
+    size.title = t('pr.textSize');
+    size.dataset.testid = 'text-size';
+    size.addEventListener('change', () => {
+      const v = Number(size.value);
+      if (!Number.isFinite(v) || v < 8 || v > 48) return;
+      const next = { ...d, fontSize: Math.round(v) };
+      this.drawings = this.drawings.map((x) => (x.id === next.id ? next : x));
+      this.overlaySig = '';
+      this.renderOverlay();
+      this.editHandler?.(next);
+    });
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'small';
+    edit.textContent = t('pr.textEdit');
+    edit.dataset.testid = 'text-edit';
+    edit.addEventListener('click', () => this.editTextContent(d));
+    const label = document.createElement('span');
+    label.className = 'muted small';
+    label.textContent = t('pr.textStyle');
+    this.styleBar.replaceChildren(label, color, size, edit);
+  }
+
+  private editTextContent(d: Extract<Drawing, { kind: 'text' }>): void {
+    const nextText = prompt(t('pr.textPrompt'), d.text);
+    if (nextText === null) return;
+    const trimmed = nextText.trim();
+    if (!trimmed) return;
+    const next = { ...d, text: trimmed.slice(0, 200) };
+    this.drawings = this.drawings.map((x) => (x.id === next.id ? next : x));
+    this.overlaySig = '';
+    this.renderOverlay();
+    this.syncStyleBar();
+    this.editHandler?.(next);
+  }
+
   /** Simplify a freehand stroke with a basic distance threshold. */
   static simplifyFreehand(
     points: { t: number; p: number }[],
@@ -1118,9 +1234,13 @@ export class PriceChart {
     const bars = this.indicatorBars;
     if (bars.length === 0) return;
 
+    const vol = this.indicatorConfig.overlays.find((s) => s.kind === 'volume');
+    this.volume.applyOptions({ visible: vol ? vol.visible : true });
+
     const overlayWanted = new Set<string>();
     for (const s of this.indicatorConfig.overlays) {
       if (!s.visible) continue;
+      if (s.kind === 'volume') continue;
       if (s.kind === 'bollinger') {
         overlayWanted.add('ov-bollinger-upper');
         overlayWanted.add('ov-bollinger-middle');
@@ -1140,6 +1260,7 @@ export class PriceChart {
 
     for (const s of this.indicatorConfig.overlays) {
       if (!s.visible) continue;
+      if (s.kind === 'volume') continue;
       if (s.kind === 'sma' && s.period) {
         const key = `ov-sma-${s.period}`;
         this.ensureOverlayLine(key, s).setData(
@@ -1220,6 +1341,8 @@ export class PriceChart {
     if (!s) {
       s = this.chart.addSeries(LineSeries, this.indicatorSeriesOptions(setting));
       this.overlaySeries.set(key, s);
+    } else {
+      s.applyOptions(this.indicatorSeriesOptions(setting));
     }
     return s;
   }
@@ -1229,6 +1352,8 @@ export class PriceChart {
     if (!s) {
       s = this.chart.addSeries(LineSeries, this.indicatorSeriesOptions(setting), pane);
       this.paneIndicatorSeries.set(key, s);
+    } else {
+      s.applyOptions(this.indicatorSeriesOptions(setting));
     }
     return s as ISeriesApi<'Line'>;
   }
@@ -1238,21 +1363,20 @@ export class PriceChart {
     setting: IndicatorSetting,
     pane: number,
   ): ISeriesApi<'Histogram'> {
+    const opts = {
+      color: setting.color ?? '#888888',
+      priceScaleId: 'hist',
+      priceFormat: { type: 'price' as const, precision: 4, minMove: 0.0001 },
+      lastValueVisible: false,
+      priceLineVisible: false,
+    };
     let s = this.paneIndicatorSeries.get(key);
     if (!s) {
-      s = this.chart.addSeries(
-        HistogramSeries,
-        {
-          color: setting.color ?? '#888888',
-          priceScaleId: 'hist',
-          priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
-          lastValueVisible: false,
-          priceLineVisible: false,
-        },
-        pane,
-      );
+      s = this.chart.addSeries(HistogramSeries, opts, pane);
       this.chart.priceScale('hist', pane).applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
       this.paneIndicatorSeries.set(key, s);
+    } else {
+      s.applyOptions({ color: opts.color });
     }
     return s as ISeriesApi<'Histogram'>;
   }

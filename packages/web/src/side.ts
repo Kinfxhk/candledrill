@@ -38,6 +38,7 @@ export class SidePanel {
   private readonly ordersBox: HTMLElement;
   private readonly riskBox: HTMLElement;
   private readonly riskExpanded = new Map<string, boolean>();
+  private riskOpen = localStorage.getItem('candledrill.riskPreviewOpen') === '1';
   private readonly positionBox: HTMLElement;
   private readonly rulesBox: HTMLElement;
   readonly extra: HTMLElement;
@@ -338,9 +339,15 @@ export class SidePanel {
         details(side, 'risk.details', list(rows.slice(0, 5))),
       );
     });
-    this.riskBox.replaceChildren(
-      el('h4', {}, t('risk.title')),
-      ...sides,
+    const wrap = el(
+      'details',
+      {
+        class: 'risk-preview-wrap',
+        'data-testid': 'risk-preview-wrap',
+        ...(this.riskOpen ? { open: '' } : {}),
+      },
+      el('summary', { 'data-i18n': 'risk.title' }, t('risk.title')),
+      el('div', { class: 'risk-sides' }, ...sides),
       el('p', { class: 'muted small' }, t('risk.notice')),
       details(
         'assumptions',
@@ -353,6 +360,11 @@ export class SidePanel {
         el('p', { class: 'muted small' }, t('risk.costAssumption')),
       ),
     );
+    wrap.addEventListener('toggle', () => {
+      this.riskOpen = wrap.open;
+      localStorage.setItem('candledrill.riskPreviewOpen', wrap.open ? '1' : '0');
+    });
+    this.riskBox.replaceChildren(wrap);
     if (focus) this.riskBox.querySelector<HTMLElement>(`[data-risk-focus="${focus}"]`)?.focus();
   }
 

@@ -21,6 +21,7 @@ const SOURCE_OPTIONS: IndicatorSource[] = ['open', 'high', 'low', 'close', 'hlc3
 export class IndicatorPanel {
   private root: HTMLElement | undefined;
   private cfg: PaneIndicatorConfig;
+  private clickOutside: ((e: MouseEvent) => void) | undefined;
 
   constructor(
     private readonly anchor: HTMLElement,
@@ -29,20 +30,36 @@ export class IndicatorPanel {
     this.cfg = loadIndicatorConfig();
   }
 
+  isOpen(): boolean {
+    return this.root !== undefined;
+  }
+
+  toggle(): void {
+    if (this.isOpen()) this.close();
+    else this.open();
+  }
+
   open(): void {
     this.close();
-    this.root = el('div', { class: 'indicator-panel' });
+    this.root = el('div', { class: 'indicator-panel', 'data-testid': 'indicator-panel' });
     this.render();
     this.anchor.append(this.root);
-    const clickOutside = (e: MouseEvent) => {
-      if (!this.root || this.root.contains(e.target as Node)) return;
+    this.clickOutside = (e: MouseEvent) => {
+      if (!this.root) return;
+      const target = e.target as Node;
+      if (this.root.contains(target)) return;
+      // Keep the toggle button / chart-head clicks for toggle(); ignore them here.
+      if (this.anchor.contains(target)) return;
       this.close();
-      document.removeEventListener('click', clickOutside, true);
     };
-    document.addEventListener('click', clickOutside, true);
+    document.addEventListener('click', this.clickOutside, true);
   }
 
   close(): void {
+    if (this.clickOutside) {
+      document.removeEventListener('click', this.clickOutside, true);
+      this.clickOutside = undefined;
+    }
     this.root?.remove();
     this.root = undefined;
   }
@@ -80,7 +97,7 @@ export class IndicatorPanel {
           ? `${t(`ind.${s.kind}` as const)} ${s.period}`
           : t(`ind.${s.kind}` as const);
       row.append(box, el('span', {}, label));
-      if (s.visible) row.append(this.renderControls(s, fb));
+      if (s.visible && s.kind !== 'volume') row.append(this.renderControls(s, fb));
       g.append(row);
     }
     return g;
@@ -153,6 +170,7 @@ export class IndicatorPanel {
     const color = el('input', {
       type: 'color',
       value: s.color ?? fb.color ?? '#888888',
+      'data-testid': `ind-color-${s.kind}${s.period ?? ''}`,
     }) as HTMLInputElement;
     color.addEventListener('input', () => {
       s.color = color.value;

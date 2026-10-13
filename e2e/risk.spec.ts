@@ -32,6 +32,9 @@ test('risk ticket updates live, respects each side and never submits while editi
     if (req.method() !== 'GET' && req.url().includes('/api/sessions')) writes++;
   });
   await expect(page.getByTestId('risk-buy')).toContainText('Set a stop distance');
+  const riskWrap = page.getByTestId('risk-preview-wrap');
+  await expect(riskWrap).toBeVisible();
+  if (!(await riskWrap.getAttribute('open'))) await riskWrap.locator(':scope > summary').click();
   await page.getByTestId('qty').fill('2');
   await page.getByTestId('sl-ticks').fill('8');
   await page.getByTestId('tp-ticks').fill('16');

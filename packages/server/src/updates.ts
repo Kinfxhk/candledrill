@@ -84,15 +84,27 @@ export function clearUpdateCache(): void {
   cache = null;
 }
 
+/** Short quiet period after a failed lookup so manual "Check now" can retry soon. */
+export const UPDATE_FAIL_CACHE_MS = 30_000;
+
 export async function checkForUpdate(opts: {
   readonly current: string;
   readonly fetchImpl?: UpdatesFetch;
   readonly now?: number;
   readonly cacheMs?: number;
+  /** Skip the in-process cache (About → Check for updates). */
+  readonly refresh?: boolean;
 }): Promise<UpdateCheckResult> {
   const now = opts.now ?? Date.now();
   const cacheMs = opts.cacheMs ?? UPDATE_CACHE_MS;
-  if (cache && now - cache.at >= 0 && now - cache.at < cacheMs) return cache.result;
+  if (
+    !opts.refresh &&
+    cache &&
+    now - cache.at >= 0 &&
+    now - cache.at < (cache.result.available ? cacheMs : UPDATE_FAIL_CACHE_MS)
+  ) {
+    return cache.result;
+  }
 
   const unavailable = (): UpdateCheckResult => ({
     current: opts.current,

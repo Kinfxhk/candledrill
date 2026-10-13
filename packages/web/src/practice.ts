@@ -498,8 +498,11 @@ export class PracticeView {
     this.indicatorPanels.push(panel);
     indBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      panel.open();
+      panel.toggle();
+      indBtn.setAttribute('aria-expanded', String(panel.isOpen()));
     });
+    indBtn.setAttribute('aria-expanded', 'false');
+    indBtn.setAttribute('data-testid', 'indicators-toggle');
     chart.onClick((c) => this.onChartClick(pane, c.time, c.price));
     chart.setPositionLabeler((d) => this.positionLabel(d));
     chart.onDrawingEdit(
