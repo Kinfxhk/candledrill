@@ -6,6 +6,27 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.13] - 2026-10-13
+
+### Fixed
+
+- **Arrow tool:** thicker shaft, filled triangular head, and smaller endpoint handles so the
+  arrow stays readable.
+- **Indicators panel:** the Indicators button toggles the panel closed (same control /
+  `aria-expanded`); click-outside still closes it.
+- **SMA / EMA / VWAP (and other) colours:** colour changes apply immediately via series
+  `applyOptions` without toggling the indicator off/on.
+- **Volume:** shown as a toggleable row in the indicators panel (default on).
+- **Risk preview:** wrapped in a collapsible section (collapsed by default, preference in
+  `localStorage`) so it no longer blocks the ticket / position area.
+- **Text tool:** after placing, select the label to edit colour and size (and Edit text);
+  double-click also reopens the text prompt. Optional `fontSize` is persisted on drawings.
+- **Long/short R tools:** the risk/reward body is draggable to reposition the whole tool
+  (stop/target handles still adjust levels).
+- **Check for updates:** failed GitHub lookups are only quiet-cached briefly; About →
+  Check for updates sends `?refresh=1` so a newer release is detected when online (still
+  no auto-download; respects the startup-check preference).
+
 ## [0.2.12] - 2026-10-11
 
 ### Changed

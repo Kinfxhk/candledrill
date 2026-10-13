@@ -316,7 +316,7 @@ async function refreshUpdateCheck(opts: { manual?: boolean } = {}): Promise<void
   const status = document.getElementById('update-check-status')!;
   if (opts.manual) status.textContent = t('update.checking');
   try {
-    const r = await api.updates();
+    const r = await api.updates({ refresh: !!opts.manual });
     if (r.available && r.newer && r.latest) {
       latestUpdate = { current: r.current, latest: r.latest, url: r.url, name: r.name };
       if (opts.manual)

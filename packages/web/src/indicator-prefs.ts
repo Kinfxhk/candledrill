@@ -5,7 +5,7 @@
 
 import type { IndicatorSource } from './indicators.js';
 
-export type OverlayKind = 'sma' | 'ema' | 'bollinger' | 'vwap';
+export type OverlayKind = 'volume' | 'sma' | 'ema' | 'bollinger' | 'vwap';
 export type PaneKind = 'rsi' | 'macd' | 'atr';
 export type IndicatorKind = OverlayKind | PaneKind;
 
@@ -29,6 +29,7 @@ export interface PaneIndicatorConfig {
 const INDICATOR_KEY = 'candledrill.indicators';
 
 export const DEFAULT_OVERLAYS: IndicatorSetting[] = [
+  { kind: 'volume', visible: true, color: '#26a69a' },
   { kind: 'sma', visible: false, period: 9, source: 'close', color: '#7cc4ff' },
   { kind: 'sma', visible: false, period: 20, source: 'close', color: '#4d8fd6' },
   { kind: 'sma', visible: false, period: 50, source: 'close', color: '#2a5f9e' },
@@ -66,6 +67,7 @@ function isValidSource(s: unknown): s is IndicatorSource {
 
 function isValidKind(s: unknown): s is IndicatorKind {
   return (
+    s === 'volume' ||
     s === 'sma' ||
     s === 'ema' ||
     s === 'bollinger' ||
