@@ -5,7 +5,7 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo } from './helpers.js';
+import { generateDemo, showWorkingOrders } from './helpers.js';
 
 async function startPractice(page: Page, name: string) {
   await page.goto('/');
@@ -20,6 +20,7 @@ async function startPractice(page: Page, name: string) {
   const last = await page.getByTestId('price').inputValue();
   await page.getByTestId('price').fill(String(Number(last) - 5));
   await page.getByTestId('btn-buy').click();
+  await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText(/limit/i);
   const list = await (await page.request.get('/api/sessions')).json();
   const s = list.sessions.find((x: { name: string }) => x.name === name);

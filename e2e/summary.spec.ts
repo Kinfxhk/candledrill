@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test, type Page } from '@playwright/test';
+import { showWorkingOrders } from './helpers.js';
 
 // A tiny, deterministic dummy dataset on the local in-memory test server.
 async function setup(page: Page, name: string, rule: 'passed' | 'breached' | 'finished') {
@@ -57,6 +58,7 @@ for (const status of ['passed', 'breached'] as const) {
     await page.getByTestId('sl-ticks').fill('40');
     await page.getByTestId('tp-ticks').fill('');
     await page.getByTestId('btn-buy').click();
+    await showWorkingOrders(page);
     await expect(page.getByTestId('orders')).toContainText('MKT');
     await page.getByTestId('btn-step').click();
     await expect.poll(async () => (await read()).state.trading.position !== null).toBe(true);
@@ -93,6 +95,7 @@ test('end-of-data summary separates an open position from closed-trade results',
   await page.getByTestId('sl-ticks').fill('40');
   await page.getByTestId('tp-ticks').fill('');
   await page.getByTestId('btn-buy').click();
+  await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText('MKT');
   await page.getByTestId('btn-step10').click();
   await expect.poll(async () => (await read()).state.status).toBe('finished');

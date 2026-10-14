@@ -229,6 +229,16 @@ export class PracticeView {
     reveal.hidden = !this.blindHidden;
     reveal.addEventListener('click', () => void this.reveal());
     const revealBanner = el('div', { class: 'reveal-banner', 'data-testid': 'reveal-banner' });
+    const macroBlind = el(
+      'p',
+      {
+        class: 'notice macro-blind-notice',
+        'data-testid': 'macro-blind-notice',
+        'data-i18n': 'macro.blindStart',
+      },
+      t('macro.blindStart'),
+    );
+    macroBlind.hidden = !this.blindHidden;
     revealBanner.hidden = true;
     const jumpLabel = el(
       'label',
@@ -286,7 +296,15 @@ export class PracticeView {
     // Blind: no calendar jump (it would show dates); stepping and playing are enough.
     jumpLabel.hidden = this.blindHidden;
     jumpBtn.hidden = this.blindHidden;
-    this.root.replaceChildren(banner, revealBanner, toolbar, summary, workspace, bottom);
+    this.root.replaceChildren(
+      macroBlind,
+      banner,
+      revealBanner,
+      toolbar,
+      summary,
+      workspace,
+      bottom,
+    );
     this.els = {
       summary,
       banner,
@@ -304,6 +322,7 @@ export class PracticeView {
       split,
       reveal,
       revealBanner,
+      macroBlind,
       jumpLabel,
       link,
     };
@@ -324,16 +343,43 @@ export class PracticeView {
         return sessionsApi.macroRun(this.meta.id, { macro, mode: 'to_end', from });
       },
     });
-    this.side.extra.prepend(this.macroPanel.el);
+    const ordersTab: BottomTab = {
+      key: 'pr.orders',
+      id: 'orders',
+      persistent: true,
+      render: (panel) => {
+        panel.replaceChildren(this.side!.ordersSection);
+      },
+    };
+    const macroTab: BottomTab = {
+      key: 'macro.open',
+      id: 'macro',
+      persistent: true,
+      render: (panel) => {
+        panel.replaceChildren(this.macroPanel!.el);
+      },
+    };
     const generation = this.generation;
     this.bottom = new BottomPanel(
       bottom,
-      [tradesTab, journalTab, statsTab, fillsTab, exportTab, ...PracticeView.extraTabs],
+      [
+        tradesTab,
+        ordersTab,
+        macroTab,
+        journalTab,
+        statsTab,
+        fillsTab,
+        exportTab,
+        ...PracticeView.extraTabs,
+      ],
       {
         unavailable: (trade) => this.tradeViewReason(trade),
         view: (id) => {
           if (generation === this.generation) this.focusTrade(id);
         },
+      },
+      (id) => {
+        this.els.bottom?.classList.toggle('macro-open', id === 'macro');
       },
     );
     returnLive.addEventListener('click', () => this.returnToCurrent());
@@ -468,6 +514,14 @@ export class PracticeView {
     }
   }
 
+  /** Chart Macro button: open the bottom wizard and move focus there. */
+  private showMacro(): void {
+    this.macroPanel?.enable();
+    this.bottom?.select('macro');
+    this.macroPanel?.el.scrollIntoView({ block: 'nearest' });
+    this.macroPanel?.focus();
+  }
+
   private addPane(tf: number): void {
     const select = el('select', {
       'aria-label': t('pr.tf'),
@@ -493,8 +547,7 @@ export class PracticeView {
     );
     macroBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.macroPanel?.enable();
-      this.macroPanel?.el.scrollIntoView({ block: 'nearest' });
+      this.showMacro();
     });
     const head = el(
       'div',
@@ -956,7 +1009,9 @@ export class PracticeView {
     this.renderDrawings();
     this.decorate();
     this.side?.render(this.meta.settings, this.state);
-    this.macroPanel?.noteBlind(this.blindHidden);
+    const macroBlind = this.els.macroBlind;
+    if (macroBlind) macroBlind.hidden = !this.blindHidden;
+    this.macroPanel?.sync(this.blindHidden, getLang());
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);
     this.onChanged();
   }

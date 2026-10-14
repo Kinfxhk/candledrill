@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Core flow: demo data -> new session -> replay -> bracket order -> trade recorded.
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo } from './helpers.js';
+import { generateDemo, showWorkingOrders } from './helpers.js';
 
 async function sessionState(page: Page) {
   const list = await (await page.request.get('/api/sessions')).json();
@@ -45,7 +45,9 @@ test('replay and bracket order flow', async ({ page }) => {
   await page.getByTestId('tp-ticks').fill('16');
   await page.getByTestId('btn-buy').click();
   // The order fills on the NEXT bar (never on the bar it was placed on).
+  await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText(/buy/i);
+  await page.getByTestId('tab-trades').click();
   await page.getByTestId('btn-step').click();
   const rows = page.getByTestId('trades-table').locator('tr:has(td)');
   await expect
@@ -68,6 +70,19 @@ test('replay and bracket order flow', async ({ page }) => {
   await expect(page.getByTestId('stats')).toBeVisible();
   await page.locator('#lang-picker').selectOption('zh-Hant');
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
+
+  await expect(page.getByTestId('side').locator('h3')).toHaveText(['練習規則', '落單', '持倉']);
+  await page.getByTestId('macro-open').click();
+  await expect(page.getByTestId('tab-macro')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('macro-step-rules')).toBeVisible();
+  await expect(page.getByTestId('macro-next')).toBeVisible();
+  await page.getByTestId('macro-next').click();
+  await expect(page.getByTestId('macro-step-trade')).toBeVisible();
+  await page.getByTestId('macro-next').click();
+  await expect(page.getByTestId('macro-step-run')).toBeVisible();
+  await expect(page.getByTestId('macro-run')).toBeVisible();
+  await page.getByTestId('macro-next').click();
+  await expect(page.getByTestId('macro-step-result')).toBeVisible();
 
   expect(errors).toEqual([]);
 });

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo } from './helpers.js';
+import { generateDemo, showWorkingOrders } from './helpers.js';
 
 async function freshSession(page: Page, name: string, trailing?: number) {
   await page.goto('/');
@@ -20,6 +20,13 @@ async function freshSession(page: Page, name: string, trailing?: number) {
 }
 const money = (v: number) =>
   v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Cost-breakdown summaries sit in a max-height scroller under the ticket. */
+async function riskFocus(page: Page, id: string) {
+  const loc = page.locator(`[data-risk-focus=${id}]`);
+  await loc.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  return loc;
+}
 
 test('risk ticket updates live, respects each side and never submits while editing', async ({
   page,
@@ -50,12 +57,12 @@ test('risk ticket updates live, respects each side and never submits while editi
       `${((100 * loss) / s.startingBalance).toFixed(2)}%`,
     );
   }
-  await page.locator('[data-risk-focus=buy]').click();
-  await page.locator('[data-risk-focus=assumptions]').click();
+  await (await riskFocus(page, 'buy')).click();
+  await (await riskFocus(page, 'assumptions')).click();
   await page.getByTestId('qty').fill('3');
   await expect(page.locator('[data-risk-detail=buy]')).toHaveAttribute('open', '');
   await expect(page.locator('[data-risk-detail=assumptions]')).toHaveAttribute('open', '');
-  await page.locator('[data-risk-focus=buy]').focus();
+  await (await riskFocus(page, 'buy')).focus();
   await page
     .getByTestId('qty')
     .evaluate((input) => input.dispatchEvent(new Event('input', { bubbles: true })));
@@ -95,6 +102,7 @@ test('working entries and open positions have explanatory unsupported previews',
   await freshSession(page, 'Risk position');
   await page.getByTestId('sl-ticks').fill('400');
   await page.getByTestId('btn-buy').click();
+  await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText('MKT');
   await expect(page.getByTestId('risk-buy')).toContainText('entry order is already working');
   await page.getByTestId('btn-step').click();
@@ -116,6 +124,7 @@ test('enhanced risk preview retains upstream drawdown, speed and numeric order m
   await page.getByTestId('price').fill(String(price));
   await page.getByTestId('sl-ticks').fill('8');
   await page.getByTestId('btn-buy').click();
+  await showWorkingOrders(page);
   await expect(page.getByTestId('modify-1')).toBeVisible();
   await page.getByTestId('modify-1').click();
   await expect(page.getByTestId('modify-dialog')).toBeVisible();

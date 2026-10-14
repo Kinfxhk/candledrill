@@ -7,9 +7,18 @@ through `stepSession` / `processBar`. Fill model v3 is unchanged: next-bar open 
 orders, stop-first when a bar touches both stop and target, keep-open at the end of the data.
 
 This is educational. It does not connect to a broker, exchange, or alert webhook. It does
-not run Pine. The manual order ticket stays on the screen.
+not run Pine. The manual order ticket stays on the right-hand column.
 
-Hide the panel with `localStorage.setItem('candledrill.feature.macro', '0')` and bring it
+The builder is the bottom **Macro** tab: a four-step wizard (rules and conditions, entry
+and exit, how to run, result). Working orders are the bottom **Working orders** tab. The
+chart **Macro** button opens the wizard. **Run backtest** stays off until a name, quantity,
+an enabled rule, and a stop and target are set, and it lists what is still missing.
+
+A blind session cannot run or arm a macro. The new-session form says so while Blind
+practice is checked, including right after demo data is generated with that box still on.
+Opening a hidden blind session shows the same notice before you open the Macro tab.
+
+Hide the wizard with `localStorage.setItem('candledrill.feature.macro', '0')` and bring it
 back from the **Macro** button on the chart. The flag defaults to on.
 
 ## When a condition is checked

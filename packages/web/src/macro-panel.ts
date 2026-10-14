@@ -13,7 +13,7 @@ import {
   type TargetMode,
   type StopMode,
 } from '@candledrill/core';
-import { el, fmtMoney, fmtPct } from './format.js';
+import { el, fmtMoney, fmtPct, toast } from './format.js';
 import { t, type MessageKey } from './i18n.js';
 import {
   loadMacro,
@@ -124,6 +124,29 @@ function rid(): string {
   return `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
 }
 
+const STEPS = [
+  { id: 'rules', key: 'macro.stepRules' },
+  { id: 'trade', key: 'macro.stepTrade' },
+  { id: 'run', key: 'macro.stepRun' },
+  { id: 'result', key: 'macro.stepResult' },
+] as const;
+
+type MacroStep = 0 | 1 | 2 | 3;
+
+/** Reasons Run must stay blocked. A parsed macro can still fail these (blind, disabled rules). */
+export function macroRunBlockers(macro: MacroV1, blind: boolean): MessageKey[] {
+  const missing: MessageKey[] = [];
+  if (blind) missing.push('macro.blind');
+  if (macro.name.trim().length < 1) missing.push('macro.needName');
+  if (!Number.isInteger(macro.qty) || macro.qty < 1 || macro.qty > 10000)
+    missing.push('macro.needQty');
+  const ready = macro.rules.some((rule) => rule.enabled && rule.conditions.length > 0);
+  if (!ready) missing.push('macro.needRule');
+  if (!(macro.exit.stop.value > 0)) missing.push('macro.needStop');
+  if (!(macro.exit.target.value > 0)) missing.push('macro.needTarget');
+  return missing;
+}
+
 export class MacroPanel {
   readonly el: HTMLElement;
   private macro: MacroV1;
@@ -132,6 +155,14 @@ export class MacroPanel {
   private from: 'start' | 'cursor' = 'start';
   private result: MacroRunView | undefined;
   private error = '';
+  private step: MacroStep = 0;
+  private showMissing = false;
+  private blindShown: boolean | undefined;
+  private lang = '';
+  private nameDraft: string | null = null;
+  private qtyDraft: string | null = null;
+  private stopDraft: string | null = null;
+  private targetDraft: string | null = null;
 
   constructor(private readonly hooks: MacroPanelHooks) {
     this.macro = loadMacro();
@@ -140,7 +171,6 @@ export class MacroPanel {
       'data-testid': 'macro-panel',
       'aria-labelledby': 'h-macro',
     });
-    this.el.hidden = !macroFeatureEnabled();
     this.render();
   }
 
@@ -154,14 +184,23 @@ export class MacroPanel {
 
   enable(): void {
     setMacroFeatureEnabled(true);
-    this.el.hidden = false;
     this.render();
+  }
+
+  /** Move keyboard focus into the wizard after the chart Macro button opens this tab. */
+  focus(): void {
+    const target =
+      this.el.querySelector<HTMLElement>('[data-testid=macro-show]') ??
+      this.el.querySelector<HTMLElement>('[data-testid=macro-next]') ??
+      this.el.querySelector<HTMLElement>('h3');
+    target?.focus();
   }
 
   showResult(result: MacroRunView): void {
     this.result = result;
     this.error = '';
     this.running = false;
+    this.step = 3;
     this.render();
   }
 
@@ -172,30 +211,86 @@ export class MacroPanel {
       this.error = '';
     } catch (err) {
       this.error = (err as Error).message;
+      this.showMissing = true;
+      toast(this.error, 'error');
     }
     this.render();
   }
 
-  /** Re-render when blind state flips so Run/Arm follow the session. */
-  noteBlind(blind: boolean): void {
+  /** Re-render when blind state or language flips. Session ticks do not rebuild the wizard. */
+  sync(blind: boolean, lang: string): void {
     if (blind && this.armed) {
       this.armed = false;
       this.hooks.onArmed(false);
     }
-    const shown =
-      this.el.querySelector('[data-testid=macro-arm]')?.hasAttribute('disabled') ?? false;
-    if (shown !== blind) this.render();
+    const changed = this.blindShown !== blind || this.lang !== lang;
+    this.blindShown = blind;
+    this.lang = lang;
+    if (changed) this.render();
+  }
+
+  private blockers(): MessageKey[] {
+    const missing = macroRunBlockers(this.macro, this.hooks.blind());
+    const extra: MessageKey[] = [];
+    if (this.nameDraft !== null && !missing.includes('macro.needName'))
+      extra.push('macro.needName');
+    if (this.qtyDraft !== null && !missing.includes('macro.needQty')) extra.push('macro.needQty');
+    if (this.stopDraft !== null && !missing.includes('macro.needStop'))
+      extra.push('macro.needStop');
+    if (this.targetDraft !== null && !missing.includes('macro.needTarget'))
+      extra.push('macro.needTarget');
+    return [...missing, ...extra];
+  }
+
+  private stepReady(step: MacroStep): boolean {
+    const blocked = this.blockers();
+    switch (step) {
+      case 0:
+        return (
+          this.nameDraft === null &&
+          !blocked.includes('macro.needRule') &&
+          !blocked.includes('macro.needName')
+        );
+      case 1:
+        return (
+          this.nameDraft === null &&
+          this.qtyDraft === null &&
+          this.stopDraft === null &&
+          this.targetDraft === null &&
+          !blocked.includes('macro.needName') &&
+          !blocked.includes('macro.needQty') &&
+          !blocked.includes('macro.needStop') &&
+          !blocked.includes('macro.needTarget')
+        );
+      case 2:
+        return blocked.length === 0;
+      case 3:
+        return this.result !== undefined;
+      default: {
+        const leftover: never = step;
+        return leftover;
+      }
+    }
+  }
+
+  private setStep(step: MacroStep): void {
+    this.step = step;
+    this.render();
   }
 
   private render(): void {
-    const blind = this.hooks.blind();
-    const banner = el(
-      'p',
-      { class: 'macro-banner', 'data-testid': 'macro-banner' },
-      t('macro.badge'),
-    );
-    const notice = el('p', { class: 'muted small' }, t('macro.notice'));
-    const manual = el('p', { class: 'muted small' }, t('macro.manual'));
+    if (!macroFeatureEnabled()) {
+      this.renderHidden();
+      return;
+    }
+    if (this.hooks.blind()) {
+      this.renderUnavailable();
+      return;
+    }
+    this.renderWizard();
+  }
+
+  private header(): HTMLElement {
     const hide = el(
       'button',
       { type: 'button', class: 'small ghost', 'data-testid': 'macro-hide' },
@@ -205,23 +300,121 @@ export class MacroPanel {
       this.armed = false;
       this.hooks.onArmed(false);
       setMacroFeatureEnabled(false);
-      this.el.hidden = true;
+      this.render();
     });
+    return el('div', { class: 'macro-head' }, el('h3', { id: 'h-macro' }, t('macro.title')), hide);
+  }
+
+  private renderHidden(): void {
+    const show = el(
+      'button',
+      { type: 'button', class: 'primary', 'data-testid': 'macro-show' },
+      t('macro.open'),
+    );
+    show.addEventListener('click', () => this.enable());
     this.el.replaceChildren(
-      el('div', { class: 'macro-head' }, el('h3', { id: 'h-macro' }, t('macro.title')), hide),
-      banner,
-      notice,
-      manual,
-      this.field(
-        t('macro.name'),
-        this.textInput(this.macro.name, 'macro-name', (name) => {
-          this.persist({ ...this.macro, name });
-        }),
+      el('h3', { id: 'h-macro' }, t('macro.title')),
+      el('p', { class: 'muted small' }, t('macro.notice')),
+      show,
+    );
+  }
+
+  private renderUnavailable(): void {
+    this.el.replaceChildren(
+      this.header(),
+      el('p', { class: 'macro-banner', 'data-testid': 'macro-banner' }, t('macro.badge')),
+      el(
+        'div',
+        { class: 'notice', 'data-testid': 'macro-unavailable' },
+        el('p', {}, t('macro.blind')),
+        el('p', {}, t('macro.blindStart')),
       ),
-      this.field(
-        t('macro.qty'),
-        this.numInput(this.macro.qty, 'macro-qty', (qty) => this.persist({ ...this.macro, qty })),
-      ),
+    );
+  }
+
+  private renderWizard(): void {
+    const step = STEPS[this.step]!;
+    const body = el('div', { class: 'macro-step', 'data-testid': `macro-step-${step.id}` });
+    body.append(el('h4', {}, t(step.key)));
+    switch (this.step) {
+      case 0:
+        body.append(...this.stepRules());
+        break;
+      case 1:
+        body.append(...this.stepTrade());
+        break;
+      case 2:
+        body.append(el('p', { class: 'muted small' }, t('macro.manual')), this.renderRun());
+        break;
+      case 3:
+        body.append(this.renderResult());
+        break;
+      default: {
+        const leftover: never = this.step;
+        void leftover;
+      }
+    }
+    if (this.error) body.append(el('p', { class: 'down small' }, this.error));
+    body.append(this.stepNav());
+    this.el.replaceChildren(
+      this.header(),
+      el('p', { class: 'macro-banner', 'data-testid': 'macro-banner' }, t('macro.badge')),
+      el('p', { class: 'muted small' }, t('macro.notice')),
+      this.stepper(),
+      body,
+    );
+  }
+
+  private stepper(): HTMLElement {
+    const nav = el('div', { class: 'macro-steps', role: 'group', 'aria-label': t('macro.title') });
+    STEPS.forEach((step, index) => {
+      const current = index === this.step;
+      const button = el(
+        'button',
+        {
+          type: 'button',
+          'data-testid': `macro-goto-${step.id}`,
+          'aria-current': current ? 'step' : 'false',
+        },
+        `${index + 1}. ${t(step.key)}`,
+      );
+      if (this.stepReady(index as MacroStep)) button.classList.add('done');
+      button.addEventListener('click', () => this.setStep(index as MacroStep));
+      nav.append(button);
+    });
+    return nav;
+  }
+
+  private stepNav(): HTMLElement {
+    const row = el('div', { class: 'macro-wizard-nav' });
+    if (this.step > 0) {
+      const back = el('button', { type: 'button', 'data-testid': 'macro-back' }, t('macro.back'));
+      back.addEventListener('click', () => this.setStep((this.step - 1) as MacroStep));
+      row.append(back);
+    } else {
+      row.append(el('span', {}));
+    }
+    if (this.step < 3 && this.stepReady(this.step)) {
+      const next = el(
+        'button',
+        { type: 'button', class: 'primary macro-next', 'data-testid': 'macro-next' },
+        t('macro.next'),
+      );
+      next.addEventListener('click', () => this.setStep((this.step + 1) as MacroStep));
+      row.append(next);
+    }
+    return row;
+  }
+
+  private stepRules(): HTMLElement[] {
+    const name = el('input', {
+      type: 'text',
+      value: this.nameDraft ?? this.macro.name,
+      'data-testid': 'macro-name',
+    }) as HTMLInputElement;
+    name.addEventListener('change', () => this.commitName(name.value));
+    return [
+      this.field(t('macro.name'), name),
       el('h4', {}, t('macro.rules')),
       ...this.macro.rules.map((rule, index) => this.renderRule(rule, index)),
       this.button('macro-add-rule', t('macro.addRule'), () => {
@@ -241,6 +434,15 @@ export class MacroPanel {
         });
       }),
       this.renderPresets(),
+      this.exampleButton(),
+      ...this.stepHint(['macro.needRule', 'macro.needName']),
+    ];
+  }
+
+  private stepTrade(): HTMLElement[] {
+    return [
+      this.field(t('macro.qty'), this.qtyField()),
+      ...this.macro.rules.map((rule, index) => this.renderSide(rule, index)),
       el('h4', {}, t('macro.exits')),
       this.renderExits(),
       this.check(
@@ -262,8 +464,42 @@ export class MacroPanel {
           });
         },
       ),
-      this.renderRun(blind),
-      this.renderResult(),
+      ...this.stepHint(['macro.needName', 'macro.needQty', 'macro.needStop', 'macro.needTarget']),
+    ];
+  }
+
+  private stepHint(keys: readonly MessageKey[]): HTMLElement[] {
+    const hit = this.blockers().filter((key) => keys.includes(key));
+    if (hit.length === 0) return [];
+    return [this.missingList(hit)];
+  }
+
+  private missingList(keys: readonly MessageKey[]): HTMLElement {
+    const list = el('ul', { 'data-testid': 'macro-missing' });
+    for (const key of keys) list.append(el('li', {}, t(key)));
+    if (this.error) list.append(el('li', {}, this.error));
+    return el(
+      'div',
+      { class: 'macro-missing' },
+      el('p', { class: 'down small' }, t('macro.missingTitle')),
+      list,
+    );
+  }
+
+  private renderSide(rule: MacroRule, index: number): HTMLElement {
+    const side = this.select(
+      rule.side,
+      [
+        ['buy', t('pr.buy')],
+        ['sell', t('pr.sell')],
+      ],
+      (value) => this.replaceRule(index, { ...rule, side: value === 'sell' ? 'sell' : 'buy' }),
+    );
+    return el(
+      'div',
+      { class: 'macro-rule-head' },
+      el('span', {}, `${t('macro.priority')} ${rule.priority}`),
+      side,
     );
   }
 
@@ -277,14 +513,6 @@ export class MacroPanel {
     const priority = this.numInput(rule.priority, `macro-priority-${index}`, (n) => {
       this.replaceRule(index, { ...rule, priority: n });
     });
-    const side = this.select(
-      rule.side,
-      [
-        ['buy', t('pr.buy')],
-        ['sell', t('pr.sell')],
-      ],
-      (value) => this.replaceRule(index, { ...rule, side: value === 'sell' ? 'sell' : 'buy' }),
-    );
     const remove = el('button', { type: 'button', class: 'small ghost' }, t('ind.remove'));
     remove.addEventListener('click', () => {
       if (this.macro.rules.length < 2) return;
@@ -297,7 +525,6 @@ export class MacroPanel {
         enabled,
         el('span', {}, t('macro.priority')),
         priority,
-        side,
         remove,
       ),
     );
@@ -567,12 +794,19 @@ export class MacroPanel {
           exit: { ...this.macro.exit, stop: { ...this.macro.exit.stop, mode: stopMode } },
         });
       }),
-      this.numInput(this.macro.exit.stop.value, 'macro-stop', (value) => {
-        this.persist({
-          ...this.macro,
-          exit: { ...this.macro.exit, stop: { ...this.macro.exit.stop, value } },
-        });
-      }),
+      this.gatedNumber(this.stopDraft ?? String(this.macro.exit.stop.value), 'macro-stop', (raw) =>
+        this.commitGated(
+          raw,
+          'stop',
+          (value) => Number.isFinite(value) && value > 0,
+          (value) => {
+            this.persist({
+              ...this.macro,
+              exit: { ...this.macro.exit, stop: { ...this.macro.exit.stop, value } },
+            });
+          },
+        ),
+      ),
       el('span', {}, t('macro.target')),
       this.select(this.macro.exit.target.mode, targetModes, (mode) => {
         const targetMode: TargetMode =
@@ -582,16 +816,27 @@ export class MacroPanel {
           exit: { ...this.macro.exit, target: { ...this.macro.exit.target, mode: targetMode } },
         });
       }),
-      this.numInput(this.macro.exit.target.value, 'macro-target', (value) => {
-        this.persist({
-          ...this.macro,
-          exit: { ...this.macro.exit, target: { ...this.macro.exit.target, value } },
-        });
-      }),
+      this.gatedNumber(
+        this.targetDraft ?? String(this.macro.exit.target.value),
+        'macro-target',
+        (raw) =>
+          this.commitGated(
+            raw,
+            'target',
+            (value) => Number.isFinite(value) && value > 0,
+            (value) => {
+              this.persist({
+                ...this.macro,
+                exit: { ...this.macro.exit, target: { ...this.macro.exit.target, value } },
+              });
+            },
+          ),
+      ),
     );
   }
 
-  private renderRun(blind: boolean): HTMLElement {
+  private renderRun(): HTMLElement {
+    const blocked = this.blockers();
     const arm = el(
       'button',
       {
@@ -602,8 +847,12 @@ export class MacroPanel {
       },
       t(this.armed ? 'macro.disarm' : 'macro.arm'),
     );
-    arm.disabled = blind;
+    arm.disabled = blocked.length > 0;
     arm.addEventListener('click', () => {
+      if (this.blockers().length > 0) {
+        this.revealMissing();
+        return;
+      }
       this.armed = !this.armed;
       this.hooks.onArmed(this.armed);
       this.render();
@@ -624,39 +873,55 @@ export class MacroPanel {
       { type: 'button', class: 'primary', 'data-testid': 'macro-run' },
       t(this.running ? 'macro.running' : 'macro.run'),
     );
-    run.disabled = blind || this.running;
+    if (blocked.length > 0) run.setAttribute('aria-disabled', 'true');
+    run.classList.toggle('is-blocked', blocked.length > 0);
+    run.disabled = this.running;
     run.addEventListener('click', () => void this.onRun());
-    const reset = el(
-      'button',
-      { type: 'button', class: 'small ghost', 'data-testid': 'macro-example' },
-      t('macro.example'),
-    );
-    reset.addEventListener('click', () => this.persist(exampleOrbSmaMacro()));
-    const wrap = el('div', { class: 'macro-actions' }, arm, from, run, reset);
+    const wrap = el('div', { class: 'macro-actions' }, arm, from, run, this.exampleButton());
     if (this.armed) wrap.append(el('p', { class: 'muted small' }, t('macro.armedHint')));
-    if (blind) wrap.append(el('p', { class: 'muted small' }, t('macro.blind')));
-    if (this.error) wrap.append(el('p', { class: 'down small' }, this.error));
+    if (blocked.length > 0 || this.showMissing) wrap.append(this.missingList(blocked));
     return wrap;
   }
 
   private async onRun(): Promise<void> {
+    if (this.blockers().length > 0) {
+      this.revealMissing();
+      return;
+    }
     this.running = true;
     this.error = '';
+    this.showMissing = false;
     this.render();
     try {
       const result = await this.hooks.run(this.macro, this.from);
       this.result = result;
+      this.step = 3;
     } catch (err) {
       this.error = t('macro.failed', { reason: (err as Error).message });
+      this.showMissing = true;
     } finally {
       this.running = false;
       this.render();
     }
   }
 
+  private revealMissing(): void {
+    const keys = this.blockers();
+    this.showMissing = true;
+    this.step = 2;
+    toast(keys.map((key) => t(key)).join(' '), 'error');
+    this.render();
+  }
+
   private renderResult(): HTMLElement {
     const box = el('div', { class: 'macro-result', 'data-testid': 'macro-result' });
-    if (!this.result) return box;
+    if (!this.result) {
+      box.append(
+        el('h4', {}, t('macro.result')),
+        el('p', { class: 'muted small' }, t('macro.noResult')),
+      );
+      return box;
+    }
     const s = this.result.stats;
     box.append(
       el('h4', {}, t('macro.result')),
@@ -693,13 +958,87 @@ export class MacroPanel {
     return el('label', { class: 'field' }, el('span', {}, label), input);
   }
 
-  private textInput(value: string, testid: string, set: (v: string) => void): HTMLInputElement {
-    const input = el('input', { type: 'text', value, 'data-testid': testid }) as HTMLInputElement;
-    input.addEventListener('change', () => {
-      const next = input.value.trim();
-      if (next) set(next);
+  private exampleButton(): HTMLButtonElement {
+    const reset = el(
+      'button',
+      { type: 'button', class: 'small ghost', 'data-testid': 'macro-example' },
+      t('macro.example'),
+    );
+    reset.addEventListener('click', () => {
+      this.nameDraft = null;
+      this.qtyDraft = null;
+      this.stopDraft = null;
+      this.targetDraft = null;
+      this.showMissing = false;
+      this.persist(exampleOrbSmaMacro());
     });
+    return reset;
+  }
+
+  private commitName(raw: string): void {
+    const name = raw.trim();
+    if (name.length < 1 || name.length > 80) {
+      this.nameDraft = raw;
+      this.showMissing = true;
+      this.render();
+      return;
+    }
+    this.nameDraft = null;
+    this.persist({ ...this.macro, name });
+  }
+
+  private qtyField(): HTMLInputElement {
+    return this.gatedNumber(this.qtyDraft ?? String(this.macro.qty), 'macro-qty', (raw) =>
+      this.commitGated(
+        raw,
+        'qty',
+        (value) => Number.isInteger(value) && value >= 1 && value <= 10000,
+        (qty) => this.persist({ ...this.macro, qty }),
+      ),
+    );
+  }
+
+  private gatedNumber(value: string, testid: string, set: (raw: string) => void): HTMLInputElement {
+    const attrs: Record<string, string> = { type: 'number', step: 'any', value };
+    if (testid) attrs['data-testid'] = testid;
+    const input = el('input', attrs) as HTMLInputElement;
+    input.addEventListener('change', () => set(input.value));
     return input;
+  }
+
+  private commitGated(
+    raw: string,
+    draft: 'qty' | 'stop' | 'target',
+    ok: (n: number) => boolean,
+    apply: (n: number) => void,
+  ): void {
+    const n = Number(raw);
+    if (!ok(n)) {
+      this.setDraft(draft, raw);
+      this.showMissing = true;
+      this.render();
+      return;
+    }
+    this.setDraft(draft, null);
+    apply(n);
+  }
+
+  private setDraft(draft: 'qty' | 'stop' | 'target', value: string | null): void {
+    switch (draft) {
+      case 'qty':
+        this.qtyDraft = value;
+        break;
+      case 'stop':
+        this.stopDraft = value;
+        break;
+      case 'target':
+        this.targetDraft = value;
+        break;
+      default: {
+        const leftover: never = draft;
+        void leftover;
+      }
+    }
   }
 
   private numInput(value: number, testid: string, set: (v: number) => void): HTMLInputElement {

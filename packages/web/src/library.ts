@@ -61,7 +61,8 @@ export class LibraryView {
     const seed = (Math.floor(Math.random() * 0xffffffff) >>> 0) % 4294967295;
     const start = new Date(Date.UTC(2026, 0, 5)).toISOString().slice(0, 10);
     const { dataset } = await api.createSynthetic(seed, start, 28);
-    toast(`${dataset.symbol}: ${dataset.barCount} ${t('lib.bars')}`);
+    const bars = `${dataset.symbol}: ${dataset.barCount} ${t('lib.bars')}`;
+    toast(this.getBlindPref() ? `${bars} ${t('macro.blindStart')}` : bars);
     await this.reload(dataset.id);
   }
 
@@ -184,6 +185,8 @@ export class LibraryView {
     const start = this.form.elements.namedItem('start') as HTMLInputElement;
     start.disabled = blind;
     start.required = !blind;
+    const warn = document.getElementById('macro-blind-warn');
+    if (warn) warn.hidden = !blind;
   }
 
   get selectedDataset(): DatasetRow | undefined {
