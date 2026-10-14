@@ -6,6 +6,11 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Risk preview.** Editing the ticket no longer collapses an expanded risk preview before its
+  toggle event lands, so the cost breakdown stays available.
+
 ### Changed
 
 - **Practice layout.** The right column is practice rules, the order ticket, and the position.
