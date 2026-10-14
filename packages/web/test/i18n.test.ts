@@ -32,6 +32,7 @@ describe('i18n', () => {
       'src/importer.ts',
       'src/drawing-palette.ts',
       'src/indicator-panel.ts',
+      'src/macro-panel.ts',
       'src/chart.ts',
       'src/summary.ts',
     ];

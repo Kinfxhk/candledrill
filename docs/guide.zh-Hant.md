@@ -142,11 +142,15 @@ README 講明它只防一眼認出，並非加密保證。用途是避免你記�
 - 介面供桌面瀏覽器使用。README 寫明不保證約 390px 的手機寬度。
 - CHANGELOG 仍計劃、這版未做：盤中規則檢查、圖上拖曳改未成交訂單、數字改單視窗（止蝕、止賺、價格）。
 
+## v0.3.0：指標目錄與模擬宏
+
+2026-10-14 起，指標面板可以搜尋，SMA／EMA 可以加多條。另外有「宏（模擬）」：把 ORB、均線等條件疊起來，固定止蝕止賺，然後跑回測或武裝跟隨播放。單子走原本的模擬成交，不會連接券商。手動落單票仍在。說明見 [MACRO.md](MACRO.md)。盲練未揭曉時，回測與跟隨不會執行。
+
 ## 參考
 
 1. [CandleDrill 原始碼](https://github.com/Kinfxhk/candledrill)
 2. [README](../README.md)（安裝、免費承諾、盲練說明）
-3. [CHANGELOG](../CHANGELOG.md)（v0.2.0、v0.2.1 與仍在計劃的項目）
+3. [CHANGELOG](../CHANGELOG.md)（v0.2.0 之後的變更，含 v0.3.0 指標目錄與模擬宏）
 4. [docs/FILL-MODEL.md](FILL-MODEL.md)（成交與規則檢查模型，英文）
 5. 原文及截圖：<https://propfirmsdrama.com/2026/10/08/candledrill-guide/>
 
