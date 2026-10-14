@@ -5,7 +5,7 @@
 Load bars → step through them without seeing the future → place simulated orders → review results.  
 No account, no subscription, no telemetry. **Not investment advice.**
 
-> **v0.2.12** · Local practice only. Report bugs in [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v0.3.0** · Local practice only. Report bugs in [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 
@@ -72,11 +72,15 @@ Split view with linked crosshair and scroll. Change each pane’s timeframe (1m 
 
 ### Indicators
 
-SMA / EMA (several periods), Bollinger, VWAP, RSI, MACD, ATR — computed only on bars already revealed.
+Searchable catalog: SMA / EMA (any periods), Bollinger, session VWAP, opening range (ORB), Donchian, RSI, MACD, ATR, Stochastic, ADX — computed only on bars already revealed. Settings stay in this browser (`candledrill.indicators.v2`).
 
 ![Indicators panel with SMA 9/20/50 and RSI enabled](docs/shot-indicators.png)
 
 <sub>**Indicators** — overlays and lower panes; settings stay on this computer only.</sub>
+
+### Simulated macro
+
+Stack bar-close conditions (ORB, moving average, RSI, and others), set a fixed stop and target, then **Run backtest** or **Arm watch**. Orders use the same fill model as the ticket. This is a local simulation: no broker, no live orders. The manual ticket stays available. Details: [docs/MACRO.md](docs/MACRO.md).
 
 ### Orders & review
 

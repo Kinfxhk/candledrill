@@ -8,12 +8,14 @@ import {
   BarAggregator,
   aggregateBars,
   bucketStart,
+  macroSignal,
   roundToTick,
   tickDecimals,
   workingOrders,
   type Bar,
   type OrderChange,
   type OrderRequest,
+  type SessionSettings as EngineSettings,
   type Trade,
 } from '@candledrill/core';
 import { sessionsApi, type SessionMeta, type SessionStateDto, type SessionViewDto } from './api.js';
@@ -28,6 +30,7 @@ import { IndicatorPanel } from './indicator-panel.js';
 import { loadIndicatorConfig, type PaneIndicatorConfig } from './indicator-prefs.js';
 import { DrawingPalette } from './drawing-palette.js';
 import type { PaletteTool } from './drawing-palette.js';
+import { MacroPanel } from './macro-panel.js';
 import { SidePanel } from './side.js';
 import { CompletionSummary } from './summary.js';
 import {
@@ -85,6 +88,8 @@ export class PracticeView {
   private pendingPoint: { time: number; price: number } | null = null;
   private indicatorConfig: PaneIndicatorConfig = loadIndicatorConfig();
   private indicatorPanels: IndicatorPanel[] = [];
+  private macroPanel: MacroPanel | undefined;
+  private macroArmed = false;
   private palettes: DrawingPalette[] = [];
   /** Extra bottom tabs registered by later features (statistics, export). */
   static extraTabs: BottomTab[] = [];
@@ -147,6 +152,8 @@ export class PracticeView {
     for (const p of this.panes) p.chart.destroy();
     this.indicatorPanels.forEach((p) => p.close());
     this.indicatorPanels = [];
+    this.macroArmed = false;
+    this.macroPanel = undefined;
     this.palettes.forEach((p) => p.destroy());
     this.palettes = [];
     this.panes = [];
@@ -307,6 +314,17 @@ export class PracticeView {
       modify: (oid, change) => this.mutate(() => sessionsApi.modifyOrder(m.id, oid, change)),
       flatten: () => this.mutate(() => sessionsApi.flatten(m.id)),
     });
+    this.macroPanel = new MacroPanel({
+      blind: () => this.blindHidden,
+      onArmed: (armed) => {
+        this.macroArmed = armed;
+      },
+      run: (macro, from) => {
+        if (!this.meta) throw new Error('no session');
+        return sessionsApi.macroRun(this.meta.id, { macro, mode: 'to_end', from });
+      },
+    });
+    this.side.extra.prepend(this.macroPanel.el);
     const generation = this.generation;
     this.bottom = new BottomPanel(
       bottom,
@@ -463,11 +481,27 @@ export class PracticeView {
       { type: 'button', class: 'small ghost', 'data-i18n': 'pr.indicators' },
       t('pr.indicators'),
     );
+    const macroBtn = el(
+      'button',
+      {
+        type: 'button',
+        class: 'small ghost',
+        'data-i18n': 'macro.open',
+        'data-testid': 'macro-open',
+      },
+      t('macro.open'),
+    );
+    macroBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.macroPanel?.enable();
+      this.macroPanel?.el.scrollIntoView({ block: 'nearest' });
+    });
     const head = el(
       'div',
       { class: 'chart-head' },
       select,
       el('span', { class: 'spacer' }),
+      macroBtn,
       indBtn,
     );
     const body = el('div', { class: 'chart-body' });
@@ -686,6 +720,44 @@ export class PracticeView {
     }
   }
 
+  private engineSettings(): EngineSettings {
+    const s = this.meta!.settings;
+    return {
+      symbol: s.symbol,
+      tickSize: s.tickSize,
+      pointValue: s.pointValue,
+      commissionPerContract: s.commissionPerContract,
+      slippageTicks: s.slippageTicks,
+      startingBalance: s.startingBalance,
+      dailyLossLimit: s.dailyLossLimit,
+      trailingDrawdown: s.trailingDrawdown,
+      profitTarget: s.profitTarget,
+      utcOffsetMinutes: s.utcOffsetMinutes,
+      dayStartMinutes: s.dayStartMinutes,
+    };
+  }
+
+  /** After a revealed bar closes, an armed macro may send one simulated market order. */
+  private async watchMacro(): Promise<void> {
+    if (!this.macroArmed || !this.meta || !this.state || this.blindHidden || !this.macroPanel)
+      return;
+    const macro = this.macroPanel.current();
+    // The browser holds a prefix (or the last 50k bars). Evaluate the last bar it has.
+    const cursor = this.bars.length - 1;
+    const local = cursor === this.state.cursor ? this.state : { ...this.state, cursor };
+    const signal = macroSignal(this.bars, this.engineSettings(), local, macro);
+    if (!signal) return;
+    await this.mutate(() =>
+      sessionsApi.placeOrder(this.meta!.id, {
+        side: signal.side,
+        type: 'market',
+        qty: macro.qty,
+        stopLoss: signal.stopLoss,
+        takeProfit: signal.takeProfit,
+      }),
+    );
+  }
+
   async placeOrder(req: OrderRequest): Promise<void> {
     if (this.meta) await this.mutate(() => sessionsApi.placeOrder(this.meta!.id, req));
   }
@@ -731,6 +803,7 @@ export class PracticeView {
       if (generation !== this.generation) return;
       this.appendBars(r.revealed);
       this.applyView(r);
+      if (this.macroArmed && r.revealed.length > 0) await this.watchMacro();
       if (r.state.status === 'finished') this.pause();
     } catch (err) {
       if (generation !== this.generation) return;
@@ -778,8 +851,10 @@ export class PracticeView {
       this.carry += (this.speed * TICK_MS) / 1000;
       const n = Math.floor(this.carry);
       if (n < 1 || this.inFlight) return;
-      this.carry -= n;
-      void this.step(Math.min(n, 5000));
+      // Armed watch checks every closed bar, so play advances one bar per tick.
+      const count = this.macroArmed ? 1 : Math.min(n, 5000);
+      this.carry -= this.macroArmed ? 1 : n;
+      void this.step(count);
     }, TICK_MS);
     this.renderPlay();
   }
@@ -881,6 +956,7 @@ export class PracticeView {
     this.renderDrawings();
     this.decorate();
     this.side?.render(this.meta.settings, this.state);
+    this.macroPanel?.noteBlind(this.blindHidden);
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);
     this.onChanged();
   }

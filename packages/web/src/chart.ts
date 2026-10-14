@@ -26,8 +26,24 @@ import {
 import { roundToTick, tickDecimals, type Bar } from '@candledrill/core';
 import type { AggregateOptions } from '@candledrill/core';
 import { weekdayName } from './labels.js';
-import { atr, bollinger, ema, macd, rsi, sma, vwap } from './indicators.js';
-import type { PaneIndicatorConfig, IndicatorSetting } from './indicator-prefs.js';
+import {
+  adx,
+  atr,
+  bollinger,
+  donchian,
+  ema,
+  macd,
+  orbLevels,
+  rsi,
+  sma,
+  stochastic,
+  vwap,
+} from './indicators.js';
+import {
+  isOverlayKind,
+  type IndicatorSetting,
+  type PaneIndicatorConfig,
+} from './indicator-prefs.js';
 import { t } from './i18n.js';
 
 /** A bounded window within loaded, revealed bars; both trade endpoints must exist. */
@@ -1229,6 +1245,20 @@ export class PriceChart {
     };
   }
 
+  private overlayKeys(s: IndicatorSetting): string[] {
+    if (s.kind === 'bollinger') return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
+    if (s.kind === 'orb') return [`${s.id}:h`, `${s.id}:l`];
+    if (s.kind === 'donchian') return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
+    return [s.id];
+  }
+
+  private paneKeys(s: IndicatorSetting): string[] {
+    if (s.kind === 'macd') return [`${s.id}:macd`, `${s.id}:signal`, `${s.id}:hist`];
+    if (s.kind === 'stochastic') return [`${s.id}:k`, `${s.id}:d`];
+    if (s.kind === 'adx') return [`${s.id}:adx`, `${s.id}:pdi`, `${s.id}:mdi`];
+    return [s.id];
+  }
+
   private renderIndicators(): void {
     if (!this.indicatorConfig || !this.indicatorAgg) return;
     const bars = this.indicatorBars;
@@ -1239,17 +1269,8 @@ export class PriceChart {
 
     const overlayWanted = new Set<string>();
     for (const s of this.indicatorConfig.overlays) {
-      if (!s.visible) continue;
-      if (s.kind === 'volume') continue;
-      if (s.kind === 'bollinger') {
-        overlayWanted.add('ov-bollinger-upper');
-        overlayWanted.add('ov-bollinger-middle');
-        overlayWanted.add('ov-bollinger-lower');
-      } else if (s.kind === 'sma' || s.kind === 'ema') {
-        overlayWanted.add(`ov-${s.kind}-${s.period ?? 0}`);
-      } else {
-        overlayWanted.add(`ov-${s.kind}`);
-      }
+      if (!s.visible || s.kind === 'volume') continue;
+      for (const key of this.overlayKeys(s)) overlayWanted.add(key);
     }
     for (const [key, series] of [...this.overlaySeries]) {
       if (!overlayWanted.has(key)) {
@@ -1259,47 +1280,58 @@ export class PriceChart {
     }
 
     for (const s of this.indicatorConfig.overlays) {
-      if (!s.visible) continue;
-      if (s.kind === 'volume') continue;
-      if (s.kind === 'sma' && s.period) {
-        const key = `ov-sma-${s.period}`;
-        this.ensureOverlayLine(key, s).setData(
-          this.indicatorLineData(sma(bars, s.period, s.source), bars),
-        );
-      } else if (s.kind === 'ema' && s.period) {
-        const key = `ov-ema-${s.period}`;
-        this.ensureOverlayLine(key, s).setData(
-          this.indicatorLineData(ema(bars, s.period, s.source), bars),
-        );
-      } else if (s.kind === 'bollinger' && s.period && s.stdDev) {
-        const r = bollinger(bars, s.period, s.stdDev, s.source);
-        this.ensureOverlayLine('ov-bollinger-upper', s).setData(
-          this.indicatorLineData(r.upper, bars),
-        );
-        this.ensureOverlayLine('ov-bollinger-middle', s).setData(
-          this.indicatorLineData(r.middle, bars),
-        );
-        this.ensureOverlayLine('ov-bollinger-lower', s).setData(
-          this.indicatorLineData(r.lower, bars),
-        );
-      } else if (s.kind === 'vwap') {
-        const r = vwap(bars, this.indicatorAgg);
-        this.ensureOverlayLine('ov-vwap', s).setData(
-          r.map((p) => ({ time: this.ts(p.time), value: p.value })),
-        );
+      if (!s.visible || s.kind === 'volume' || !isOverlayKind(s.kind)) continue;
+      const source = s.source ?? 'close';
+      switch (s.kind) {
+        case 'sma':
+          this.ensureOverlayLine(s.id, s).setData(
+            this.indicatorLineData(sma(bars, s.period ?? 20, source), bars),
+          );
+          break;
+        case 'ema':
+          this.ensureOverlayLine(s.id, s).setData(
+            this.indicatorLineData(ema(bars, s.period ?? 21, source), bars),
+          );
+          break;
+        case 'bollinger': {
+          const r = bollinger(bars, s.period ?? 20, s.stdDev ?? 2, source);
+          this.ensureOverlayLine(`${s.id}:u`, s).setData(this.indicatorLineData(r.upper, bars));
+          this.ensureOverlayLine(`${s.id}:m`, s).setData(this.indicatorLineData(r.middle, bars));
+          this.ensureOverlayLine(`${s.id}:l`, s).setData(this.indicatorLineData(r.lower, bars));
+          break;
+        }
+        case 'vwap': {
+          const r = vwap(bars, this.indicatorAgg);
+          this.ensureOverlayLine(s.id, s).setData(
+            r.map((p) => ({ time: this.ts(p.time), value: p.value })),
+          );
+          break;
+        }
+        case 'orb': {
+          const r = orbLevels(bars, s.minutes ?? 30, this.indicatorAgg);
+          this.ensureOverlayLine(`${s.id}:h`, s).setData(this.indicatorLineData(r.high, bars));
+          this.ensureOverlayLine(`${s.id}:l`, s).setData(this.indicatorLineData(r.low, bars));
+          break;
+        }
+        case 'donchian': {
+          const r = donchian(bars, s.period ?? 20);
+          this.ensureOverlayLine(`${s.id}:u`, s).setData(this.indicatorLineData(r.upper, bars));
+          this.ensureOverlayLine(`${s.id}:m`, s).setData(this.indicatorLineData(r.middle, bars));
+          this.ensureOverlayLine(`${s.id}:l`, s).setData(this.indicatorLineData(r.lower, bars));
+          break;
+        }
+        default: {
+          const leftover: never = s.kind;
+          void leftover;
+          break;
+        }
       }
     }
 
     const paneWanted = new Set<string>();
     for (const s of this.indicatorConfig.panes) {
       if (!s.visible) continue;
-      if (s.kind === 'macd') {
-        paneWanted.add('pi-macd');
-        paneWanted.add('pi-signal');
-        paneWanted.add('pi-histogram');
-      } else {
-        paneWanted.add(`pi-${s.kind}`);
-      }
+      for (const key of this.paneKeys(s)) paneWanted.add(key);
     }
     const hasPane = paneWanted.size > 0;
     if (!hasPane && this.indicatorPane) {
@@ -1318,20 +1350,48 @@ export class PriceChart {
     }
 
     for (const s of this.indicatorConfig.panes) {
-      if (!s.visible) continue;
-      if (s.kind === 'rsi' && s.period) {
-        const data = this.indicatorLineData(rsi(bars, s.period, s.source), bars);
-        this.ensurePaneLine('pi-rsi', s, 1).setData(data);
-      } else if (s.kind === 'atr' && s.period) {
-        const data = this.indicatorLineData(atr(bars, s.period), bars);
-        this.ensurePaneLine('pi-atr', s, 1).setData(data);
-      } else if (s.kind === 'macd' && s.fast && s.slow && s.signal) {
-        const r = macd(bars, s.fast, s.slow, s.signal, s.source);
-        this.ensurePaneLine('pi-macd', s, 1).setData(this.indicatorLineData(r.macd, bars));
-        this.ensurePaneLine('pi-signal', s, 1).setData(this.indicatorLineData(r.signal, bars));
-        this.ensurePaneHistogram('pi-histogram', s, 1).setData(
-          this.indicatorLineData(r.histogram, bars),
-        );
+      if (!s.visible || isOverlayKind(s.kind)) continue;
+      const source = s.source ?? 'close';
+      switch (s.kind) {
+        case 'rsi':
+          this.ensurePaneLine(s.id, s, 1).setData(
+            this.indicatorLineData(rsi(bars, s.period ?? 14, source), bars),
+          );
+          break;
+        case 'atr':
+          this.ensurePaneLine(s.id, s, 1).setData(
+            this.indicatorLineData(atr(bars, s.period ?? 14), bars),
+          );
+          break;
+        case 'macd': {
+          const r = macd(bars, s.fast ?? 12, s.slow ?? 26, s.signal ?? 9, source);
+          this.ensurePaneLine(`${s.id}:macd`, s, 1).setData(this.indicatorLineData(r.macd, bars));
+          this.ensurePaneLine(`${s.id}:signal`, s, 1).setData(
+            this.indicatorLineData(r.signal, bars),
+          );
+          this.ensurePaneHistogram(`${s.id}:hist`, s, 1).setData(
+            this.indicatorLineData(r.histogram, bars),
+          );
+          break;
+        }
+        case 'stochastic': {
+          const r = stochastic(bars, s.period ?? 14, s.signal ?? 3, s.fast ?? 3);
+          this.ensurePaneLine(`${s.id}:k`, s, 1).setData(this.indicatorLineData(r.k, bars));
+          this.ensurePaneLine(`${s.id}:d`, s, 1).setData(this.indicatorLineData(r.d, bars));
+          break;
+        }
+        case 'adx': {
+          const r = adx(bars, s.period ?? 14);
+          this.ensurePaneLine(`${s.id}:adx`, s, 1).setData(this.indicatorLineData(r.adx, bars));
+          this.ensurePaneLine(`${s.id}:pdi`, s, 1).setData(this.indicatorLineData(r.plusDi, bars));
+          this.ensurePaneLine(`${s.id}:mdi`, s, 1).setData(this.indicatorLineData(r.minusDi, bars));
+          break;
+        }
+        default: {
+          const leftover: never = s.kind;
+          void leftover;
+          break;
+        }
       }
     }
   }

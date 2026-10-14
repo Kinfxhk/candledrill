@@ -39,6 +39,8 @@ import {
   SIMULATION_POLICY,
   CANDLEDRILL_RISK_NOTICE_EN,
   stepSession,
+  parseMacro,
+  runMacro,
   validateSettings,
   visibleBars,
   type Bar,
@@ -397,6 +399,75 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
       const r = stepSession(bars, row.settings, row.state, req.body?.count ?? 1);
       save(row, r.state);
       return { ...sessionView(row, bars, r.state), revealed: r.revealed };
+    },
+  );
+
+  app.post<{
+    Params: { id: number };
+    Body: {
+      macro: unknown;
+      mode?: 'to_end' | 'n_bars';
+      count?: number;
+      from?: 'start' | 'cursor';
+    };
+  }>(
+    '/api/sessions/:id/macro-run',
+    {
+      schema: {
+        params: idParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['macro'],
+          properties: {
+            macro: { type: 'object' },
+            mode: { type: 'string', enum: ['to_end', 'n_bars'] },
+            count: { type: 'integer', minimum: 1, maximum: 500_000 },
+            from: { type: 'string', enum: ['start', 'cursor'] },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const loaded = load(req.params.id, reply);
+      if (!loaded) return reply;
+      const { row, bars } = loaded;
+      // A research copy may read the whole dataset. Refuse that while blind practice is hidden.
+      if (isBlindHidden(row.settings, row.state)) {
+        return reply.code(423).send({
+          error: 'blind session is hidden; macro backtest stays off until you reveal',
+        });
+      }
+      let macro;
+      try {
+        macro = parseMacro(req.body.macro);
+      } catch (err) {
+        return reply
+          .code(400)
+          .send({ error: err instanceof Error ? err.message : 'invalid macro' });
+      }
+      const mode = req.body.mode ?? 'to_end';
+      const from = req.body.from ?? 'start';
+      try {
+        const result = runMacro(bars, engineSettings(row.settings), row.state, macro, {
+          mode,
+          from,
+          ...(req.body.count !== undefined ? { count: req.body.count } : {}),
+        });
+        // Stats only: trade timestamps would show where future fills happened.
+        const { trades: _trades, ...rest } = result;
+        void _trades;
+        return {
+          ...rest,
+          notice: CANDLEDRILL_RISK_NOTICE_EN,
+          researchCopy: true,
+        };
+      } catch (err) {
+        if (err instanceof OrderError) return reply.code(400).send({ error: err.message });
+        return reply
+          .code(400)
+          .send({ error: err instanceof Error ? err.message : 'macro run failed' });
+      }
     },
   );
 

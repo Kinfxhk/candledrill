@@ -7,6 +7,8 @@ import type {
   CsvImportReport,
   Excursion,
   GroupRow,
+  MacroRunResult,
+  MacroV1,
   OrderChange,
   OrderRequest,
   SessionState,
@@ -224,6 +226,15 @@ export const sessionsApi = {
   modifyOrder: (id: number, orderId: number, change: OrderChange) =>
     request<SessionViewDto>('PATCH', `/api/sessions/${id}/orders/${orderId}`, change),
   flatten: (id: number) => request<SessionViewDto>('POST', `/api/sessions/${id}/flatten`, {}),
+  macroRun: (
+    id: number,
+    body: { macro: MacroV1; mode: 'to_end' | 'n_bars'; count?: number; from: 'start' | 'cursor' },
+  ) =>
+    request<Omit<MacroRunResult, 'trades'> & { notice: string; researchCopy: true }>(
+      'POST',
+      `/api/sessions/${id}/macro-run`,
+      body,
+    ),
   saveDrawings: (id: number, drawings: unknown[]) =>
     request<{ drawings: unknown[] }>('PUT', `/api/sessions/${id}/drawings`, { drawings }),
 };

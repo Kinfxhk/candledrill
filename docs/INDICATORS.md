@@ -1,48 +1,68 @@
 # CandleDrill built-in indicators
 
-CandleDrill includes a small set of common technical indicators for visual reference
-while practising. They are computed in the browser from the **revealed bars only** —
-no future data is ever used. Indicators are optional, configurable and stored as a
-local UI preference; they are not part of the session state.
+CandleDrill includes common technical indicators for visual reference while practising.
+They are computed from the **bars already in hand** — the chart uses revealed bars only,
+and a macro condition uses the same functions on the bar prefix up to the cursor.
+No formula reads a later bar to draw an earlier point.
+
+Indicator choices are a local UI preference (`candledrill.indicators.v2` in
+`localStorage`). They are not part of the session file. An older fixed-slot list under
+`candledrill.indicators` is merged onto the previous defaults the first time it is loaded.
+
+## Catalog
+
+Each chart pane has an **Indicators** button. The panel has:
+
+- a typeahead search (name and aliases such as `sma`, `orb`, `stoch`)
+- category chips: Trend, Volatility, Momentum, Volume, Session
+- an active list: show or hide, edit parameters, remove
+- **Add**, which creates another instance
+
+SMA and EMA are not limited to three slots. Adding “SMA 200” creates another line.
+At most **12** non-volume overlays are visible at once; further ones are added hidden.
 
 ## Available indicators
 
-### Overlay indicators (on the price chart)
+### Overlay (on the price chart)
 
-| Indicator       | Default | Formula                                                                                   |
-| --------------- | ------- | ----------------------------------------------------------------------------------------- |
-| SMA             | 20      | Simple moving average of the selected source                                              |
-| EMA             | 21      | Exponential moving average, alpha = 2/(period+1)                                          |
-| Bollinger Bands | 20, 2   | Middle = SMA(20); upper/lower = middle ± 2 × sample standard deviation                    |
-| Session VWAP    | –       | Cumulative Σ(typical × volume) / cumulative Σ(volume), reset at each exchange trading day |
+| Indicator       | Default                            | Formula                                                                                                                                                                                                 |
+| --------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Volume          | on                                 | Histogram of bar volume                                                                                                                                                                                 |
+| SMA             | 20 (slots 9 / 20 / 50 ship hidden) | Simple moving average of the selected source                                                                                                                                                            |
+| EMA             | 21 (slots 9 / 21 / 50 ship hidden) | Exponential moving average, alpha = 2/(period+1), seeded with the SMA                                                                                                                                   |
+| Bollinger Bands | 20, 2                              | Middle = SMA; upper/lower = middle ± stdDev × sample standard deviation                                                                                                                                 |
+| Session VWAP    | –                                  | Cumulative Σ(typical × volume) / Σ(volume), reset each exchange trading day                                                                                                                             |
+| ORB             | 30 minutes                         | High and low of bars whose exchange-session minute is inside the window. The level updates while the window is open, then stays frozen for the rest of that trading day. A later bar does not widen it. |
+| Donchian        | 20                                 | Upper = highest high of the last `period` bars (including the current bar); lower = lowest low; middle = midpoint                                                                                       |
 
-### Pane indicators (below the price chart)
+### Pane (below the price chart)
 
-| Indicator | Default | Formula                                                                      |
-| --------- | ------- | ---------------------------------------------------------------------------- |
-| RSI       | 14      | Wilder's RSI: smoothed average gain / average loss                           |
-| MACD      | 12/26/9 | MACD = EMA(12) − EMA(26); signal = EMA(9) of MACD; histogram = MACD − signal |
-| ATR       | 14      | Wilder's average true range                                                  |
-
-## Customisation
-
-Each chart pane has an **Indicators** button in its header. You can toggle visibility,
-change the period, choose the source price (open/high/low/close/hlc3) and pick a colour.
-Settings are saved to `localStorage` and apply to every chart pane.
+| Indicator  | Default  | Formula                                                                                                                                           |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RSI        | 14       | Wilder's RSI                                                                                                                                      |
+| MACD       | 12/26/9  | MACD = EMA(fast) − EMA(slow); signal = EMA of MACD; histogram = difference                                                                        |
+| ATR        | 14       | Wilder's average true range                                                                                                                       |
+| Stochastic | 14, 3, 3 | %K from the close inside the high-low range, smoothed, then %D = SMA of %K. A zero range is 50.                                                   |
+| ADX        | 14       | Wilder +DI / −DI / ADX. The seed is the sum of the first `period` DM and TR values; the first ADX is the average of the first `period` DX values. |
 
 ## Honesty note
 
-Indicators are calculated from already-revealed bars only. Because the app deliberately
-hides future bars during practice, an indicator line will lag or change shape as new bars
-appear, exactly as it would in real time. No indicator knows tomorrow's close. These are
-educational overlays, not trade recommendations.
+An indicator line changes as new bars are revealed, the same way it would in real time.
+These are educational overlays, not trade recommendations.
+
+Opening-range levels need a trading-day boundary (`day start` on the session, plus the UTC
+offset). The built-in `SYNTH-` series is a short continuous sample and may not show a clean
+session open. For a Globex-shaped practice file, import
+[`PRACTICE-NQ-GLOBEX`](https://github.com/Kinfxhk/candledrill-synth-samples)
+as described in the README. That file is not shipped in this repository.
 
 ## Out of scope
 
-The following are intentionally not included in this release:
-
-- Supertrend
-- Ichimoku
-- Order-flow / volume-profile indicators
+- Supertrend, Ichimoku
+- ZigZag (it repaints)
+- Order-flow, footprint, volume profile
 - Pine Script import
-- Alerting or automated strategy execution
+- Live or broker order routing
+
+Simulated condition lists and backtests are documented in [MACRO.md](MACRO.md). They are
+not alerts and they do not place live orders.
