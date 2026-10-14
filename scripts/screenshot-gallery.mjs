@@ -156,5 +156,42 @@ async function step(page, n = 1) {
   console.info('wrote docs/shot-indicators.png');
 }
 
+// 6) Semi-auto wizard: step 3 ready line, then step 4 result card (繁體中文 labels).
+{
+  const page = await freshPage();
+  await page.locator('#lang-picker').selectOption('zh-Hant');
+  await startSession(page, { blind: false, name: 'Semi-auto' });
+  await step(page, 2);
+  await page
+    .locator('.toast')
+    .waitFor({ state: 'hidden', timeout: 6000 })
+    .catch(() => undefined);
+  await page.getByTestId('macro-open').first().click();
+  await page.getByTestId('macro-goto-run').click();
+  await page
+    .locator('.toolbar')
+    .getByText(/SYNTH-/)
+    .waitFor({ timeout: 5000 });
+  const ready = page.locator('[data-testid=macro-ready].ok');
+  await ready.waitFor({ timeout: 8000 });
+  await page.getByTestId('macro-from-start').waitFor({ state: 'visible' });
+  await page.getByTestId('macro-from-cursor').waitFor({ state: 'visible' });
+  await page.getByTestId('macro-run').waitFor({ state: 'visible' });
+  await page.getByTestId('macro-arm').waitFor({ state: 'visible' });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: 'docs/shot-semi-run.png' });
+  console.info('wrote docs/shot-semi-run.png');
+  await page.getByTestId('macro-run').click();
+  await page.getByTestId('macro-result').waitFor({ timeout: 30000 });
+  await page
+    .locator('.toast')
+    .waitFor({ state: 'hidden', timeout: 6000 })
+    .catch(() => undefined);
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: 'docs/shot-semi-result.png' });
+  await page.close();
+  console.info('wrote docs/shot-semi-result.png');
+}
+
 await browser.close();
 console.info('gallery done');

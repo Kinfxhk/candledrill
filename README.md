@@ -5,7 +5,7 @@
 Load bars → step through them without seeing the future → place simulated orders → review results.  
 No account, no subscription, no telemetry. **Not investment advice.**
 
-> **v0.3.0** · Local practice only. Report bugs in [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v0.3.2** · Local practice only. Report bugs in [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 
@@ -78,9 +78,26 @@ Searchable catalog: SMA / EMA (any periods), Bollinger, session VWAP, opening ra
 
 <sub>**Indicators** — overlays and lower panes; settings stay on this computer only.</sub>
 
-### Simulated macro
+### Semi-auto (半自動交易)
 
-Stack bar-close conditions (ORB, moving average, RSI, and others), set a fixed stop and target, then **Backtest** or **Follow while playing**. Orders use the same fill model as the ticket. This is a local simulation: no broker, no live orders. The manual ticket stays on the right. Semi-auto is a four-step wizard on the bottom tab (the chart **Semi-auto** chip opens it). It needs a non-blind session. Details: [docs/MACRO.md](docs/MACRO.md).
+Open the chart chip **Semi-auto** / **半自動**, or the bottom tab **半自動交易**. It needs a **non-blind** session. Four steps: **Conditions → Entry & exit → Run → Result**（條件 → 進出場 → 跑一轉 → 結果）.
+
+1. Pick an indicator, pick a reaction, then **Add** / **新增**. Quick-apply chips are optional.
+2. Set quantity, side, stop, and target.
+3. A green ready line, then **Backtest** (**From start** | **From here**) or **Follow while playing**（**回測**，**由頭** | **由而家**，或 **邊播邊跟**）. Grey means a field is still missing.
+4. The result card is always there: stats, 0 trades and a reason, or not run yet.
+
+Simulated only — no broker. The manual ticket stays on the right. DSL and API: [docs/MACRO.md](docs/MACRO.md).
+
+從圖上的「半自動」或底部分頁「半自動交易」打開，且須為非盲練。四步為條件、進出場、跑一轉、結果。第 1 步選擇指標與反應，再按「新增」（快速套用可略過）。第 3 步出現綠色就緒列後，按「回測」（「由頭」或「由而家」）或「邊播邊跟」；按鈕呈灰色表示尚缺欄位。第 4 步必定顯示結果卡：統計、0 筆成交及原因，或尚未執行。僅為本機模擬，不連接券商；右側手動落單票仍可使用。條件語法與 API 見 [docs/MACRO.md](docs/MACRO.md)。
+
+![Semi-auto step 3: green ready line, then Backtest or Follow while playing](docs/shot-semi-run.png)
+
+<sub>**Semi-auto — Run** — synthetic `SYNTH-` data, not real market prices. Green means Backtest（回測）or Follow while playing（邊播邊跟）is available.</sub>
+
+![Semi-auto step 4: result card after a simulated run](docs/shot-semi-result.png)
+
+<sub>**Semi-auto — Result** — synthetic `SYNTH-` data, not real market prices. This run is 0 trades; the card says why.</sub>
 
 ### Orders & review
 
