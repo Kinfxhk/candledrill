@@ -14,6 +14,10 @@ All notable changes to CandleDrill are documented here. The format follows
   macro is valid and lists what is missing. A blind session warns on the new-session form
   (and when demo data is generated with blind still on) and again as soon as the session
   opens. The chart Macro button opens that wizard.
+- **Semi-auto panel.** The bottom wizard is named 半自動交易 (chart chip: 半自動 / Semi-auto).
+  Step 1 is indicator → reaction → Add, with ORB and SMA presets as small Quick apply chips.
+  Step 3 shows a ready line and two actions: Backtest (From start / From here) and Follow
+  while playing. Step 4 always shows a result card. Copy only; the fill model is unchanged.
 
 ## [0.3.0] - 2026-10-14
 

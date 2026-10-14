@@ -13,8 +13,8 @@ import {
   type TargetMode,
   type StopMode,
 } from '@candledrill/core';
-import { el, fmtMoney, fmtPct, toast } from './format.js';
-import { t, type MessageKey } from './i18n.js';
+import { el, fmtMoney, fmtPct } from './format.js';
+import { getLang, t, type MessageKey } from './i18n.js';
 import {
   loadMacro,
   macroFeatureEnabled,
@@ -36,23 +36,24 @@ export interface MacroPanelHooks {
   onArmed(armed: boolean): void;
 }
 
-const COND_TYPES: Condition['type'][] = [
-  'price_vs_ma',
+const INDICATORS: Condition['type'][] = [
   'orb_break',
-  'flat_only',
-  'time_window',
+  'price_vs_ma',
   'rsi',
   'macd',
   'bb',
+  'flat_only',
   'ma_cross',
   'donchian_break',
   'stoch_cross',
   'adx',
+  'time_window',
+  'day_of_week',
   'min_bars_since_entry',
 ];
 
 const COND_KEY: Record<Condition['type'], MessageKey> = {
-  price_vs_ma: 'cond.price_vs_ma',
+  price_vs_ma: 'macro.ind.ma',
   ma_cross: 'cond.ma_cross',
   orb_break: 'cond.orb_break',
   rsi: 'cond.rsi',
@@ -66,6 +67,11 @@ const COND_KEY: Record<Condition['type'], MessageKey> = {
   min_bars_since_entry: 'cond.cooldown',
   flat_only: 'cond.flat_only',
 };
+
+interface ReactionOpt {
+  id: string;
+  key: MessageKey;
+}
 
 function defaultCondition(type: Condition['type']): Condition {
   switch (type) {
@@ -107,18 +113,363 @@ function defaultCondition(type: Condition['type']): Condition {
   }
 }
 
+function reactionsOf(type: Condition['type']): readonly ReactionOpt[] {
+  switch (type) {
+    case 'orb_break':
+      return [
+        { id: 'up', key: 'macro.react.breakUp' },
+        { id: 'down', key: 'macro.react.breakDown' },
+        { id: 'either', key: 'cond.either' },
+      ];
+    case 'price_vs_ma':
+      return [
+        { id: 'above', key: 'macro.react.priceAbove' },
+        { id: 'below', key: 'macro.react.priceBelow' },
+      ];
+    case 'rsi':
+      return [
+        { id: 'lt', key: 'macro.react.below' },
+        { id: 'gt', key: 'macro.react.above' },
+        { id: 'cross_above', key: 'cond.crossAbove' },
+        { id: 'cross_below', key: 'cond.crossBelow' },
+      ];
+    case 'macd':
+      return [
+        { id: 'hist_pos', key: 'cond.histPos' },
+        { id: 'hist_neg', key: 'cond.histNeg' },
+        { id: 'cross_bull', key: 'cond.crossBull' },
+        { id: 'cross_bear', key: 'cond.crossBear' },
+      ];
+    case 'bb':
+      return [
+        { id: 'upper_beyond', key: 'macro.react.bbUp' },
+        { id: 'lower_beyond', key: 'macro.react.bbDown' },
+        { id: 'upper_touch', key: 'macro.react.bbTouchUp' },
+        { id: 'lower_touch', key: 'macro.react.bbTouchDown' },
+      ];
+    case 'flat_only':
+      return [{ id: 'flat', key: 'cond.flat_only' }];
+    case 'ma_cross':
+      return [
+        { id: 'bull', key: 'cond.bull' },
+        { id: 'bear', key: 'cond.bear' },
+      ];
+    case 'donchian_break':
+      return [
+        { id: 'up', key: 'macro.react.breakUp' },
+        { id: 'down', key: 'macro.react.breakDown' },
+      ];
+    case 'stoch_cross':
+      return [
+        { id: 'bull', key: 'cond.bull' },
+        { id: 'bear', key: 'cond.bear' },
+      ];
+    case 'adx':
+      return [
+        { id: 'gt', key: 'macro.react.above' },
+        { id: 'lt', key: 'macro.react.below' },
+      ];
+    case 'time_window':
+      return [{ id: 'window', key: 'cond.time_window' }];
+    case 'day_of_week':
+      return [{ id: 'days', key: 'cond.day_of_week' }];
+    case 'min_bars_since_entry':
+      return [{ id: 'bars', key: 'cond.cooldown' }];
+    default: {
+      const leftover: never = type;
+      return leftover;
+    }
+  }
+}
+
+function defaultTune(type: Condition['type']): number {
+  switch (type) {
+    case 'orb_break':
+      return 30;
+    case 'price_vs_ma':
+      return 21;
+    case 'rsi':
+      return 70;
+    case 'donchian_break':
+      return 20;
+    case 'adx':
+      return 20;
+    case 'min_bars_since_entry':
+      return 5;
+    case 'ma_cross':
+    case 'bb':
+    case 'macd':
+    case 'stoch_cross':
+    case 'time_window':
+    case 'day_of_week':
+    case 'flat_only':
+      return 0;
+    default: {
+      const leftover: never = type;
+      return leftover;
+    }
+  }
+}
+
+function asIndicator(value: string): Condition['type'] {
+  return (INDICATORS as readonly string[]).includes(value)
+    ? (value as Condition['type'])
+    : 'orb_break';
+}
+
+function clampInt(n: number, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+function positive(n: number, fallback: number): number {
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/** Build one DSL condition from the indicator → reaction composer. Defaults stay inside the schema. */
+export function buildCondition(type: Condition['type'], reaction: string, tune: number): Condition {
+  switch (type) {
+    case 'orb_break':
+      return {
+        type,
+        minutes: clampInt(tune, 1, 1439, 30),
+        direction: reaction === 'down' || reaction === 'either' ? reaction : 'up',
+      };
+    case 'price_vs_ma':
+      return {
+        type,
+        op: reaction === 'below' ? 'below' : 'above',
+        ma: 'sma',
+        period: clampInt(tune, 1, 500, 21),
+        source: 'close',
+      };
+    case 'rsi':
+      return {
+        type,
+        op:
+          reaction === 'gt' || reaction === 'cross_above' || reaction === 'cross_below'
+            ? reaction
+            : 'lt',
+        level: positive(tune, 70),
+        period: 14,
+      };
+    case 'macd':
+      return {
+        type,
+        event:
+          reaction === 'hist_neg' || reaction === 'cross_bull' || reaction === 'cross_bear'
+            ? reaction
+            : 'hist_pos',
+        fast: 12,
+        slow: 26,
+        signal: 9,
+      };
+    case 'bb':
+      return {
+        type,
+        which: reaction.startsWith('lower') ? 'lower' : 'upper',
+        op: reaction.endsWith('touch') ? 'touch' : 'close_beyond',
+        period: 20,
+        stdDev: 2,
+      };
+    case 'flat_only':
+      return { type };
+    case 'ma_cross':
+      return {
+        type,
+        direction: reaction === 'bear' ? 'bear' : 'bull',
+        fast: { ma: 'ema', period: 9 },
+        slow: { ma: 'ema', period: 21 },
+      };
+    case 'donchian_break':
+      return {
+        type,
+        period: clampInt(tune, 1, 500, 20),
+        direction: reaction === 'down' ? 'down' : 'up',
+      };
+    case 'stoch_cross':
+      return {
+        type,
+        direction: reaction === 'bear' ? 'bear' : 'bull',
+        kPeriod: 14,
+        dPeriod: 3,
+        smooth: 3,
+        level: 20,
+      };
+    case 'adx':
+      return {
+        type,
+        op: reaction === 'lt' ? 'lt' : 'gt',
+        level: positive(tune, 20),
+        period: 14,
+        di: 'plus_above',
+      };
+    case 'time_window':
+      return { type, startMinute: 9 * 60 + 30, endMinute: 11 * 60 };
+    case 'day_of_week':
+      return { type, days: [1, 2, 3, 4, 5] };
+    case 'min_bars_since_entry':
+      return { type, bars: clampInt(tune, 1, 100_000, 5) };
+    default: {
+      const leftover: never = type;
+      return leftover;
+    }
+  }
+}
+
+function hhmm(minute: number): string {
+  const h = Math.floor(minute / 60);
+  const m = minute % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function rsiOpKey(op: 'gt' | 'lt' | 'cross_above' | 'cross_below'): MessageKey {
+  switch (op) {
+    case 'gt':
+      return 'macro.react.above';
+    case 'lt':
+      return 'macro.react.below';
+    case 'cross_above':
+      return 'cond.crossAbove';
+    case 'cross_below':
+      return 'cond.crossBelow';
+    default: {
+      const leftover: never = op;
+      return leftover;
+    }
+  }
+}
+
+function macdKey(event: 'hist_pos' | 'hist_neg' | 'cross_bull' | 'cross_bear'): MessageKey {
+  switch (event) {
+    case 'hist_pos':
+      return 'cond.histPos';
+    case 'hist_neg':
+      return 'cond.histNeg';
+    case 'cross_bull':
+      return 'cond.crossBull';
+    case 'cross_bear':
+      return 'cond.crossBear';
+    default: {
+      const leftover: never = event;
+      return leftover;
+    }
+  }
+}
+
+/** One plain-language sentence for a stored condition. */
+export function describeCondition(cond: Condition): string {
+  switch (cond.type) {
+    case 'orb_break':
+      return t('macro.say.orb', {
+        n: cond.minutes,
+        dir: t(
+          cond.direction === 'down'
+            ? 'macro.react.breakDown'
+            : cond.direction === 'either'
+              ? 'cond.either'
+              : 'macro.react.breakUp',
+        ),
+      });
+    case 'price_vs_ma':
+      return t('macro.say.ma', {
+        ma: cond.ma.toUpperCase(),
+        n: cond.period,
+        dir: t(cond.op === 'below' ? 'macro.react.priceBelow' : 'macro.react.priceAbove'),
+      });
+    case 'rsi':
+      return t('macro.say.rsi', { op: t(rsiOpKey(cond.op)), n: cond.level });
+    case 'macd':
+      return t('macro.say.macd', { event: t(macdKey(cond.event)) });
+    case 'bb':
+      return t('macro.say.bb', {
+        which: t(
+          cond.which === 'lower'
+            ? 'cond.lower'
+            : cond.which === 'middle'
+              ? 'cond.middle'
+              : 'cond.upper',
+        ),
+        op: t(cond.op === 'touch' ? 'cond.touch' : 'cond.closeBeyond'),
+      });
+    case 'flat_only':
+      return t('cond.flat_only');
+    case 'ma_cross':
+      return t('macro.say.cross', {
+        dir: t(cond.direction === 'bear' ? 'cond.bear' : 'cond.bull'),
+        fast: cond.fast.period,
+        slow: cond.slow.period,
+      });
+    case 'donchian_break':
+      return t('macro.say.don', {
+        n: cond.period,
+        dir: t(cond.direction === 'down' ? 'macro.react.breakDown' : 'macro.react.breakUp'),
+      });
+    case 'stoch_cross':
+      return t('macro.say.stoch', {
+        dir: t(cond.direction === 'bear' ? 'cond.bear' : 'cond.bull'),
+      });
+    case 'adx':
+      return t('macro.say.adx', {
+        op: t(cond.op === 'lt' ? 'macro.react.below' : 'macro.react.above'),
+        n: cond.level,
+      });
+    case 'time_window':
+      return t('macro.say.time', { start: hhmm(cond.startMinute), end: hhmm(cond.endMinute) });
+    case 'day_of_week':
+      return t('cond.day_of_week');
+    case 'min_bars_since_entry':
+      return t('macro.say.cool', { n: cond.bars });
+    default: {
+      const leftover: never = cond;
+      return leftover;
+    }
+  }
+}
+
 const PRESETS: { id: string; key: MessageKey; condition: Condition }[] = [
   { id: 'orb-up', key: 'macro.presetOrb', condition: defaultCondition('orb_break') },
-  {
-    id: 'sma',
-    key: 'macro.presetSma',
-    condition: defaultCondition('price_vs_ma'),
-  },
+  { id: 'sma', key: 'macro.presetSma', condition: defaultCondition('price_vs_ma') },
   { id: 'flat', key: 'macro.presetFlat', condition: { type: 'flat_only' } },
   { id: 'rsi', key: 'macro.presetRsi', condition: defaultCondition('rsi') },
   { id: 'macd', key: 'macro.presetMacd', condition: defaultCondition('macd') },
   { id: 'bb', key: 'macro.presetBb', condition: defaultCondition('bb') },
 ];
+
+const MISS_ORDER = [
+  'macro.needName',
+  'macro.needRule',
+  'macro.needQty',
+  'macro.needStop',
+  'macro.needTarget',
+] as const satisfies readonly MessageKey[];
+
+const MISS_SHORT: Partial<Record<MessageKey, MessageKey>> = {
+  'macro.needName': 'macro.miss.name',
+  'macro.needRule': 'macro.miss.rule',
+  'macro.needQty': 'macro.miss.qty',
+  'macro.needStop': 'macro.miss.stop',
+  'macro.needTarget': 'macro.miss.target',
+};
+
+/** Green ready line, or the short list of what is still missing. */
+export function macroReadiness(keys: readonly MessageKey[]): { ready: boolean; text: string } {
+  const labels: MessageKey[] = [];
+  for (const key of MISS_ORDER) {
+    if (!keys.includes(key)) continue;
+    const label = MISS_SHORT[key];
+    if (label) labels.push(label);
+  }
+  if (labels.length === 0) {
+    if (keys.includes('macro.blind')) return { ready: false, text: t('macro.blind') };
+    return { ready: true, text: t('macro.ready') };
+  }
+  const sep = getLang() === 'en' ? ', ' : '／';
+  return {
+    ready: false,
+    text: t('macro.notReady', { items: labels.map((key) => t(key)).join(sep) }),
+  };
+}
 
 function rid(): string {
   return `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
@@ -156,13 +507,18 @@ export class MacroPanel {
   private result: MacroRunView | undefined;
   private error = '';
   private step: MacroStep = 0;
-  private showMissing = false;
   private blindShown: boolean | undefined;
   private lang = '';
   private nameDraft: string | null = null;
   private qtyDraft: string | null = null;
   private stopDraft: string | null = null;
   private targetDraft: string | null = null;
+  private indicator: Condition['type'] = 'orb_break';
+  private reaction = 'up';
+  private tune: string | null = null;
+  /** Last follow session hid every condition. The stored rule stays disabled until Add. */
+  private cleared = false;
+  private lastSide: 'buy' | 'sell' | null = null;
 
   constructor(private readonly hooks: MacroPanelHooks) {
     this.macro = loadMacro();
@@ -187,10 +543,11 @@ export class MacroPanel {
     this.render();
   }
 
-  /** Move keyboard focus into the wizard after the chart Macro button opens this tab. */
+  /** Move keyboard focus into the wizard after the chart button opens this tab. */
   focus(): void {
     const target =
       this.el.querySelector<HTMLElement>('[data-testid=macro-show]') ??
+      this.el.querySelector<HTMLElement>('[data-testid=macro-indicator]') ??
       this.el.querySelector<HTMLElement>('[data-testid=macro-next]') ??
       this.el.querySelector<HTMLElement>('h3');
     target?.focus();
@@ -204,6 +561,13 @@ export class MacroPanel {
     this.render();
   }
 
+  /** A follow check placed a simulated signal. Step 4 reads this; it does not place orders. */
+  noteSignal(side: 'buy' | 'sell'): void {
+    if (this.lastSide === side) return;
+    this.lastSide = side;
+    if (this.step === 2 || this.step === 3) this.render();
+  }
+
   private persist(next: MacroV1): void {
     try {
       this.macro = parseMacro(next);
@@ -211,8 +575,6 @@ export class MacroPanel {
       this.error = '';
     } catch (err) {
       this.error = (err as Error).message;
-      this.showMissing = true;
-      toast(this.error, 'error');
     }
     this.render();
   }
@@ -239,6 +601,7 @@ export class MacroPanel {
       extra.push('macro.needStop');
     if (this.targetDraft !== null && !missing.includes('macro.needTarget'))
       extra.push('macro.needTarget');
+    if (this.cleared && !missing.includes('macro.needRule')) extra.push('macro.needRule');
     return [...missing, ...extra];
   }
 
@@ -265,7 +628,7 @@ export class MacroPanel {
       case 2:
         return blocked.length === 0;
       case 3:
-        return this.result !== undefined;
+        return true;
       default: {
         const leftover: never = step;
         return leftover;
@@ -312,30 +675,19 @@ export class MacroPanel {
       t('macro.open'),
     );
     show.addEventListener('click', () => this.enable());
-    this.el.replaceChildren(
-      el('h3', { id: 'h-macro' }, t('macro.title')),
-      el('p', { class: 'muted small' }, t('macro.notice')),
-      show,
-    );
+    this.el.replaceChildren(el('h3', { id: 'h-macro' }, t('macro.title')), show);
   }
 
   private renderUnavailable(): void {
     this.el.replaceChildren(
       this.header(),
-      el('p', { class: 'macro-banner', 'data-testid': 'macro-banner' }, t('macro.badge')),
-      el(
-        'div',
-        { class: 'notice', 'data-testid': 'macro-unavailable' },
-        el('p', {}, t('macro.blind')),
-        el('p', {}, t('macro.blindStart')),
-      ),
+      el('p', { class: 'macro-ready no', 'data-testid': 'macro-unavailable' }, t('macro.blind')),
     );
   }
 
   private renderWizard(): void {
     const step = STEPS[this.step]!;
     const body = el('div', { class: 'macro-step', 'data-testid': `macro-step-${step.id}` });
-    body.append(el('h4', {}, t(step.key)));
     switch (this.step) {
       case 0:
         body.append(...this.stepRules());
@@ -344,7 +696,7 @@ export class MacroPanel {
         body.append(...this.stepTrade());
         break;
       case 2:
-        body.append(el('p', { class: 'muted small' }, t('macro.manual')), this.renderRun());
+        body.append(this.renderRun());
         break;
       case 3:
         body.append(this.renderResult());
@@ -354,15 +706,9 @@ export class MacroPanel {
         void leftover;
       }
     }
-    if (this.error) body.append(el('p', { class: 'down small' }, this.error));
+    if (this.error && this.step !== 3) body.append(el('p', { class: 'down small' }, this.error));
     body.append(this.stepNav());
-    this.el.replaceChildren(
-      this.header(),
-      el('p', { class: 'macro-banner', 'data-testid': 'macro-banner' }, t('macro.badge')),
-      el('p', { class: 'muted small' }, t('macro.notice')),
-      this.stepper(),
-      body,
-    );
+    this.el.replaceChildren(this.header(), this.stepper(), body);
   }
 
   private stepper(): HTMLElement {
@@ -376,7 +722,7 @@ export class MacroPanel {
           'data-testid': `macro-goto-${step.id}`,
           'aria-current': current ? 'step' : 'false',
         },
-        `${index + 1}. ${t(step.key)}`,
+        `${index + 1} ${t(step.key)}`,
       );
       if (this.stepReady(index as MacroStep)) button.classList.add('done');
       button.addEventListener('click', () => this.setStep(index as MacroStep));
@@ -391,13 +737,11 @@ export class MacroPanel {
       const back = el('button', { type: 'button', 'data-testid': 'macro-back' }, t('macro.back'));
       back.addEventListener('click', () => this.setStep((this.step - 1) as MacroStep));
       row.append(back);
-    } else {
-      row.append(el('span', {}));
     }
     if (this.step < 3 && this.stepReady(this.step)) {
       const next = el(
         'button',
-        { type: 'button', class: 'primary macro-next', 'data-testid': 'macro-next' },
+        { type: 'button', class: 'primary', 'data-testid': 'macro-next' },
         t('macro.next'),
       );
       next.addEventListener('click', () => this.setStep((this.step + 1) as MacroStep));
@@ -406,43 +750,204 @@ export class MacroPanel {
     return row;
   }
 
+  private readinessBar(): HTMLElement {
+    const state = macroReadiness(this.blockers());
+    return el(
+      'p',
+      {
+        class: `macro-ready ${state.ready ? 'ok' : 'no'}`,
+        'data-testid': 'macro-ready',
+        role: 'status',
+      },
+      state.text,
+    );
+  }
+
   private stepRules(): HTMLElement[] {
     const name = el('input', {
       type: 'text',
       value: this.nameDraft ?? this.macro.name,
       'data-testid': 'macro-name',
+      'aria-label': t('macro.name'),
     }) as HTMLInputElement;
     name.addEventListener('change', () => this.commitName(name.value));
-    return [
+    const blocked = this.blockers();
+    const nodes: HTMLElement[] = [];
+    if (blocked.includes('macro.needName') || blocked.includes('macro.needRule')) {
+      nodes.push(this.readinessBar());
+    }
+    nodes.push(
       this.field(t('macro.name'), name),
-      el('h4', {}, t('macro.rules')),
-      ...this.macro.rules.map((rule, index) => this.renderRule(rule, index)),
-      this.button('macro-add-rule', t('macro.addRule'), () => {
-        const priority = this.macro.rules.reduce((m, r) => Math.max(m, r.priority), 0) + 1;
-        this.persist({
-          ...this.macro,
-          rules: [
-            ...this.macro.rules,
-            {
-              id: rid(),
-              priority,
-              enabled: true,
-              side: 'buy',
-              conditions: [defaultCondition('flat_only')],
-            },
-          ],
-        });
+      this.composer(),
+      this.conditionList(),
+      this.renderQuick(),
+    );
+    return nodes;
+  }
+
+  private composer(): HTMLElement {
+    const options = reactionsOf(this.indicator);
+    if (!options.some((opt) => opt.id === this.reaction)) this.reaction = options[0]?.id ?? '';
+    const indicator = this.select(
+      this.indicator,
+      INDICATORS.map((id) => [id, t(COND_KEY[id])]),
+      (value) => {
+        this.indicator = asIndicator(value);
+        this.reaction = reactionsOf(this.indicator)[0]?.id ?? '';
+        this.tune = null;
+        this.render();
+      },
+    );
+    indicator.dataset.testid = 'macro-indicator';
+    indicator.setAttribute('aria-label', t('macro.indicator'));
+    const reaction = this.select(
+      this.reaction,
+      options.map((opt) => [opt.id, t(opt.key)]),
+      (value) => {
+        this.reaction = value;
+        this.render();
+      },
+    );
+    reaction.dataset.testid = 'macro-reaction';
+    reaction.setAttribute('aria-label', t('macro.reaction'));
+    const row = el('div', { class: 'macro-compose' }, indicator, reaction);
+    const fallback = defaultTune(this.indicator);
+    if (fallback > 0) {
+      const input = el('input', {
+        type: 'number',
+        step: 'any',
+        value: this.tune ?? String(fallback),
+        'data-testid': 'macro-tune',
+        'aria-label': t('macro.tune'),
+      }) as HTMLInputElement;
+      input.addEventListener('input', () => {
+        this.tune = input.value;
+      });
+      row.append(input);
+    }
+    row.append(
+      this.button('macro-add', t('macro.add'), () => {
+        const raw = this.tune === null || this.tune.trim() === '' ? fallback : Number(this.tune);
+        this.addCondition(buildCondition(this.indicator, this.reaction, raw));
       }),
-      this.renderPresets(),
-      this.exampleButton(),
-      ...this.stepHint(['macro.needRule', 'macro.needName']),
-    ];
+    );
+    return row;
+  }
+
+  private listed(): { ruleIndex: number; condIndex: number; cond: Condition }[] {
+    if (this.cleared) return [];
+    const out: { ruleIndex: number; condIndex: number; cond: Condition }[] = [];
+    this.macro.rules.forEach((rule, ruleIndex) => {
+      if (!rule.enabled) return;
+      rule.conditions.forEach((cond, condIndex) => out.push({ ruleIndex, condIndex, cond }));
+    });
+    return out;
+  }
+
+  private conditionList(): HTMLElement {
+    const items = this.listed();
+    if (items.length === 0) {
+      return el(
+        'p',
+        { class: 'muted small', 'data-testid': 'macro-conditions' },
+        t('macro.noConditions'),
+      );
+    }
+    const list = el('ul', { class: 'macro-cond-list', 'data-testid': 'macro-conditions' });
+    for (const item of items) {
+      const remove = el(
+        'button',
+        {
+          type: 'button',
+          class: 'small ghost',
+          'data-testid': `macro-remove-${item.ruleIndex}-${item.condIndex}`,
+          'aria-label': t('ind.remove'),
+        },
+        '×',
+      );
+      remove.addEventListener('click', () => this.removeAt(item.ruleIndex, item.condIndex));
+      list.append(el('li', {}, el('span', {}, describeCondition(item.cond)), remove));
+    }
+    return list;
+  }
+
+  private addCondition(cond: Condition): void {
+    const first = this.macro.rules[0];
+    if (!first) {
+      this.cleared = false;
+      this.persist({
+        ...this.macro,
+        rules: [{ id: rid(), priority: 1, enabled: true, side: 'buy', conditions: [cond] }],
+      });
+      return;
+    }
+    const live = this.macro.rules.some((rule) => rule.enabled && rule.conditions.length > 0);
+    if (this.cleared || !live) {
+      this.cleared = false;
+      this.persist({
+        ...this.macro,
+        rules: [{ ...first, enabled: true, conditions: [cond] }],
+      });
+      return;
+    }
+    const target = Math.max(
+      0,
+      this.macro.rules.findIndex((rule) => rule.enabled),
+    );
+    this.persist({
+      ...this.macro,
+      rules: this.macro.rules.map((rule, index) =>
+        index === target
+          ? { ...rule, enabled: true, conditions: [...rule.conditions, cond] }
+          : rule,
+      ),
+    });
+  }
+
+  private removeAt(ruleIndex: number, condIndex: number): void {
+    const rule = this.macro.rules[ruleIndex];
+    if (!rule) return;
+    const conditions = rule.conditions.filter((_, index) => index !== condIndex);
+    if (conditions.length > 0) {
+      this.replaceRule(ruleIndex, { ...rule, conditions });
+      return;
+    }
+    const rules = this.macro.rules.filter((_, index) => index !== ruleIndex);
+    if (rules.length > 0) {
+      this.persist({ ...this.macro, rules });
+      return;
+    }
+    this.cleared = true;
+    if (this.armed) {
+      this.armed = false;
+      this.hooks.onArmed(false);
+    }
+    this.persist({ ...this.macro, rules: [{ ...rule, enabled: false }] });
+  }
+
+  private renderQuick(): HTMLElement {
+    const row = el('div', { class: 'macro-presets', 'data-testid': 'macro-quick' });
+    row.append(el('span', { class: 'muted small' }, t('macro.quick')));
+    for (const preset of PRESETS) {
+      const b = el(
+        'button',
+        { type: 'button', class: 'small ghost', 'data-testid': `macro-preset-${preset.id}` },
+        t(preset.key),
+      );
+      b.addEventListener('click', () => this.addCondition(preset.condition));
+      row.append(b);
+    }
+    return row;
   }
 
   private stepTrade(): HTMLElement[] {
-    return [
-      this.field(t('macro.qty'), this.qtyField()),
-      ...this.macro.rules.map((rule, index) => this.renderSide(rule, index)),
+    const nodes: HTMLElement[] = [];
+    if (!macroReadiness(this.blockers()).ready) nodes.push(this.readinessBar());
+    nodes.push(this.field(t('macro.qty'), this.qtyField()));
+    this.macro.rules.forEach((rule, index) => {
+      if (rule.enabled) nodes.push(this.renderSide(rule, index));
+    });
+    nodes.push(
       el('h4', {}, t('macro.exits')),
       this.renderExits(),
       this.check(
@@ -464,26 +969,8 @@ export class MacroPanel {
           });
         },
       ),
-      ...this.stepHint(['macro.needName', 'macro.needQty', 'macro.needStop', 'macro.needTarget']),
-    ];
-  }
-
-  private stepHint(keys: readonly MessageKey[]): HTMLElement[] {
-    const hit = this.blockers().filter((key) => keys.includes(key));
-    if (hit.length === 0) return [];
-    return [this.missingList(hit)];
-  }
-
-  private missingList(keys: readonly MessageKey[]): HTMLElement {
-    const list = el('ul', { 'data-testid': 'macro-missing' });
-    for (const key of keys) list.append(el('li', {}, t(key)));
-    if (this.error) list.append(el('li', {}, this.error));
-    return el(
-      'div',
-      { class: 'macro-missing' },
-      el('p', { class: 'down small' }, t('macro.missingTitle')),
-      list,
     );
+    return nodes;
   }
 
   private renderSide(rule: MacroRule, index: number): HTMLElement {
@@ -495,280 +982,13 @@ export class MacroPanel {
       ],
       (value) => this.replaceRule(index, { ...rule, side: value === 'sell' ? 'sell' : 'buy' }),
     );
+    side.setAttribute('aria-label', t('macro.side'));
     return el(
       'div',
       { class: 'macro-rule-head' },
-      el('span', {}, `${t('macro.priority')} ${rule.priority}`),
+      el('span', {}, rule.conditions.map((cond) => describeCondition(cond)).join(' · ')),
       side,
     );
-  }
-
-  private renderRule(rule: MacroRule, index: number): HTMLElement {
-    const box = el('div', { class: 'macro-rule' });
-    const enabled = el('input', { type: 'checkbox' }) as HTMLInputElement;
-    enabled.checked = rule.enabled;
-    enabled.addEventListener('change', () =>
-      this.replaceRule(index, { ...rule, enabled: enabled.checked }),
-    );
-    const priority = this.numInput(rule.priority, `macro-priority-${index}`, (n) => {
-      this.replaceRule(index, { ...rule, priority: n });
-    });
-    const remove = el('button', { type: 'button', class: 'small ghost' }, t('ind.remove'));
-    remove.addEventListener('click', () => {
-      if (this.macro.rules.length < 2) return;
-      this.persist({ ...this.macro, rules: this.macro.rules.filter((_, i) => i !== index) });
-    });
-    box.append(
-      el(
-        'div',
-        { class: 'macro-rule-head' },
-        enabled,
-        el('span', {}, t('macro.priority')),
-        priority,
-        remove,
-      ),
-    );
-    rule.conditions.forEach((cond, ci) => box.append(this.renderCondition(index, ci, cond)));
-    const add = el('button', { type: 'button', class: 'small ghost' }, t('macro.addCondition'));
-    add.addEventListener('click', () => {
-      this.replaceRule(index, {
-        ...rule,
-        conditions: [...rule.conditions, defaultCondition('price_vs_ma')],
-      });
-    });
-    box.append(add);
-    return box;
-  }
-
-  private renderCondition(ruleIndex: number, condIndex: number, cond: Condition): HTMLElement {
-    const row = el('div', { class: 'macro-cond' });
-    const type = this.select(
-      cond.type,
-      COND_TYPES.map((id) => [id, t(COND_KEY[id])]),
-      (value) => {
-        const next = defaultCondition(value as Condition['type']);
-        this.replaceCondition(ruleIndex, condIndex, next);
-      },
-    );
-    row.append(type, ...this.conditionFields(ruleIndex, condIndex, cond));
-    const remove = el('button', { type: 'button', class: 'small ghost' }, '×');
-    remove.addEventListener('click', () => {
-      const rule = this.macro.rules[ruleIndex];
-      if (!rule || rule.conditions.length < 2) return;
-      this.replaceRule(ruleIndex, {
-        ...rule,
-        conditions: rule.conditions.filter((_, i) => i !== condIndex),
-      });
-    });
-    row.append(remove);
-    return row;
-  }
-
-  private conditionFields(ruleIndex: number, condIndex: number, cond: Condition): HTMLElement[] {
-    const set = (next: Condition) => this.replaceCondition(ruleIndex, condIndex, next);
-    switch (cond.type) {
-      case 'price_vs_ma':
-        return [
-          this.select(
-            cond.op,
-            [
-              ['above', t('cond.above')],
-              ['below', t('cond.below')],
-            ],
-            (op) => set({ ...cond, op: op === 'below' ? 'below' : 'above' }),
-          ),
-          this.select(
-            cond.ma,
-            [
-              ['sma', 'SMA'],
-              ['ema', 'EMA'],
-            ],
-            (ma) => set({ ...cond, ma: ma === 'ema' ? 'ema' : 'sma' }),
-          ),
-          this.numInput(cond.period, '', (period) => set({ ...cond, period })),
-        ];
-      case 'orb_break':
-        return [
-          this.select(
-            cond.direction,
-            [
-              ['up', t('cond.up')],
-              ['down', t('cond.down')],
-              ['either', t('cond.either')],
-            ],
-            (direction) =>
-              set({
-                ...cond,
-                direction: direction === 'down' || direction === 'either' ? direction : 'up',
-              }),
-          ),
-          this.numInput(cond.minutes, '', (minutes) => set({ ...cond, minutes })),
-        ];
-      case 'rsi':
-        return [
-          this.select(
-            cond.op,
-            [
-              ['gt', t('cond.gt')],
-              ['lt', t('cond.lt')],
-              ['cross_above', t('cond.crossAbove')],
-              ['cross_below', t('cond.crossBelow')],
-            ],
-            (op) =>
-              set({
-                ...cond,
-                op: op === 'lt' || op === 'cross_above' || op === 'cross_below' ? op : 'gt',
-              }),
-          ),
-          this.numInput(cond.level, '', (level) => set({ ...cond, level })),
-          this.numInput(cond.period ?? 14, '', (period) => set({ ...cond, period })),
-        ];
-      case 'macd':
-        return [
-          this.select(
-            cond.event,
-            [
-              ['hist_pos', t('cond.histPos')],
-              ['hist_neg', t('cond.histNeg')],
-              ['cross_bull', t('cond.crossBull')],
-              ['cross_bear', t('cond.crossBear')],
-            ],
-            (event) =>
-              set({
-                ...cond,
-                event:
-                  event === 'hist_neg' || event === 'cross_bull' || event === 'cross_bear'
-                    ? event
-                    : 'hist_pos',
-              }),
-          ),
-        ];
-      case 'bb':
-        return [
-          this.select(
-            cond.which,
-            [
-              ['upper', t('cond.upper')],
-              ['lower', t('cond.lower')],
-              ['middle', t('cond.middle')],
-            ],
-            (which) =>
-              set({
-                ...cond,
-                which: which === 'lower' || which === 'middle' ? which : 'upper',
-              }),
-          ),
-          this.select(
-            cond.op,
-            [
-              ['close_beyond', t('cond.closeBeyond')],
-              ['touch', t('cond.touch')],
-            ],
-            (op) => set({ ...cond, op: op === 'touch' ? 'touch' : 'close_beyond' }),
-          ),
-        ];
-      case 'ma_cross':
-        return [
-          this.select(
-            cond.direction,
-            [
-              ['bull', t('cond.bull')],
-              ['bear', t('cond.bear')],
-            ],
-            (direction) => set({ ...cond, direction: direction === 'bear' ? 'bear' : 'bull' }),
-          ),
-          this.numInput(cond.fast.period, '', (period) =>
-            set({ ...cond, fast: { ...cond.fast, period } }),
-          ),
-          this.numInput(cond.slow.period, '', (period) =>
-            set({ ...cond, slow: { ...cond.slow, period } }),
-          ),
-        ];
-      case 'donchian_break':
-        return [
-          this.select(
-            cond.direction,
-            [
-              ['up', t('cond.up')],
-              ['down', t('cond.down')],
-            ],
-            (direction) => set({ ...cond, direction: direction === 'down' ? 'down' : 'up' }),
-          ),
-          this.numInput(cond.period, '', (period) => set({ ...cond, period })),
-        ];
-      case 'stoch_cross':
-        return [
-          this.select(
-            cond.direction,
-            [
-              ['bull', t('cond.bull')],
-              ['bear', t('cond.bear')],
-            ],
-            (direction) => set({ ...cond, direction: direction === 'bear' ? 'bear' : 'bull' }),
-          ),
-          this.numInput(cond.level ?? 20, '', (level) => set({ ...cond, level })),
-        ];
-      case 'adx':
-        return [
-          this.select(
-            cond.op,
-            [
-              ['gt', t('cond.gt')],
-              ['lt', t('cond.lt')],
-            ],
-            (op) => set({ ...cond, op: op === 'lt' ? 'lt' : 'gt' }),
-          ),
-          this.numInput(cond.level, '', (level) => set({ ...cond, level })),
-          this.select(
-            cond.di ?? 'any',
-            [
-              ['plus_above', '+DI'],
-              ['minus_above', '−DI'],
-              ['any', t('cond.either')],
-            ],
-            (di) =>
-              set({
-                ...cond,
-                di: di === 'minus_above' || di === 'any' ? di : 'plus_above',
-              }),
-          ),
-        ];
-      case 'time_window':
-        return [
-          this.numInput(cond.startMinute, '', (startMinute) => set({ ...cond, startMinute })),
-          this.numInput(cond.endMinute, '', (endMinute) => set({ ...cond, endMinute })),
-        ];
-      case 'min_bars_since_entry':
-        return [this.numInput(cond.bars, '', (bars) => set({ ...cond, bars }))];
-      case 'day_of_week':
-      case 'flat_only':
-        return [];
-      default: {
-        const leftover: never = cond;
-        void leftover;
-        return [];
-      }
-    }
-  }
-
-  private renderPresets(): HTMLElement {
-    const row = el('div', { class: 'macro-presets' });
-    row.append(el('span', { class: 'muted small' }, t('macro.preset')));
-    for (const preset of PRESETS) {
-      const b = el(
-        'button',
-        { type: 'button', class: 'small ghost', 'data-testid': `macro-preset-${preset.id}` },
-        t(preset.key),
-      );
-      b.addEventListener('click', () => {
-        const rules = this.macro.rules.map((r, i) =>
-          i === 0 ? { ...r, conditions: [...r.conditions, preset.condition] } : r,
-        );
-        this.persist({ ...this.macro, rules });
-      });
-      row.append(b);
-    }
-    return row;
   }
 
   private renderExits(): HTMLElement {
@@ -836,7 +1056,67 @@ export class MacroPanel {
   }
 
   private renderRun(): HTMLElement {
-    const blocked = this.blockers();
+    const blocked = this.blockers().length > 0;
+    const wrap = el('div', { class: 'macro-actions' });
+    wrap.append(this.readinessBar());
+    if (this.armed) {
+      wrap.append(
+        el(
+          'p',
+          { class: 'macro-follow', 'data-testid': 'macro-follow-status' },
+          t('macro.armedHint'),
+        ),
+      );
+    }
+    const backtest = el('div', { class: 'macro-run-block', 'data-testid': 'macro-backtest' });
+    backtest.append(el('h4', {}, t('macro.run')), this.fromSeg(), this.runButton(blocked));
+    const follow = el('div', { class: 'macro-run-block', 'data-testid': 'macro-follow' });
+    follow.append(el('h4', {}, t('macro.arm')), this.armButton(blocked));
+    wrap.append(
+      backtest,
+      follow,
+      el('p', { class: 'muted small' }, t('macro.modeHint')),
+      el('div', { class: 'macro-example-row' }, this.exampleButton()),
+    );
+    return wrap;
+  }
+
+  private fromSeg(): HTMLElement {
+    const seg = el('div', { class: 'macro-seg', role: 'group', 'aria-label': t('macro.run') });
+    const make = (id: 'start' | 'cursor', key: MessageKey) => {
+      const button = el(
+        'button',
+        {
+          type: 'button',
+          'aria-pressed': String(this.from === id),
+          'data-testid': `macro-from-${id}`,
+        },
+        t(key),
+      );
+      button.addEventListener('click', () => {
+        this.from = id;
+        this.render();
+      });
+      return button;
+    };
+    seg.append(make('start', 'macro.fromStart'), make('cursor', 'macro.fromCursor'));
+    return seg;
+  }
+
+  private runButton(blocked: boolean): HTMLButtonElement {
+    const run = el(
+      'button',
+      { type: 'button', class: 'primary', 'data-testid': 'macro-run' },
+      t(this.running ? 'macro.running' : 'macro.run'),
+    );
+    run.classList.toggle('is-blocked', blocked);
+    if (blocked) run.setAttribute('aria-disabled', 'true');
+    run.disabled = this.running;
+    run.addEventListener('click', () => void this.onRun());
+    return run;
+  }
+
+  private armButton(blocked: boolean): HTMLButtonElement {
     const arm = el(
       'button',
       {
@@ -847,111 +1127,130 @@ export class MacroPanel {
       },
       t(this.armed ? 'macro.disarm' : 'macro.arm'),
     );
-    arm.disabled = blocked.length > 0;
+    arm.classList.toggle('is-blocked', blocked);
+    if (blocked) arm.setAttribute('aria-disabled', 'true');
     arm.addEventListener('click', () => {
       if (this.blockers().length > 0) {
-        this.revealMissing();
+        this.jumpToMissing();
         return;
       }
       this.armed = !this.armed;
+      if (this.armed) this.lastSide = null;
       this.hooks.onArmed(this.armed);
       this.render();
     });
-    const from = this.select(
-      this.from,
-      [
-        ['start', t('macro.fromStart')],
-        ['cursor', t('macro.fromCursor')],
-      ],
-      (value) => {
-        this.from = value === 'cursor' ? 'cursor' : 'start';
-        this.render();
-      },
-    );
-    const run = el(
-      'button',
-      { type: 'button', class: 'primary', 'data-testid': 'macro-run' },
-      t(this.running ? 'macro.running' : 'macro.run'),
-    );
-    if (blocked.length > 0) run.setAttribute('aria-disabled', 'true');
-    run.classList.toggle('is-blocked', blocked.length > 0);
-    run.disabled = this.running;
-    run.addEventListener('click', () => void this.onRun());
-    const wrap = el('div', { class: 'macro-actions' }, arm, from, run, this.exampleButton());
-    if (this.armed) wrap.append(el('p', { class: 'muted small' }, t('macro.armedHint')));
-    if (blocked.length > 0 || this.showMissing) wrap.append(this.missingList(blocked));
-    return wrap;
+    return arm;
   }
 
   private async onRun(): Promise<void> {
     if (this.blockers().length > 0) {
-      this.revealMissing();
+      this.jumpToMissing();
       return;
     }
     this.running = true;
     this.error = '';
-    this.showMissing = false;
     this.render();
     try {
       const result = await this.hooks.run(this.macro, this.from);
       this.result = result;
       this.step = 3;
     } catch (err) {
+      this.result = undefined;
       this.error = t('macro.failed', { reason: (err as Error).message });
-      this.showMissing = true;
+      this.step = 3;
     } finally {
       this.running = false;
       this.render();
     }
   }
 
-  private revealMissing(): void {
+  private jumpToMissing(): void {
     const keys = this.blockers();
-    this.showMissing = true;
-    this.step = 2;
-    toast(keys.map((key) => t(key)).join(' '), 'error');
+    const first = MISS_ORDER.find((key) => keys.includes(key));
+    if (first === 'macro.needName' || first === 'macro.needRule') this.step = 0;
+    else if (first) this.step = 1;
     this.render();
+    const id =
+      first === 'macro.needName'
+        ? 'macro-name'
+        : first === 'macro.needRule'
+          ? 'macro-indicator'
+          : first === 'macro.needQty'
+            ? 'macro-qty'
+            : first === 'macro.needStop'
+              ? 'macro-stop'
+              : first === 'macro.needTarget'
+                ? 'macro-target'
+                : '';
+    if (id) this.el.querySelector<HTMLElement>(`[data-testid=${id}]`)?.focus();
   }
 
   private renderResult(): HTMLElement {
     const box = el('div', { class: 'macro-result', 'data-testid': 'macro-result' });
-    if (!this.result) {
+    if (this.armed) {
       box.append(
-        el('h4', {}, t('macro.result')),
-        el('p', { class: 'muted small' }, t('macro.noResult')),
+        el('p', { 'data-testid': 'macro-follow-status' }, t('macro.armedHint')),
+        el('p', { 'data-testid': 'macro-last-signal' }, this.lastSignalText()),
+      );
+    } else if (this.lastSide) {
+      box.append(el('p', { 'data-testid': 'macro-last-signal' }, this.lastSignalText()));
+    }
+    if (this.error && !this.result) {
+      box.append(el('p', { class: 'down', 'data-testid': 'macro-error' }, this.error));
+      return box;
+    }
+    if (!this.result) {
+      box.append(el('p', { class: 'macro-zero-count' }, t('macro.noResult')));
+      const go = el('button', { type: 'button', 'data-testid': 'macro-go-run' }, t('macro.goRun'));
+      go.addEventListener('click', () => this.setStep(2));
+      box.append(go);
+      return box;
+    }
+    const stats = this.result.stats;
+    if (stats.trades === 0) {
+      box.append(
+        el('p', { class: 'macro-zero-count', 'data-testid': 'macro-zero' }, t('macro.zero')),
+        el('p', {}, t('macro.zeroWhy')),
+      );
+      const edit = el(
+        'button',
+        { type: 'button', 'data-testid': 'macro-edit-conditions' },
+        t('macro.editConditions'),
+      );
+      edit.addEventListener('click', () => this.setStep(0));
+      box.append(
+        edit,
+        this.stat(t('macro.signals'), String(this.result.signals)),
+        this.stat(t('macro.bars'), String(this.result.barsProcessed)),
       );
       return box;
     }
-    const s = this.result.stats;
     box.append(
-      el('h4', {}, t('macro.result')),
-      el('p', { class: 'muted small' }, t('macro.research')),
+      this.stat(t('macro.trades'), String(stats.trades)),
+      this.stat(t('macro.winRate'), fmtPct(stats.winRate)),
+      this.stat(t('macro.net'), fmtMoney(stats.netPnl)),
+      this.stat(t('macro.maxDd'), fmtMoney(stats.maxDrawdown)),
+      this.stat(t('macro.signals'), String(this.result.signals)),
+      this.stat(t('macro.bars'), String(this.result.barsProcessed)),
+      this.stat(t('macro.openQty'), String(this.result.openQty)),
     );
-    const line = (k: string, v: string) =>
-      el('div', { class: 'macro-stat' }, el('span', {}, k), el('b', {}, v));
-    box.append(
-      line(t('macro.trades'), String(s.trades)),
-      line(t('macro.winRate'), fmtPct(s.winRate)),
-      line(t('macro.maxDd'), fmtMoney(s.maxDrawdown)),
-      line(t('macro.net'), fmtMoney(s.netPnl)),
-      line(t('macro.signals'), String(this.result.signals)),
-      line(t('macro.bars'), String(this.result.barsProcessed)),
-      line(t('macro.openQty'), String(this.result.openQty)),
-    );
-    if (s.trades === 0) box.append(el('p', { class: 'muted small' }, t('macro.noTrades')));
     return box;
   }
 
-  private replaceRule(index: number, rule: MacroRule): void {
-    const rules = this.macro.rules.map((r, i) => (i === index ? rule : r));
-    this.persist({ ...this.macro, rules });
+  private lastSignalText(): string {
+    if (!this.lastSide) return t('macro.notTriggered');
+    return t('macro.lastSignal', {
+      side: t(this.lastSide === 'sell' ? 'pr.sell' : 'pr.buy'),
+    });
   }
 
-  private replaceCondition(ruleIndex: number, condIndex: number, cond: Condition): void {
-    const rule = this.macro.rules[ruleIndex];
-    if (!rule) return;
-    const conditions = rule.conditions.map((c, i) => (i === condIndex ? cond : c));
-    this.replaceRule(ruleIndex, { ...rule, conditions });
+  private stat(label: string, value: string): HTMLElement {
+    return el('div', { class: 'macro-stat' }, el('span', {}, label), el('b', {}, value));
+  }
+
+  private replaceRule(index: number, rule: MacroRule): void {
+    const rules = this.macro.rules.map((item, i) => (i === index ? rule : item));
+    this.persist({ ...this.macro, rules });
   }
 
   private field(label: string, input: HTMLElement): HTMLElement {
@@ -969,7 +1268,8 @@ export class MacroPanel {
       this.qtyDraft = null;
       this.stopDraft = null;
       this.targetDraft = null;
-      this.showMissing = false;
+      this.cleared = false;
+      this.tune = null;
       this.persist(exampleOrbSmaMacro());
     });
     return reset;
@@ -979,7 +1279,6 @@ export class MacroPanel {
     const name = raw.trim();
     if (name.length < 1 || name.length > 80) {
       this.nameDraft = raw;
-      this.showMissing = true;
       this.render();
       return;
     }
@@ -1015,7 +1314,6 @@ export class MacroPanel {
     const n = Number(raw);
     if (!ok(n)) {
       this.setDraft(draft, raw);
-      this.showMissing = true;
       this.render();
       return;
     }
@@ -1039,17 +1337,6 @@ export class MacroPanel {
         void leftover;
       }
     }
-  }
-
-  private numInput(value: number, testid: string, set: (v: number) => void): HTMLInputElement {
-    const attrs: Record<string, string> = { type: 'number', step: 'any', value: String(value) };
-    if (testid) attrs['data-testid'] = testid;
-    const input = el('input', attrs) as HTMLInputElement;
-    input.addEventListener('change', () => {
-      const n = Number(input.value);
-      if (Number.isFinite(n)) set(n);
-    });
-    return input;
   }
 
   private select(
