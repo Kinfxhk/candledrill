@@ -265,6 +265,13 @@ export class SidePanel {
   private renderRisk(): void {
     if (!this.settings || !this.state) return;
     const settings = this.settings;
+    // `toggle` is queued, so a ticket edit can re-render before `riskOpen` updates
+    // and collapse a preview the user just expanded. Sample the live element.
+    const currentWrap = this.riskBox.querySelector<HTMLDetailsElement>('details.risk-preview-wrap');
+    if (currentWrap) {
+      this.riskOpen = currentWrap.open;
+      localStorage.setItem('candledrill.riskPreviewOpen', currentWrap.open ? '1' : '0');
+    }
     this.riskBox
       .querySelectorAll<HTMLDetailsElement>('details[data-risk-detail]')
       .forEach((detail) => {
@@ -361,6 +368,7 @@ export class SidePanel {
       ),
     );
     wrap.addEventListener('toggle', () => {
+      if (!wrap.isConnected) return;
       this.riskOpen = wrap.open;
       localStorage.setItem('candledrill.riskPreviewOpen', wrap.open ? '1' : '0');
     });

@@ -9,17 +9,20 @@ orders, stop-first when a bar touches both stop and target, keep-open at the end
 This is educational. It does not connect to a broker, exchange, or alert webhook. It does
 not run Pine. The manual order ticket stays on the right-hand column.
 
-The builder is the bottom **Macro** tab: a four-step wizard (rules and conditions, entry
-and exit, how to run, result). Working orders are the bottom **Working orders** tab. The
-chart **Macro** button opens the wizard. **Run backtest** stays off until a name, quantity,
-an enabled rule, and a stop and target are set, and it lists what is still missing.
+The builder is the bottom **Semi-auto** tab (半自動交易): a four-step wizard (conditions,
+entry and exit, run, result). Working orders are the bottom **Working orders** tab. The
+chart **Semi-auto** chip opens the wizard. Step 1 adds a condition by picking an indicator,
+then a reaction. Step 3 shows whether the setup is ready, then **Backtest** (from the start
+or from here) or **Follow while playing**. Both stay off until a name, an enabled rule, a
+quantity, and a stop and target are set. A grey control jumps to the missing field. Step 4
+always shows a result card.
 
 A blind session cannot run or arm a macro. The new-session form says so while Blind
 practice is checked, including right after demo data is generated with that box still on.
-Opening a hidden blind session shows the same notice before you open the Macro tab.
+Opening a hidden blind session shows the same notice before you open the Semi-auto tab.
 
 Hide the wizard with `localStorage.setItem('candledrill.feature.macro', '0')` and bring it
-back from the **Macro** button on the chart. The flag defaults to on.
+back from the **Semi-auto** chip on the chart. The flag defaults to on.
 
 ## When a condition is checked
 
@@ -58,7 +61,7 @@ While a blind session is still hidden, backtest and watch both refuse to run.
 | `day_of_week`          | Exchange-local weekday of the bar open, 0 = Sunday … 6 = Saturday.                                                                                                                                               |
 | `min_bars_since_entry` | At least this many bars since the last entry order.                                                                                                                                                              |
 
-Presets in the panel insert these objects; you can still edit the numbers.
+The composer picks an indicator and a reaction, then Add. Quick apply chips insert the same objects.
 
 ## Exits
 
@@ -93,13 +96,13 @@ session open on the chart.
 
 ## Watch
 
-**Arm watch**, then Play. The play timer steps **one** bar at a time and, after each
-revealed close, may call the normal order API. Step 10 while armed only evaluates the bar
-you land on. History sent to the browser is capped at 50,000 bars; watch evaluates that
+**Follow while playing**, then Play. The play timer steps **one** bar at a time and, after each
+revealed close, may call the normal order API. Step 10 while following only evaluates the bar
+you land on. History sent to the browser is capped at 50,000 bars; follow evaluates that
 tail, not a bar the browser no longer holds.
 
-Disarm before you want the play button to batch bars again. Placing a manual order does
-not disarm by itself; one-position mode simply will not add another entry.
+Stop follow before you want the play button to batch bars again. Placing a manual order does
+not stop follow by itself; one-position mode simply will not add another entry.
 
 ## Not included
 

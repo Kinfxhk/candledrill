@@ -21,10 +21,17 @@ async function freshSession(page: Page, name: string, trailing?: number) {
 const money = (v: number) =>
   v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** Cost-breakdown summaries sit in a max-height scroller under the ticket. */
+/** Cost-breakdown summaries sit inside nested details under the ticket. */
 async function riskFocus(page: Page, id: string) {
   const loc = page.locator(`[data-risk-focus=${id}]`);
-  await loc.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await loc.evaluate((el) => {
+    let node = el.parentElement?.parentElement ?? null;
+    while (node) {
+      if (node instanceof HTMLDetailsElement) node.open = true;
+      node = node.parentElement;
+    }
+    el.scrollIntoView({ block: 'center', inline: 'nearest' });
+  });
   return loc;
 }
 
@@ -41,7 +48,9 @@ test('risk ticket updates live, respects each side and never submits while editi
   await expect(page.getByTestId('risk-buy')).toContainText('Set a stop distance');
   const riskWrap = page.getByTestId('risk-preview-wrap');
   await expect(riskWrap).toBeVisible();
-  if (!(await riskWrap.getAttribute('open'))) await riskWrap.locator(':scope > summary').click();
+  // `getAttribute('open')` is "" when present, which is falsy — only click when closed.
+  if ((await riskWrap.getAttribute('open')) === null)
+    await riskWrap.locator(':scope > summary').click();
   await page.getByTestId('qty').fill('2');
   await page.getByTestId('sl-ticks').fill('8');
   await page.getByTestId('tp-ticks').fill('16');

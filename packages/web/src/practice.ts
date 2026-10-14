@@ -352,7 +352,7 @@ export class PracticeView {
       },
     };
     const macroTab: BottomTab = {
-      key: 'macro.open',
+      key: 'macro.title',
       id: 'macro',
       persistent: true,
       render: (panel) => {
@@ -799,6 +799,7 @@ export class PracticeView {
     const cursor = this.bars.length - 1;
     const local = cursor === this.state.cursor ? this.state : { ...this.state, cursor };
     const signal = macroSignal(this.bars, this.engineSettings(), local, macro);
+    if (signal) this.macroPanel.noteSignal(signal.side);
     if (!signal) return;
     await this.mutate(() =>
       sessionsApi.placeOrder(this.meta!.id, {
