@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Right-hand panel: order ticket, position, working orders and practice-rule meters.
+// Right-hand panel: practice-rule meters, order ticket, and position.
+// Working orders render into `ordersSection`, which the practice view mounts in the bottom panel.
 
 import {
   roundToTick,
@@ -36,6 +37,9 @@ export class SidePanel {
   private readonly tp: HTMLInputElement;
   private readonly priceRow: HTMLElement;
   private readonly ordersBox: HTMLElement;
+  private readonly ordersHeading: HTMLElement;
+  /** Working-order card. Mounted in the bottom panel, not the right rail. */
+  readonly ordersSection: HTMLElement;
   private readonly riskBox: HTMLElement;
   private readonly riskExpanded = new Map<string, boolean>();
   private riskOpen = localStorage.getItem('candledrill.riskPreviewOpen') === '1';
@@ -170,12 +174,8 @@ export class SidePanel {
     );
     this.extra = el('div', { style: 'display:flex;flex-direction:column;gap:10px' }, rules);
     this.ordersBox = el('div', { 'data-testid': 'orders' });
-    const orders = el(
-      'section',
-      { class: 'card' },
-      el('h3', { 'data-i18n': 'pr.orders' }, t('pr.orders')),
-      this.ordersBox,
-    );
+    this.ordersHeading = el('h3', { 'data-i18n': 'pr.orders' }, t('pr.orders'));
+    this.ordersSection = el('section', { class: 'card' }, this.ordersHeading, this.ordersBox);
 
     this.dialogOrderId = el('span', {});
     this.dialogPrice = el('input', { type: 'number', step: 'any', 'data-testid': 'modify-price' });
@@ -224,7 +224,7 @@ export class SidePanel {
       this.dialogCurrentOrderId = null;
     });
 
-    this.root.replaceChildren(ticket, position, this.extra, orders);
+    this.root.replaceChildren(this.extra, ticket, position);
     document.body.append(this.dialog);
     this.setType('market');
   }
@@ -513,6 +513,7 @@ export class SidePanel {
         el('p', { class: 'muted small', 'data-i18n': 'pr.drawdownNote' }, t('pr.drawdownNote')),
       );
     }
+    this.ordersHeading.textContent = t('pr.orders');
     this.rulesBox.replaceChildren(
       ...(meters.length ? meters : [el('p', { class: 'muted' }, t('pr.noRules'))]),
       ...drawdown,

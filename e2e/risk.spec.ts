@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo } from './helpers.js';
+import { generateDemo, showWorkingOrders } from './helpers.js';
 
 async function freshSession(page: Page, name: string, trailing?: number) {
   await page.goto('/');
@@ -95,6 +95,7 @@ test('working entries and open positions have explanatory unsupported previews',
   await freshSession(page, 'Risk position');
   await page.getByTestId('sl-ticks').fill('400');
   await page.getByTestId('btn-buy').click();
+  await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText('MKT');
   await expect(page.getByTestId('risk-buy')).toContainText('entry order is already working');
   await page.getByTestId('btn-step').click();
@@ -116,6 +117,7 @@ test('enhanced risk preview retains upstream drawdown, speed and numeric order m
   await page.getByTestId('price').fill(String(price));
   await page.getByTestId('sl-ticks').fill('8');
   await page.getByTestId('btn-buy').click();
+  await showWorkingOrders(page);
   await expect(page.getByTestId('modify-1')).toBeVisible();
   await page.getByTestId('modify-1').click();
   await expect(page.getByTestId('modify-dialog')).toBeVisible();

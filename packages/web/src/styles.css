@@ -401,8 +401,12 @@ table.data th.num {
   flex-direction: column;
   min-height: 0;
 }
+.bottom.macro-open {
+  height: min(460px, 52vh);
+}
 .bottom .tabbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 6px 10px 0;
 }
@@ -836,6 +840,47 @@ table.data.compact th {
 .macro-panel h4 {
   margin: 10px 0 4px;
   font-size: 12px;
+}
+.macro-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+.macro-steps button {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.macro-steps button[aria-current='step'] {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+.macro-wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.macro-next {
+  margin-left: auto;
+}
+.macro-missing {
+  border: 1px solid var(--down);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-top: 8px;
+}
+.macro-missing ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+button.is-blocked {
+  opacity: 0.55;
+}
+.macro-blind-notice {
+  margin: 8px 12px 0;
 }
 .macro-banner {
   margin: 0;
