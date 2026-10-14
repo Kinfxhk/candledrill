@@ -271,13 +271,8 @@ test('rectangle and long R tool: draw, drag the stop, delete', async ({ page }) 
   // Select the R tool (press its entry handle) and delete it with the × button.
   const entry = page.locator(`[data-drawing="${pos.id}"][data-part=entry]`);
   // Saving the rectangle rebuilds the overlay; wait until the new handle has a box.
-  let eb: { x: number; y: number } | null = null;
-  await expect
-    .poll(async () => {
-      eb = await entry.boundingBox();
-      return eb;
-    })
-    .not.toBeNull();
+  await expect.poll(() => entry.boundingBox()).not.toBeNull();
+  const eb = await entry.boundingBox();
   if (!eb) throw new Error('entry handle has no box');
   await page.mouse.move(eb.x + 5, eb.y + 5);
   await page.mouse.down();
