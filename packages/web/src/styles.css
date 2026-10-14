@@ -844,12 +844,13 @@ table.data.compact th {
 .macro-steps {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 4px;
   margin: 6px 0;
 }
 .macro-steps button {
   font-size: 12px;
-  padding: 4px 8px;
+  padding: 2px 6px;
 }
 .macro-steps button[aria-current='step'] {
   border-color: var(--accent);
@@ -858,13 +859,89 @@ table.data.compact th {
 }
 .macro-wizard-nav {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   gap: 8px;
   margin-top: 10px;
 }
-.macro-next {
-  margin-left: auto;
+.macro-ready {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.macro-ready.ok {
+  color: var(--up);
+  background: color-mix(in srgb, var(--up) 16%, transparent);
+}
+.macro-ready.no {
+  color: var(--down);
+  background: color-mix(in srgb, var(--down) 14%, transparent);
+}
+.macro-follow {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.macro-compose {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.macro-actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+.macro-run-block {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+}
+.macro-run-block h4 {
+  width: 100%;
+  margin: 0;
+}
+.macro-seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.macro-seg button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.macro-seg button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.macro-example-row {
+  display: flex;
+  justify-content: flex-end;
+}
+.macro-zero-count {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 4px 0;
+}
+.macro-cond-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+.macro-cond-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
 }
 .macro-missing {
   border: 1px solid var(--down);

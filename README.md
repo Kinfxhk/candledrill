@@ -80,7 +80,7 @@ Searchable catalog: SMA / EMA (any periods), Bollinger, session VWAP, opening ra
 
 ### Simulated macro
 
-Stack bar-close conditions (ORB, moving average, RSI, and others), set a fixed stop and target, then **Run backtest** or **Arm watch**. Orders use the same fill model as the ticket. This is a local simulation: no broker, no live orders. The manual ticket stays on the right. Macro is a four-step wizard on the bottom **Macro** tab (the chart **Macro** button opens it). It needs a non-blind session. Details: [docs/MACRO.md](docs/MACRO.md).
+Stack bar-close conditions (ORB, moving average, RSI, and others), set a fixed stop and target, then **Backtest** or **Follow while playing**. Orders use the same fill model as the ticket. This is a local simulation: no broker, no live orders. The manual ticket stays on the right. Semi-auto is a four-step wizard on the bottom tab (the chart **Semi-auto** chip opens it). It needs a non-blind session. Details: [docs/MACRO.md](docs/MACRO.md).
 
 ### Orders & review
 
