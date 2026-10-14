@@ -6,6 +6,15 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Practice layout.** The right column is practice rules, the order ticket, and the position.
+  Working orders moved to a bottom **Working orders** tab. **Macro** is a bottom tab with a
+  four-step wizard (rules, entry/exit, how to run, result). Run stays blocked until the
+  macro is valid and lists what is missing. A blind session warns on the new-session form
+  (and when demo data is generated with blind still on) and again as soon as the session
+  opens. The chart Macro button opens that wizard.
+
 ## [0.3.0] - 2026-10-14
 
 ### Added

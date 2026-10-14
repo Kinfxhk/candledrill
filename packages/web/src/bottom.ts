@@ -35,6 +35,11 @@ function tradeButton(trade: Trade, navigation: TradeNavigation, prefix: string):
 export interface BottomTab {
   key: MessageKey;
   id: string;
+  /**
+   * Mount once into a stable panel. Later session renders leave that DOM in place
+   * so inputs in the macro wizard keep focus while the chart steps.
+   */
+  persistent?: boolean;
   render(
     panel: HTMLElement,
     settings: SessionSettings,
@@ -349,11 +354,14 @@ export class BottomPanel {
   private readonly bar: HTMLElement;
   private panel: HTMLElement;
   private last: { s: SessionSettings; st: SessionStateDto; id: number } | undefined;
+  private readonly stable = new Map<string, HTMLElement>();
+  private readonly mounted = new Set<string>();
 
   constructor(
     root: HTMLElement,
     private readonly tabs: BottomTab[],
     private readonly navigation?: TradeNavigation,
+    private readonly onSelect?: (id: string) => void,
   ) {
     this.active = tabs[0]!.id;
     this.bar = el('div', { class: 'tabbar', role: 'tablist' });
@@ -388,15 +396,37 @@ export class BottomPanel {
     this.tabs.forEach((tab, i) =>
       this.bar.children[i]!.setAttribute('aria-selected', String(tab.id === this.active)),
     );
+    const tab = this.tabs.find((x) => x.id === this.active)!;
+    if (tab.persistent) {
+      this.refreshPersistent(tab);
+      this.onSelect?.(this.active);
+      return;
+    }
     if (!this.last) return;
     // Each render owns its DOM: pending journal responses retain a detached panel.
     const scrollTop = this.panel.scrollTop;
     const panel = el('div', { class: 'tabpanel', role: 'tabpanel' });
     this.panel.replaceWith(panel);
     this.panel = panel;
-    this.tabs
-      .find((x) => x.id === this.active)!
-      .render(this.panel, this.last.s, this.last.st, this.last.id, this.navigation);
+    tab.render(this.panel, this.last.s, this.last.st, this.last.id, this.navigation);
     this.panel.scrollTop = scrollTop;
+    this.onSelect?.(this.active);
+  }
+
+  /** Show a host-owned node without rebuilding it on every session tick. */
+  private refreshPersistent(tab: BottomTab): void {
+    let stable = this.stable.get(tab.id);
+    if (!stable) {
+      stable = el('div', { class: 'tabpanel', role: 'tabpanel' });
+      this.stable.set(tab.id, stable);
+    }
+    if (this.last && !this.mounted.has(tab.id)) {
+      tab.render(stable, this.last.s, this.last.st, this.last.id, this.navigation);
+      this.mounted.add(tab.id);
+    }
+    if (this.panel !== stable) {
+      this.panel.replaceWith(stable);
+      this.panel = stable;
+    }
   }
 }

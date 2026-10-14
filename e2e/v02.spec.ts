@@ -2,7 +2,7 @@
 // v0.2: blind practice, drawing tools, session file import, backup and restore, reminder.
 import { copyFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo } from './helpers.js';
+import { generateDemo, showWorkingOrders } from './helpers.js';
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -25,6 +25,9 @@ async function newSession(page: Page, name: string, blind = false) {
   await form.getByTestId('ns-blind').setChecked(blind);
   if (blind) {
     await expect(form.locator('input[name=name]')).toHaveValue(/^Blind /);
+    await expect(page.getByTestId('macro-blind-warn')).toBeVisible();
+  } else {
+    await expect(page.getByTestId('macro-blind-warn')).toBeHidden();
   }
   await form.locator('input[name=name]').fill(name);
   await expect(form.locator('input[name=name]')).toHaveValue(name);
@@ -47,6 +50,7 @@ test('a delayed step from the previous session cannot change the newly opened se
   await newSession(page, 'Race A');
   const a = await sessionByName(page, 'Race A');
   await page.getByTestId('btn-buy').click();
+  await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText('MKT');
 
   let release!: () => void;
@@ -97,6 +101,7 @@ test('a delayed journal response cannot replace the statistics tab', async ({ pa
   await demo(page);
   await newSession(page, 'Journal race');
   await page.getByTestId('btn-buy').click();
+  await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText('MKT');
   await page.getByTestId('btn-step').click();
   await expect
@@ -105,9 +110,11 @@ test('a delayed journal response cannot replace the statistics tab', async ({ pa
   const view = await sessionByName(page, 'Journal race');
   if (view.state.trading.trades.length === 0) {
     await page.getByTestId('btn-flatten').click();
+    await showWorkingOrders(page);
     await expect(page.getByTestId('orders')).toContainText('MKT');
     await page.getByTestId('btn-step').click();
   }
+  await page.getByTestId('tab-trades').click();
   await expect(page.getByTestId('trades-table').locator('tr:has(td)')).toHaveCount(1);
 
   let release!: () => void;
@@ -168,6 +175,7 @@ test('blind practice hides the period, symbol and preview until revealed', async
     .symbol as string;
   await newSession(page, 'Blind e2e', true);
   await expect(page.getByTestId('blind-badge')).toBeVisible();
+  await expect(page.getByTestId('macro-blind-notice')).toBeVisible();
   await expect(page.getByTestId('clock')).toHaveText(/^Day \d+ · \w{3} \d\d:\d\d$/);
   await expect(page.getByTestId('btn-jump')).toBeHidden();
   await page.getByTestId('btn-step10').click();
@@ -262,8 +270,17 @@ test('rectangle and long R tool: draw, drag the stop, delete', async ({ page }) 
 
   // Select the R tool (press its entry handle) and delete it with the × button.
   const entry = page.locator(`[data-drawing="${pos.id}"][data-part=entry]`);
-  await entry.waitFor({ state: 'visible' });
-  const eb = (await entry.boundingBox())!;
+  // Saving the rectangle rebuilds the overlay. Keep the box from the poll that
+  // saw it; a second boundingBox() read can land between overlay rebuilds.
+  const seen: { box: { x: number; y: number } | null } = { box: null };
+  await expect
+    .poll(async () => {
+      seen.box = await entry.boundingBox();
+      return seen.box !== null;
+    })
+    .toBe(true);
+  const eb = seen.box;
+  if (!eb) throw new Error('entry handle has no box');
   await page.mouse.move(eb.x + 5, eb.y + 5);
   await page.mouse.down();
   await page.mouse.up();

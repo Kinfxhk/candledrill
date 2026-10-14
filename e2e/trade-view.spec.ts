@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo } from './helpers.js';
+import { generateDemo, showWorkingOrders } from './helpers.js';
 
 async function setup(page: Page, name: string, blind = false) {
   await page.goto('/');
@@ -9,6 +9,7 @@ async function setup(page: Page, name: string, blind = false) {
   if (blind) {
     await form.getByTestId('ns-blind').check();
     await expect(form.locator('input[name=name]')).toHaveValue(/^Blind /);
+    await expect(page.getByTestId('macro-blind-warn')).toBeVisible();
   }
   await form.locator('input[name=name]').fill(name);
   await form.locator('button[type=submit]').click();
@@ -17,14 +18,17 @@ async function setup(page: Page, name: string, blind = false) {
   const id = list.sessions.find((s: { name: string }) => s.name === name).id;
   const read = async () => (await page.request.get(`/api/sessions/${id}`)).json();
   await page.getByTestId('btn-buy').click();
+  await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText('MKT');
   await page.getByTestId('btn-step').click();
   await expect.poll(async () => (await read()).state.trading.fills.length).toBeGreaterThan(0);
   if ((await read()).state.trading.trades.length === 0) {
     await page.getByTestId('btn-flatten').click();
+    await showWorkingOrders(page);
     await expect(page.getByTestId('orders')).toContainText('MKT');
     await page.getByTestId('btn-step').click();
   }
+  await page.getByTestId('tab-trades').click();
   await expect(page.getByTestId('trades-view-1')).toBeVisible();
   return read;
 }
@@ -69,6 +73,7 @@ test('trade and journal navigation preserves session state across pane/timeframe
 
 test('unrevealed blind sessions disable trade and journal navigation', async ({ page }) => {
   const read = await setup(page, 'Blind trade navigation', true);
+  await expect(page.getByTestId('macro-blind-notice')).toBeVisible();
   const before = await read();
   await expect(page.getByTestId('trades-view-1')).toBeDisabled();
   await expect(page.getByTestId('trades-view-1')).toHaveAttribute('title', /Reveal/);
