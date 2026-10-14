@@ -6,6 +6,34 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-14
+
+### Added
+
+- **Indicator catalog v2.** The Indicators panel has typeahead search and category chips
+  (Trend, Volatility, Momentum, Volume, Session). SMA and EMA are free-form instances, so a
+  chart can show SMA(21) and SMA(200) together. Preferences move from the fixed-slot key
+  `candledrill.indicators` to `candledrill.indicators.v2`; older lists are merged onto the
+  previous defaults. At most 12 non-volume overlays are visible at once.
+- **Opening range, Donchian, Stochastic and ADX.** ORB draws the session high/low (forming
+  during the window, then frozen). Donchian is highest-high / lowest-low. Stochastic is
+  smoothed %K and %D. ADX uses Wilder smoothing. Formulas are in `@candledrill/core` and
+  only see bars already passed in.
+- **Simulated macro.** A JSON condition list (price vs MA, ORB break, flat, time window,
+  plus RSI / MACD / Bollinger / Donchian / Stochastic / ADX presets) can place a market
+  order with a fixed stop and target (ticks, ATR multiple, percent, or R multiple). Rules
+  are priority ordered. One position at a time is the default. **Run backtest** executes
+  in the server via `POST /api/sessions/:id/macro-run` and reuses `computeStats`. It does
+  not move the practice cursor and does not return trade timestamps. **Arm watch** follows
+  the existing play loop, one bar at a time, through the same order API. The manual ticket
+  stays on screen. Copy is Simulated / Educational. Set `localStorage`
+  `candledrill.feature.macro` to `0` to hide the panel. Blind sessions stay blocked until
+  reveal. See [docs/MACRO.md](docs/MACRO.md).
+
+### Changed
+
+- README status line now matches this release.
+
 ## [0.2.13] - 2026-10-13
 
 ### Fixed
