@@ -82,3 +82,19 @@ describe('orbLevels', () => {
     expect(r.complete[1]).toBe(false);
   });
 });
+
+describe('orbLevels anchorMinutes', () => {
+  it('uses anchorMinutes instead of dayStartMinutes for the ORB window', () => {
+    // Bars from 08:00; dayStart midnight would put ORB at 00:00–00:30 (empty).
+    const day = Date.UTC(2026, 9, 5) / 1000;
+    const bars = Array.from({ length: 60 }, (_, i) => {
+      const t0 = day + (8 * 60 + i) * 60;
+      return { time: t0, open: 100, high: 101, low: 99, close: 100, volume: 1 };
+    });
+    const empty = orbLevels(bars, 30, { dayStartMinutes: 0, anchorMinutes: 0 });
+    expect(empty.high.every((h) => h === null)).toBe(true);
+    const filled = orbLevels(bars, 30, { dayStartMinutes: 0, anchorMinutes: 8 * 60 });
+    expect(filled.high[30]).not.toBeNull();
+    expect(filled.complete[30]).toBe(true);
+  });
+});

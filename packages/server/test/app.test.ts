@@ -33,7 +33,7 @@ describe('HTTP API', () => {
       status: 'ok',
       name: 'CandleDrill',
       telemetry: false,
-      fillModelVersion: '3',
+      fillModelVersion: '4',
     });
     expect(body.apiVersion).toBeDefined();
     expect(body.version).toBeUndefined();

@@ -11,6 +11,8 @@ export interface AggregateOptions {
   readonly utcOffsetMinutes?: number;
   /** Local minute-of-day at which a daily bar starts. Default 0 (midnight). */
   readonly dayStartMinutes?: number;
+  /** Opening anchor for VWAP reset; falls back to dayStartMinutes. */
+  readonly anchorMinutes?: number;
 }
 
 export const DAY_SECONDS = 86_400;

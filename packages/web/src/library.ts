@@ -207,6 +207,12 @@ export class LibraryView {
       const start = ds.firstTime + Math.floor((ds.lastTime - ds.firstTime) / 5);
       const local = new Date((start + ds.utcOffsetMinutes * 60) * 1000).toISOString().slice(0, 16);
       f('start').value = local;
+      // Market-open anchor defaults to the first bar's exchange-local clock.
+      const firstLocal = new Date((ds.firstTime + ds.utcOffsetMinutes * 60) * 1000);
+      const hh = String(firstLocal.getUTCHours()).padStart(2, '0');
+      const mm = String(firstLocal.getUTCMinutes()).padStart(2, '0');
+      const anchor = this.form.elements.namedItem('anchor') as HTMLInputElement | null;
+      if (anchor) anchor.value = `${hh}:${mm}`;
     }
   }
 

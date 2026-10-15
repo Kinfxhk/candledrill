@@ -49,9 +49,11 @@ function randomSettings(tick: number): SessionSettings {
     startingBalance: 50_000,
     dailyLossLimit: pick([null, 400, 1500]),
     trailingDrawdown: pick([null, 2500]),
+    trailingDrawdownMode: pick(['close', 'eod', 'intraday', 'static'] as const),
     profitTarget: pick([null, 3000]),
     utcOffsetMinutes: pick([0, -300, 480]),
     dayStartMinutes: pick([0, 18 * 60]),
+    anchorMinutes: pick([0, 8 * 60, 9 * 60 + 30, 18 * 60]),
   };
 }
 
@@ -161,6 +163,12 @@ for (let i = 0; i < N; i++) {
     settings: st,
     bars: bars.slice(0, state.cursor + 2),
     cursor: state.cursor,
+    status: state.status,
+    statusReason: state.statusReason,
+    equityPeak: state.equityPeak,
+    eodPeak: state.eodPeak,
+    intradayPeak: state.intradayPeak,
+    dayStartEquity: state.dayStartEquity,
     orders: state.trading.orders,
     fills: state.trading.fills,
     trades: state.trading.trades,
@@ -204,6 +212,8 @@ async function serverCases() {
     profitTarget: null,
     utcOffsetMinutes: 0,
     dayStartMinutes: 0,
+    trailingDrawdownMode: 'close' as const,
+    anchorMinutes: 0,
   };
   const blindRuns: unknown[] = [];
   for (let k = 0; k < 8; k++) {

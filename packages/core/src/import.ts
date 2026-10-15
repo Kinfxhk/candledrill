@@ -10,10 +10,15 @@
 
 import type { Bar } from './types.js';
 import { applyFill, emptyTrading, MAX_ORDER_QTY, type Fill } from './orders.js';
-import { validateSettings, type SessionSettings, type SessionState } from './session.js';
+import {
+  normalizeSettings,
+  validateSettings,
+  type SessionSettings,
+  type SessionState,
+} from './session.js';
 
 export const SESSION_FILE_FORMAT = 'candledrill-session';
-export const SESSION_FILE_VERSION = 1;
+export const SESSION_FILE_VERSION = 2;
 /** Hard limits so a hostile file cannot exhaust memory or time. */
 export const MAX_SESSION_FILE_BYTES = 20 * 1024 * 1024;
 export const MAX_IMPORT_RECORDS = 200_000;
@@ -95,20 +100,35 @@ const SETTINGS_KEYS = [
   'startingBalance',
   'dailyLossLimit',
   'trailingDrawdown',
+  'trailingDrawdownMode',
   'profitTarget',
   'utcOffsetMinutes',
   'dayStartMinutes',
+  'anchorMinutes',
 ] as const;
+
+const LEGACY_OPTIONAL = new Set(['anchorMinutes', 'trailingDrawdownMode']);
 
 function settingsIssues(s: unknown): string[] {
   if (!isObj(s)) return ['settings: missing'];
   const out: string[] = [];
-  for (const k of SETTINGS_KEYS) if (!(k in s)) out.push(`settings.${k}: missing`);
+  for (const k of SETTINGS_KEYS) {
+    if (!(k in s) && !LEGACY_OPTIONAL.has(k)) out.push(`settings.${k}: missing`);
+  }
   for (const k of Object.keys(s))
     if (!(SETTINGS_KEYS as readonly string[]).includes(k)) out.push(`settings.${k}: unknown`);
   if (out.length) return out;
+  // Old formatVersion 1 files: default new fields before validation.
+  if (!('anchorMinutes' in s) && isInt(s.dayStartMinutes)) s.anchorMinutes = s.dayStartMinutes;
+  if (!('trailingDrawdownMode' in s)) s.trailingDrawdownMode = 'close';
   if (!isStr(s.symbol, 64) || s.symbol.length === 0) out.push('settings.symbol: invalid');
   for (const k of SETTINGS_KEYS.slice(1)) {
+    if (k === 'trailingDrawdownMode') {
+      const m = s[k];
+      if (m !== 'close' && m !== 'eod' && m !== 'intraday' && m !== 'static')
+        out.push('settings.trailingDrawdownMode: invalid');
+      continue;
+    }
     const v = s[k];
     if (v !== null && typeof v !== 'number') out.push(`settings.${k}: not a number`);
   }
@@ -116,6 +136,8 @@ function settingsIssues(s: unknown): string[] {
     out.push('settings.utcOffsetMinutes: invalid');
   if (!isInt(s.dayStartMinutes) || s.dayStartMinutes < 0 || s.dayStartMinutes > 1439)
     out.push('settings.dayStartMinutes: invalid');
+  if (!isInt(s.anchorMinutes) || s.anchorMinutes < 0 || s.anchorMinutes > 1439)
+    out.push('settings.anchorMinutes: invalid');
   if (out.length) return out;
   return validateSettings(s as unknown as SessionSettings).map((e) => `settings: ${e}`);
 }
@@ -208,8 +230,10 @@ export function parseSessionFile(
   }
   if (!isObj(raw)) return { issues: ['not a session file'] };
   if (raw.format !== SESSION_FILE_FORMAT) return { issues: ['not a CandleDrill session file'] };
-  if (raw.formatVersion !== SESSION_FILE_VERSION)
-    return { issues: [`unsupported formatVersion (this version reads ${SESSION_FILE_VERSION})`] };
+  if (raw.formatVersion !== 1 && raw.formatVersion !== 2)
+    return {
+      issues: [`unsupported formatVersion (this version reads 1–${SESSION_FILE_VERSION})`],
+    };
   const issues: string[] = [];
   shapeIssues(raw, 'file', 0, issues, options);
   if (issues.length) return { issues };
@@ -255,7 +279,7 @@ export function parseSessionFile(
     file: {
       name: options.source === 'backup' ? (raw.name as string) : (raw.name as string).trim(),
       startTime: raw.startTime as number,
-      settings: raw.settings as unknown as SessionSettings,
+      settings: normalizeSettings(raw.settings as unknown as SessionSettings),
       state: raw.state as unknown as SessionState,
       drawings: (raw.drawings ?? []) as unknown[],
       journal: (raw.journal as Record<string, unknown> | undefined) ?? null,
@@ -284,7 +308,7 @@ export function checkSessionState(
   if (shape.length) return shape;
   if (!isObj(state)) return ['state: missing'];
   if (bars.length === 0) return ['dataset has no bars'];
-  if (state.version !== 1) out.push('state.version: unsupported');
+  if (state.version !== 1 && state.version !== 2) out.push('state.version: unsupported');
   if (!isInt(state.cursor) || state.cursor < 0 || state.cursor > bars.length - 1)
     return [...out, 'state.cursor: outside the dataset'];
   const cursor = state.cursor;
@@ -295,6 +319,10 @@ export function checkSessionState(
     out.push('state.statusReason: invalid');
   for (const k of ['equityPeak', 'maxDrawdown', 'maxDrawdownPct', 'dayStartEquity'] as const)
     if (state[k] !== undefined && !isNum(state[k])) out.push(`state.${k}: invalid`);
+  if (state.version === 2) {
+    for (const k of ['eodPeak', 'intradayPeak'] as const)
+      if (state[k] !== undefined && !isNum(state[k])) out.push(`state.${k}: invalid`);
+  }
   if (state.dayKey !== undefined && !isInt(state.dayKey)) out.push('state.dayKey: invalid');
   const tr = state.trading;
   if (!isObj(tr)) return [...out, 'state.trading: missing'];

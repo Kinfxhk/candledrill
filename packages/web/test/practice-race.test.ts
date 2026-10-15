@@ -33,6 +33,8 @@ const settings = {
   profitTarget: null,
   utcOffsetMinutes: 0,
   dayStartMinutes: 0,
+  trailingDrawdownMode: 'close' as const,
+  anchorMinutes: 0,
 };
 const bar = (time: number): Bar => ({ time, open: 100, high: 101, low: 99, close: 100, volume: 1 });
 function fixture(id: number, time: number): SessionViewDto & { bars: Bar[] } {

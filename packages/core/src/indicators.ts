@@ -120,8 +120,12 @@ export function vwap(bars: readonly Bar[], opts: AggregateOptions = {}): VwapPoi
   let dayStart: number | null = null;
   let cumPV = 0;
   let cumVol = 0;
+  const vwapOpts: AggregateOptions = {
+    ...(opts.utcOffsetMinutes !== undefined ? { utcOffsetMinutes: opts.utcOffsetMinutes } : {}),
+    dayStartMinutes: opts.anchorMinutes ?? opts.dayStartMinutes ?? 0,
+  };
   for (const b of bars) {
-    const start = bucketStart(b.time, 86_400, opts);
+    const start = bucketStart(b.time, 86_400, vwapOpts);
     if (dayStart === null || start !== dayStart) {
       dayStart = start;
       cumPV = 0;
@@ -435,6 +439,8 @@ export function adx(bars: readonly Bar[], period: number): AdxResult {
 export interface SessionClock {
   readonly utcOffsetMinutes?: number;
   readonly dayStartMinutes?: number;
+  /** Opening-range anchor; when set, ORB uses this instead of dayStartMinutes. */
+  readonly anchorMinutes?: number;
 }
 
 /** Exchange trading-day key. Same formula as `dayKeyOf` in the session engine. */
@@ -480,6 +486,11 @@ export function orbLevels(
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1439) {
     throw new RangeError('minutes must be an integer 1-1439');
   }
+  // ORB window is anchored to market open, not the daily-loss day boundary.
+  const orbClock: SessionClock = {
+    ...(clock.utcOffsetMinutes !== undefined ? { utcOffsetMinutes: clock.utcOffsetMinutes } : {}),
+    dayStartMinutes: clock.anchorMinutes ?? clock.dayStartMinutes ?? 0,
+  };
   const high: (number | null)[] = [];
   const low: (number | null)[] = [];
   const complete: boolean[] = [];
@@ -491,8 +502,8 @@ export function orbLevels(
   let freezeHigh = 0;
   let freezeLow = 0;
   for (const b of bars) {
-    const key = tradingDayKey(b.time, clock);
-    const minute = minutesIntoSession(b.time, clock);
+    const key = tradingDayKey(b.time, orbClock);
+    const minute = minutesIntoSession(b.time, orbClock);
     if (day !== key) {
       day = key;
       runHigh = b.high;

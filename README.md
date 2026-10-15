@@ -5,7 +5,7 @@
 Load bars → step through them without seeing the future → place simulated orders → review results.  
 No account, no subscription, no telemetry. **Not investment advice.**
 
-> **v0.3.3** · Local practice only. Report bugs in [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v0.4.0** · Local practice only. Report bugs in [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 

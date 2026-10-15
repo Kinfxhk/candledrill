@@ -22,6 +22,8 @@ const settings = {
   profitTarget: null,
   utcOffsetMinutes: 0,
   dayStartMinutes: 0,
+  trailingDrawdownMode: 'close' as const,
+  anchorMinutes: 0,
 };
 const bars: Bar[] = Array.from({ length: 12 }, (_, i) => ({
   time: 6000 + i * 60,

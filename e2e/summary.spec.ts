@@ -40,6 +40,8 @@ async function setup(page: Page, name: string, rule: 'passed' | 'breached' | 'fi
       profitTarget: rule === 'passed' ? 1 : null,
       utcOffsetMinutes: 0,
       dayStartMinutes: 0,
+      trailingDrawdownMode: 'close' as const,
+      anchorMinutes: 0,
     },
   });
   await page.goto('/');

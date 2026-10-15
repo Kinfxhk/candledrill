@@ -68,9 +68,15 @@ def check_fills(ci, c):
             fail(ci, f"fill {f['id']} price {f['price']} outside bar {b['low']}..{b['high']} (+slip)")
         sgn = 1 if f["side"] == "buy" else -1
         if f["role"] == "rule":
-            exp = rtick(b["close"] + sgn * slip, tick)
-            if not close(f["price"], exp):
-                fail(ci, f"rule close {f['id']} at {f['price']}, expected close±slip {exp}")
+            mode = st.get("trailingDrawdownMode", "close")
+            if mode == "intraday":
+                # v4: intraday trailing may force-close at the adverse high/low, not the close.
+                if not (b["low"] - slip - 1e-9 <= f["price"] <= b["high"] + slip + 1e-9):
+                    fail(ci, f"intraday rule close {f['id']} at {f['price']} outside bar±slip")
+            else:
+                exp = rtick(b["close"] + sgn * slip, tick)
+                if not close(f["price"], exp):
+                    fail(ci, f"rule close {f['id']} at {f['price']}, expected close±slip {exp}")
             continue
         o = orders.get(f["orderId"])
         if o is None:
@@ -168,6 +174,27 @@ def replay(ci, c):
             pos, avg = (left if f["side"] == "buy" else -left), p
             cur = open_trade(left, p, f["side"], f["time"], comm - cc, sl)
     return trades, realized, pos, avg
+
+
+
+def check_trailing(ci, c):
+    """Sanity-check dumped trailing peaks against settings/mode (fill model v4)."""
+    if "equityPeak" not in c:
+        return
+    st = c["settings"]
+    start = st["startingBalance"]
+    mode = st.get("trailingDrawdownMode", "close")
+    if c["equityPeak"] + 1e-9 < start:
+        fail(ci, f"equityPeak {c['equityPeak']} below starting balance")
+    if c.get("eodPeak", start) + 1e-9 < start:
+        fail(ci, f"eodPeak {c['eodPeak']} below starting balance")
+    if c.get("intradayPeak", start) + 1e-9 < start:
+        fail(ci, f"intradayPeak {c['intradayPeak']} below starting balance")
+    if mode == "static" and st.get("trailingDrawdown") and c["status"] == "breached":
+        # Static breach reason mentions trailing drawdown when equity fell by the amount.
+        pass
+    if c["status"] not in ("active", "breached", "passed", "finished"):
+        fail(ci, f"invalid status {c['status']}")
 
 
 def check_ledger(ci, c):
@@ -296,6 +323,7 @@ def main():
         checked["modifications"] += c.get("modifications", 0)
         check_fills(ci, c)
         check_ledger(ci, c)
+        check_trailing(ci, c)
         check_excursions(ci, c)
         check_blind(ci, c)
     check_server(data["server"])

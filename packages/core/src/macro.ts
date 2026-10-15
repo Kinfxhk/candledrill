@@ -547,7 +547,7 @@ class SeriesCache {
   orb(minutes: number): ReturnType<typeof orbLevels> {
     let hit = this.orbCache.get(minutes);
     if (!hit) {
-      hit = orbLevels(this.bars, minutes, this.settings);
+      hit = orbLevels(this.bars, minutes, anchorClock(this.settings));
       this.orbCache.set(minutes, hit);
     }
     return hit;
@@ -559,8 +559,16 @@ class SeriesCache {
   }
 }
 
-function clockOf(settings: SessionSettings) {
+function dayClock(settings: SessionSettings) {
   return { utcOffsetMinutes: settings.utcOffsetMinutes, dayStartMinutes: settings.dayStartMinutes };
+}
+
+function anchorClock(settings: SessionSettings) {
+  return {
+    utcOffsetMinutes: settings.utcOffsetMinutes,
+    dayStartMinutes: settings.dayStartMinutes,
+    anchorMinutes: settings.anchorMinutes,
+  };
 }
 
 function crossed(prevA: number, prevB: number, a: number, b: number, bull: boolean): boolean {
@@ -864,7 +872,7 @@ function shouldFlatten(
   if (!state.trading.position || state.trading.position.qty === 0) return false;
   const next = bars[state.cursor + 1];
   if (!next) return false;
-  return tradingDayKey(next.time, clockOf(settings)) !== state.dayKey;
+  return tradingDayKey(next.time, dayClock(settings)) !== state.dayKey;
 }
 
 /**

@@ -11,9 +11,13 @@ export const ENGINE_VERSION = '0.2.0';
  * time or a rule outcome changes. v1 = CandleDrill 0.1.0; v2 = 0.1.1 (gap-through bracket
  * children fill at the bar open, atomic bracket modification, net profit-target basis,
  * end-of-data keep-open policy); v3 = 0.2.2 (a limit already at or through the last
- * price is rejected instead of filling at the next open).
+ * price is rejected instead of filling at the next open); v4 = 0.4.0 (open-anchor
+ * separation; trailing drawdown modes close|eod|intraday|static; intraday rule
+ * exits at the adverse high/low trigger price).
  */
-export const FILL_MODEL_VERSION = '3';
+export const FILL_MODEL_VERSION = '4';
+
+export type LossRuleBasis = 'closing-equity' | 'end-of-day' | 'intraday-high-low' | 'static-floor';
 
 export interface SimulationPolicy {
   readonly engineVersion: string;
@@ -38,8 +42,8 @@ export interface SimulationPolicy {
   readonly ruleEvaluation: 'bar-close';
   /** The profit target counts only after estimated exit commission and slippage. */
   readonly profitTargetBasis: 'net-after-exit-costs';
-  /** Loss rules (daily loss, trailing drawdown) use mark-to-market closing equity. */
-  readonly lossRuleBasis: 'closing-equity';
+  /** Loss rules (daily loss, trailing drawdown) basis — depends on trailingDrawdownMode. */
+  readonly lossRuleBasis: LossRuleBasis;
   /**
    * At the end of the data an open position stays open, marked to the last close; working
    * orders are cancelled and flatten is unavailable because no later bar exists.
@@ -64,3 +68,20 @@ export const SIMULATION_POLICY: SimulationPolicy = Object.freeze({
   endOfDataPolicy: 'keep-open',
   riskBasis: 'all-entry-fills-with-stop',
 });
+
+export function lossRuleBasisFor(mode: 'close' | 'eod' | 'intraday' | 'static'): LossRuleBasis {
+  if (mode === 'eod') return 'end-of-day';
+  if (mode === 'intraday') return 'intraday-high-low';
+  if (mode === 'static') return 'static-floor';
+  return 'closing-equity';
+}
+
+/** Per-session policy snapshot (fill model v4+ records the trailing mode basis). */
+export function simulationPolicyFor(
+  mode: 'close' | 'eod' | 'intraday' | 'static' = 'close',
+): SimulationPolicy {
+  return Object.freeze({
+    ...SIMULATION_POLICY,
+    lossRuleBasis: lossRuleBasisFor(mode),
+  });
+}

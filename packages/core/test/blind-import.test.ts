@@ -38,6 +38,8 @@ const SETTINGS: SessionSettings = {
   profitTarget: null,
   utcOffsetMinutes: -300,
   dayStartMinutes: 18 * 60,
+  trailingDrawdownMode: 'close' as const,
+  anchorMinutes: 18 * 60,
 };
 const bars = generateSyntheticBars({ seed: 11, startDate: '2026-10-05', days: 4 }).bars;
 
@@ -349,7 +351,7 @@ describe('session file import checks', () => {
     ['order placed after cursor', (s) => (s.trading.orders[0].placedIndex = s.cursor + 1)],
     ['duplicate order id', (s) => s.trading.orders.push({ ...s.trading.orders[0] })],
     ['fills is not a list', (s) => (s.trading.fills = {})],
-    ['version 2', (s) => (s.version = 2)],
+    ['version 3', (s) => (s.version = 3)],
     ['string where number expected', (s) => (s.trading.realizedPnl = '100')],
     [
       'extra position with no fills',
@@ -406,7 +408,7 @@ describe('session file import checks', () => {
       'null',
       '[]',
       '{"format":"x"}',
-      '{"format":"candledrill-session","formatVersion":2}',
+      '{"format":"candledrill-session","formatVersion":3}',
       exportFile(base).replace('"realizedPnl":', '"realizedPnl":1e999,"x":'),
       exportFile(base, { name: '' }),
       exportFile(base, { name: 'x'.repeat(81) }),

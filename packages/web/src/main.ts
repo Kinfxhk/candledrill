@@ -92,9 +92,18 @@ async function createSession(ds: DatasetRow, form: HTMLFormElement): Promise<voi
         startingBalance: num(form, 'balance') ?? 50000,
         dailyLossLimit: num(form, 'dailyLoss'),
         trailingDrawdown: num(form, 'trailing'),
+        trailingDrawdownMode: (() => {
+          const v = (form.elements.namedItem('trailingMode') as HTMLSelectElement | null)?.value;
+          return v === 'eod' || v === 'intraday' || v === 'static' || v === 'close' ? v : 'close';
+        })(),
         profitTarget: num(form, 'target'),
         utcOffsetMinutes: utcOffset,
         dayStartMinutes: Number(hh) * 60 + Number(mm),
+        anchorMinutes: (() => {
+          const raw = (form.elements.namedItem('anchor') as HTMLInputElement)?.value || '';
+          const [ah, am] = (raw || `${hh}:${mm}`).split(':');
+          return Number(ah) * 60 + Number(am);
+        })(),
       },
     });
     noteChange();

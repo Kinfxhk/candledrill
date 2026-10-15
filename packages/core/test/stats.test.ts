@@ -112,6 +112,8 @@ describe('drawdown tracking', () => {
       profitTarget: null,
       utcOffsetMinutes: 0,
       dayStartMinutes: 0,
+      trailingDrawdownMode: 'close' as const,
+      anchorMinutes: 0,
     };
     const { bars } = generateSyntheticBars({ seed: 21, startDate: '2026-10-05', days: 1 });
     let s = createSession(bars, settings, bars[30]!.time);

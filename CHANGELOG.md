@@ -6,6 +6,24 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-15
+
+### Added
+
+- **Open-anchor separation (V1.0).** `SessionSettings.anchorMinutes` is the market-open clock for
+  ORB / VWAP / `orb_break`. `dayStartMinutes` is only the daily-loss day boundary. New session
+  form field; selecting a dataset prefills the anchor from the first bar’s exchange-local time.
+- **Trailing drawdown modes (V1.1).** `trailingDrawdownMode`: `close` (legacy) | `eod` |
+  `intraday` | `static`. Session state version 2 adds `eodPeak` / `intradayPeak`. Intraday
+  breaches force-close at the adverse high/low (fill model **v4**).
+
+### Changed
+
+- `FILL_MODEL_VERSION` → `4`; exported `simulationPolicy.lossRuleBasis` records the mode
+  (`closing-equity` | `end-of-day` | `intraday-high-low` | `static-floor`).
+- Session export `formatVersion` → `2` (0.3.x readers reject; old files still import with
+  defaults: `anchorMinutes = dayStartMinutes`, mode `close`).
+
 ## [0.3.3] - 2026-10-15
 
 ### Fixed
@@ -523,6 +541,7 @@ First public release.
   headless smoke test, both in CI.
 
 [Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.3.3...HEAD
+[0.4.0]: https://github.com/Kinfxhk/candledrill/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/Kinfxhk/candledrill/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/Kinfxhk/candledrill/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Kinfxhk/candledrill/compare/v0.3.0...v0.3.1

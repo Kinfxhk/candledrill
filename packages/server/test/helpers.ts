@@ -12,6 +12,8 @@ export const SETTINGS = {
   profitTarget: null,
   utcOffsetMinutes: 0,
   dayStartMinutes: 0,
+  trailingDrawdownMode: 'close' as const,
+  anchorMinutes: 0,
 };
 
 /** Fixed API token used by the tests (production generates a random one per launch). */

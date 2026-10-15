@@ -182,8 +182,12 @@
                   required
               /></label>
               <label class="field"
-                ><span data-i18n="ns.dayStart">Day start</span
+                ><span data-i18n="ns.dayStart">Trading day start (daily loss reset)</span
                 ><input name="dayStart" type="time" value="00:00" required
+              /></label>
+              <label class="field"
+                ><span data-i18n="ns.anchor">Market open anchor (ORB / VWAP)</span
+                ><input name="anchor" type="time" value="00:00" required data-testid="ns-anchor"
               /></label>
               <label class="field"
                 ><span data-i18n="ns.dailyLoss">Daily loss</span
@@ -193,6 +197,15 @@
                 ><span data-i18n="ns.trailing">Trailing drawdown</span
                 ><input name="trailing" type="number" min="0" step="any"
               /></label>
+              <label class="field"
+                ><span data-i18n="ns.trailingMode">Trailing mode</span
+                ><select name="trailingMode" data-testid="ns-trailing-mode">
+                  <option value="close" data-i18n="ns.trailingModeClose" selected>Close</option>
+                  <option value="eod" data-i18n="ns.trailingModeEod">End of day</option>
+                  <option value="intraday" data-i18n="ns.trailingModeIntraday">Intraday</option>
+                  <option value="static" data-i18n="ns.trailingModeStatic">Static</option>
+                </select>
+              </label>
               <label class="field"
                 ><span data-i18n="ns.target">Profit target</span
                 ><input name="target" type="number" min="0" step="any"

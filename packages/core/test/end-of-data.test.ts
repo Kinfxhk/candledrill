@@ -30,6 +30,8 @@ const SETTINGS: SessionSettings = {
   profitTarget: null,
   utcOffsetMinutes: 0,
   dayStartMinutes: 0,
+  trailingDrawdownMode: 'close' as const,
+  anchorMinutes: 0,
 };
 const bar = (i: number, o: number, h: number, l: number, c: number): Bar => ({
   time: i * 60,

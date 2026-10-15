@@ -300,7 +300,7 @@ describe('export API', () => {
     expect(html.body).toContain('Export me');
     expect(html.body).toContain('not investment advice');
     expect(html.body).toContain('(synthetic data)');
-    expect(html.body).toContain('fill model v3');
+    expect(html.body).toContain('fill model v4');
     expect(html.body).toContain('net-after-exit-costs');
     expect(html.body).toContain('Check your data licence before sharing');
 
@@ -309,10 +309,10 @@ describe('export API', () => {
     ).json();
     expect(json).toMatchObject({
       format: 'candledrill-session',
-      formatVersion: 1,
+      formatVersion: 2,
       name: 'Export me',
       simulationPolicy: {
-        fillModelVersion: '3',
+        fillModelVersion: '4',
         gapPolicy: 'fill-at-open',
         endOfDataPolicy: 'keep-open',
         profitTargetBasis: 'net-after-exit-costs',

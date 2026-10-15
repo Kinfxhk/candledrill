@@ -83,6 +83,8 @@ const SET = {
   profitTarget: null,
   utcOffsetMinutes: 0,
   dayStartMinutes: 0,
+  trailingDrawdownMode: 'close' as const,
+  anchorMinutes: 0,
 };
 const startTime = bars[Math.floor(bars.length * 0.8)]!.time;
 const created = await time('create session at 80% (first load of the bars)', () =>
