@@ -6,23 +6,50 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-15
+
 ### Fixed
 
-- **Risk preview.** Editing the ticket no longer collapses an expanded risk preview before its
-  toggle event lands, so the cost breakdown stays available.
+- **Version alignment.** Root and workspace `package.json` versions, the README status line,
+  and `/api/health` `releaseVersion` now match the published GitHub releases (0.3.1 / 0.3.2
+  were tagged while packages still said 0.3.0), so the in-app “new version” banner no longer
+  falsely appears after those releases.
 
 ### Changed
 
-- **Practice layout.** The right column is practice rules, the order ticket, and the position.
-  Working orders moved to a bottom **Working orders** tab. **Macro** is a bottom tab with a
-  four-step wizard (rules, entry/exit, how to run, result). Run stays blocked until the
-  macro is valid and lists what is missing. A blind session warns on the new-session form
-  (and when demo data is generated with blind still on) and again as soon as the session
-  opens. The chart Macro button opens that wizard.
-- **Semi-auto panel.** The bottom wizard is named 半自動交易 (chart chip: 半自動 / Semi-auto).
-  Step 1 is indicator → reaction → Add, with ORB and SMA presets as small Quick apply chips.
-  Step 3 shows a ready line and two actions: Backtest (From start / From here) and Follow
-  while playing. Step 4 always shows a result card. Copy only; the fill model is unchanged.
+- CI fails a tag push when the `v*` tag name (without the leading `v`) does not match the
+  root `package.json` `version`, so release tags cannot drift from the declared version again.
+- Vitest `testTimeout` and `hookTimeout` raised to 15s to cut intermittent timeouts on slower
+  runners. Fill / trade model unchanged.
+
+## [0.3.2] - 2026-10-14
+
+### Changed
+
+- **Semi-auto wizard UX rewrite (copy and layout only).** The bottom wizard is named
+  半自動交易 (chart chip: 半自動 / Semi-auto). Step strip is 1 條件 → 2 進出場 → 3 跑一轉 →
+  4 結果. Step 1 is indicator → reaction → Add, with ORB and SMA presets as small Quick
+  apply chips. Step 3 shows a readiness line plus Backtest (From start / From here) and
+  Follow while playing. Step 4 always shows a result card (never blank). Risk preview stays
+  open when editing the ticket. Fill model unchanged; Follow runs on play / next bar in
+  non-blind sessions only. Merged #19.
+
+### Fixed
+
+- **Risk preview.** Editing the ticket no longer collapses an expanded risk preview before
+  its toggle event lands, so the cost breakdown stays available.
+
+## [0.3.1] - 2026-10-14
+
+### Changed
+
+- **Practice rail cleanup and Macro as bottom-panel wizard.** Right column is practice
+  rules → order ticket → position only. Bottom tabs are Working orders plus Macro as a
+  four-step wizard. Run stays gated until name, qty, an enabled rule, and stop/target are
+  valid, and lists what is missing. Blind sessions warn on the new-session form (and when
+  demo data is generated with blind still on) and again when the session opens. The chart
+  Macro button opens the bottom Macro tab. Fill model, macro DSL, and APIs unchanged.
+  Merged #18.
 
 ## [0.3.0] - 2026-10-14
 
@@ -495,7 +522,20 @@ First public release.
   no-market-data and attribution checks, gitleaks secret scan) and a Playwright
   headless smoke test, both in CI.
 
-[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/Kinfxhk/candledrill/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/Kinfxhk/candledrill/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/Kinfxhk/candledrill/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/Kinfxhk/candledrill/compare/v0.2.13...v0.3.0
+[0.2.13]: https://github.com/Kinfxhk/candledrill/compare/v0.2.12...v0.2.13
+[0.2.12]: https://github.com/Kinfxhk/candledrill/compare/v0.2.11...v0.2.12
+[0.2.11]: https://github.com/Kinfxhk/candledrill/compare/v0.2.10...v0.2.11
+[0.2.10]: https://github.com/Kinfxhk/candledrill/compare/v0.2.9...v0.2.10
+[0.2.9]: https://github.com/Kinfxhk/candledrill/compare/v0.2.8...v0.2.9
+[0.2.8]: https://github.com/Kinfxhk/candledrill/compare/v0.2.7...v0.2.8
+[0.2.7]: https://github.com/Kinfxhk/candledrill/compare/v0.2.6...v0.2.7
+[0.2.6]: https://github.com/Kinfxhk/candledrill/compare/v0.2.5...v0.2.6
+[0.2.5]: https://github.com/Kinfxhk/candledrill/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/Kinfxhk/candledrill/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/Kinfxhk/candledrill/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/Kinfxhk/candledrill/compare/v0.2.1...v0.2.2
