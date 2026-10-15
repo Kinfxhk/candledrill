@@ -4,6 +4,8 @@ name: CI
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*'
   pull_request:
 
 permissions:
@@ -17,6 +19,25 @@ env:
   GITLEAKS_VERSION: 8.30.1
 
 jobs:
+  # Fail a release tag when it does not match root package.json version (no product change).
+  tag-version-gate:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag must match package.json version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          echo "tag=${tag} package.json=${pkg}"
+          if [ "$tag" != "$pkg" ]; then
+            echo "Tag version ($tag) does not match package.json version ($pkg)" >&2
+            exit 1
+          fi
+
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
