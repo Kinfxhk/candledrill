@@ -33,10 +33,11 @@ import {
   sessionPlaceOrder,
   sessionStats,
   upgradeState,
+  normalizeSettings,
   tradesToCsv,
   reportHtml,
   FILL_MODEL_NOTE,
-  SIMULATION_POLICY,
+  simulationPolicyFor,
   CANDLEDRILL_RISK_NOTICE_EN,
   stepSession,
   parseMacro,
@@ -199,9 +200,11 @@ export const settingsSchema = {
     'startingBalance',
     'dailyLossLimit',
     'trailingDrawdown',
+    'trailingDrawdownMode',
     'profitTarget',
     'utcOffsetMinutes',
     'dayStartMinutes',
+    'anchorMinutes',
   ],
   properties: {
     tickSize: { type: 'number', exclusiveMinimum: 0 },
@@ -211,9 +214,11 @@ export const settingsSchema = {
     startingBalance: { type: 'number', exclusiveMinimum: 0 },
     dailyLossLimit: nullablePositive,
     trailingDrawdown: nullablePositive,
+    trailingDrawdownMode: { type: 'string', enum: ['close', 'eod', 'intraday', 'static'] },
     profitTarget: nullablePositive,
     utcOffsetMinutes: { type: 'integer', minimum: -840, maximum: 840 },
     dayStartMinutes: { type: 'integer', minimum: 0, maximum: 1439 },
+    anchorMinutes: { type: 'integer', minimum: 0, maximum: 1439 },
   },
 } as const;
 
@@ -274,7 +279,15 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     const bars = row.settings.blind
       ? cache.disguised(row.datasetId, row.settings.blind, row.settings.tickSize)
       : cache.get(row.datasetId);
-    return { row: { ...row, state: upgradeState(bars, row.settings, row.state) }, bars };
+    const settings = normalizeSettings(row.settings);
+    return {
+      row: {
+        ...row,
+        settings: { ...row.settings, ...settings },
+        state: upgradeState(bars, settings, row.state),
+      },
+      bars,
+    };
   };
 
   const save = (row: Row, state: SessionState) =>
@@ -321,7 +334,10 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     async (req, reply) => {
       const ds = getDataset(db, req.body.datasetId);
       if (!ds) return reply.code(404).send({ error: 'dataset not found' });
-      const plain: SessionSettings = { ...req.body.settings, symbol: ds.symbol };
+      const plain: SessionSettings = normalizeSettings({
+        ...req.body.settings,
+        symbol: ds.symbol,
+      });
       const errors = validateSettings(plain);
       if (errors.length) return reply.code(400).send({ error: errors.join('; ') });
       const real = cache.get(ds.id);
@@ -673,12 +689,13 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
       JSON.stringify(
         {
           format: 'candledrill-session',
-          formatVersion: 1,
+          formatVersion: 2,
           note:
             'Practice session without price bars (it does contain fill prices and times derived ' +
             'from the dataset; check your data licence before sharing). ' +
             CANDLEDRILL_RISK_NOTICE_EN,
-          simulationPolicy: SIMULATION_POLICY,
+          simulationPolicy: simulationPolicyFor(engineSettings(row.settings).trailingDrawdownMode),
+          simulationPolicyFor,
           name: row.name,
           startTime: row.startTime,
           settings: engineSettings(row.settings),
@@ -984,7 +1001,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
         issues.push(...journalIssues(f.journal, f.state.trading.trades));
       if (issues.length)
         return reply.code(400).send({ error: 'the session does not match this dataset', issues });
-      const state = upgradeState(bars, settings, f.state);
+      const state = upgradeState(bars, normalizeSettings(settings), f.state);
       const row = insertSession(db, {
         datasetId: ds.id,
         name: f.name,

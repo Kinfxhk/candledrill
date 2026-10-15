@@ -5,6 +5,8 @@
 import {
   roundToTick,
   ruleStatus,
+  trailingPeak,
+  trailingFloor,
   sessionEquity,
   tickDecimals,
   unrealizedPnl,
@@ -498,17 +500,34 @@ export class SidePanel {
         bar,
       ];
     };
+    const mode = settings.trailingDrawdownMode ?? 'close';
+    const trailingKey =
+      mode === 'eod'
+        ? 'pr.trailingEod'
+        : mode === 'intraday'
+          ? 'pr.trailingIntraday'
+          : mode === 'static'
+            ? 'pr.trailingStatic'
+            : 'pr.trailingClose';
     const meters = [
       ...meter('pr.dailyLoss', rs.dailyLossUsed, settings.dailyLossLimit),
-      ...meter('pr.trailing', rs.trailingUsed, settings.trailingDrawdown),
+      ...meter(trailingKey, rs.trailingUsed, settings.trailingDrawdown),
       ...meter('pr.target', rs.targetProgress, settings.profitTarget),
     ];
     const drawdown: Node[] = [];
     if (settings.trailingDrawdown !== null) {
-      const peak = state.equityPeak;
-      const floor = peak - settings.trailingDrawdown;
+      const peak = trailingPeak(settings, state);
+      const floor = trailingFloor(settings, state) ?? peak - settings.trailingDrawdown;
       const currentDd = Math.max(0, peak - equity);
       const buffer = equity - floor;
+      const noteKey =
+        mode === 'eod'
+          ? 'pr.drawdownNoteEod'
+          : mode === 'intraday'
+            ? 'pr.drawdownNoteIntraday'
+            : mode === 'static'
+              ? 'pr.drawdownNoteStatic'
+              : 'pr.drawdownNote';
       drawdown.push(
         el(
           'dl',
@@ -518,7 +537,7 @@ export class SidePanel {
           ...kv('pr.ddCurrent', fmtMoney(currentDd), currentDd > 0 ? 'down' : ''),
           ...kv('pr.ddBuffer', fmtMoney(buffer), buffer < 0 ? 'down' : ''),
         ),
-        el('p', { class: 'muted small', 'data-i18n': 'pr.drawdownNote' }, t('pr.drawdownNote')),
+        el('p', { class: 'muted small', 'data-i18n': noteKey }, t(noteKey)),
       );
     }
     this.ordersHeading.textContent = t('pr.orders');

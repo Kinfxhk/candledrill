@@ -27,6 +27,8 @@ const BASE: SessionSettings = {
   profitTarget: 10,
   utcOffsetMinutes: 0,
   dayStartMinutes: 0,
+  trailingDrawdownMode: 'close' as const,
+  anchorMinutes: 0,
 };
 const bar = (i: number, open: number, close: number): Bar => ({
   time: i * 60,

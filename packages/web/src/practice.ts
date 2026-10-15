@@ -118,7 +118,11 @@ export class PracticeView {
 
   private aggOpts() {
     const s = this.meta!.settings;
-    return { utcOffsetMinutes: s.utcOffsetMinutes, dayStartMinutes: s.dayStartMinutes };
+    return {
+      utcOffsetMinutes: s.utcOffsetMinutes,
+      dayStartMinutes: s.dayStartMinutes,
+      anchorMinutes: s.anchorMinutes,
+    };
   }
 
   async open(id: number): Promise<void> {
@@ -787,6 +791,8 @@ export class PracticeView {
       profitTarget: s.profitTarget,
       utcOffsetMinutes: s.utcOffsetMinutes,
       dayStartMinutes: s.dayStartMinutes,
+      trailingDrawdownMode: s.trailingDrawdownMode,
+      anchorMinutes: s.anchorMinutes,
     };
   }
 
