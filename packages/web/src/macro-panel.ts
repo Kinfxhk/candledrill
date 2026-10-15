@@ -1208,9 +1208,15 @@ export class MacroPanel {
     }
     const stats = this.result.stats;
     if (stats.trades === 0) {
+      const hasOrb = this.macro.rules.some(
+        (r) => r.enabled && r.conditions.some((c) => c.type === 'orb_break'),
+      );
       box.append(
         el('p', { class: 'macro-zero-count', 'data-testid': 'macro-zero' }, t('macro.zero')),
         el('p', {}, t('macro.zeroWhy')),
+        ...(hasOrb
+          ? [el('p', { class: 'muted', 'data-testid': 'macro-zero-orb' }, t('macro.zeroWhyOrb'))]
+          : []),
       );
       const edit = el(
         'button',

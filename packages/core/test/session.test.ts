@@ -24,6 +24,8 @@ const SETTINGS: SessionSettings = {
   profitTarget: null,
   utcOffsetMinutes: 0,
   dayStartMinutes: 0,
+  trailingDrawdownMode: 'close' as const,
+  anchorMinutes: 0,
 };
 
 const ds = generateSyntheticBars({ seed: 5, startDate: '2026-10-05', days: 3 });

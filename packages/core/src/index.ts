@@ -61,6 +61,8 @@ export { initialCursor, visibleBars, stepsUntil } from './replay.js';
 export {
   ENGINE_VERSION,
   FILL_MODEL_VERSION,
+  lossRuleBasisFor,
+  simulationPolicyFor,
   SIMULATION_POLICY,
   type SimulationPolicy,
 } from './policy.js';
@@ -77,6 +79,11 @@ export {
   sessionStats,
   ruleStatus,
   upgradeState,
+  normalizeSettings,
+  equityAtPrice,
+  trailingPeak,
+  trailingFloor,
+  TRAILING_DRAWDOWN_MODES,
   dayKeyOf,
   type RuleStatus,
   FILL_MODEL_NOTE,
@@ -86,6 +93,7 @@ export {
   validateSettings,
   MAX_STEPS_PER_ACTION,
   type SessionSettings,
+  type TrailingDrawdownMode,
   type SessionState,
   type SessionStatus,
   type StepResult,

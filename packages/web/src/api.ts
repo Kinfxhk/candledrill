@@ -139,9 +139,11 @@ export interface SessionSettings {
   startingBalance: number;
   dailyLossLimit: number | null;
   trailingDrawdown: number | null;
+  trailingDrawdownMode: 'close' | 'eod' | 'intraday' | 'static';
   profitTarget: number | null;
   utcOffsetMinutes: number;
   dayStartMinutes: number;
+  anchorMinutes: number;
 }
 
 export interface SessionMeta {

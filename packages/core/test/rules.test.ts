@@ -24,6 +24,8 @@ const BASE: SessionSettings = {
   profitTarget: null,
   utcOffsetMinutes: 0,
   dayStartMinutes: 0,
+  trailingDrawdownMode: 'close' as const,
+  anchorMinutes: 0,
 };
 
 const DAY0 = Date.UTC(2026, 9, 5, 9, 0) / 1000;
@@ -137,5 +139,101 @@ describe('practice rules', () => {
     const { dayKey: _a, dayStartEquity: _b, equityPeak: _c, ...old } = s;
     void [_a, _b, _c];
     expect(upgradeState(bars, BASE, old as SessionState)).toEqual(s);
+  });
+
+  it('trailing modes: +2000 then reverse — close/intraday breach, eod/static do not', () => {
+    // pointValue 50: +40 points = +2000 equity. Trailing amount 2000.
+    const bars = [
+      b(0, 0, 100),
+      b(0, 1, 100),
+      b(0, 2, 140), // +2000
+      b(0, 3, 100), // back to entry
+      b(0, 4, 100),
+    ];
+    const run = (mode: 'close' | 'eod' | 'intraday' | 'static') => {
+      const settings = {
+        ...BASE,
+        trailingDrawdown: 2000,
+        trailingDrawdownMode: mode,
+      };
+      let s = start(bars, settings);
+      s = stepSession(bars, settings, s, 2).state; // fill + peak bar
+      expect(s.status).toBe('active');
+      s = stepSession(bars, settings, s, 1).state; // reverse to entry
+      return s;
+    };
+    expect(run('close').status).toBe('breached');
+    expect(run('intraday').status).toBe('breached');
+    expect(run('eod').status).toBe('active');
+    expect(run('static').status).toBe('active');
+  });
+
+  it('eod trailing updates peak only at the day boundary', () => {
+    const settings = {
+      ...BASE,
+      trailingDrawdown: 100,
+      trailingDrawdownMode: 'eod' as const,
+      dayStartMinutes: 0,
+      anchorMinutes: 0,
+    };
+    const bars = [
+      b(0, 0, 100),
+      b(0, 1, 100),
+      b(0, 2, 104), // +200, eodPeak still 10000
+      b(1, 0, 104), // new day → eodPeak becomes 10200
+      b(1, 1, 101.5), // equity 10075, dd from 10200 = 125 → breach
+    ];
+    let s = start(bars, settings);
+    s = stepSession(bars, settings, s, 2).state;
+    expect(s.status).toBe('active');
+    expect(s.eodPeak).toBe(10_000);
+    s = stepSession(bars, settings, s, 1).state; // day boundary
+    expect(s.eodPeak).toBe(10_200);
+    expect(s.status).toBe('active');
+    s = stepSession(bars, settings, s, 1).state;
+    expect(s.status).toBe('breached');
+  });
+
+  it('static floor is startingBalance − amount', () => {
+    const settings = {
+      ...BASE,
+      trailingDrawdown: 150,
+      trailingDrawdownMode: 'static' as const,
+    };
+    // equity drop of 150 from start breaches; peak rise does not move floor
+    const bars = [b(0, 0, 100), b(0, 1, 100), b(0, 2, 104), b(0, 3, 96.5)];
+    let s = start(bars, settings);
+    s = stepSession(bars, settings, s, 2).state; // +200
+    expect(s.status).toBe('active');
+    s = stepSession(bars, settings, s, 1).state; // close 96.5 → -175 from start
+    expect(s.status).toBe('breached');
+  });
+
+  it('intraday trailing force-closes at the adverse extreme, not the close', () => {
+    const settings = {
+      ...BASE,
+      trailingDrawdown: 100,
+      trailingDrawdownMode: 'intraday' as const,
+      commissionPerContract: 0,
+      slippageTicks: 0,
+    };
+    // Long: favourable high 104 (+200), adverse low 101 (+50) → dd 150 from peak → breach at low
+    const bars: Bar[] = [
+      b(0, 0, 100),
+      b(0, 1, 100),
+      {
+        time: DAY0 + 2 * 60,
+        open: 100,
+        high: 104,
+        low: 101,
+        close: 103,
+        volume: 1,
+      },
+    ];
+    let s = start(bars, settings);
+    // start() leaves cursor on the flat entry bar; one more step reveals the wide bar.
+    s = stepSession(bars, settings, s, 2).state;
+    expect(s.status).toBe('breached');
+    expect(s.trading.trades[0]!.exitPrice).toBe(101);
   });
 });
