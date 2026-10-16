@@ -52,7 +52,7 @@ Hide the real symbol, shift dates and prices so you cannot recognise the chart. 
 
 ![Blind practice: symbol shown as Blind, Reveal control, disguised chart](docs/shot-blind.png)
 
-<sub>**Blind practice** — random start, disguised symbol/dates/prices; Reveal restores the truth.</sub>
+<sub>**Blind practice** — random start, disguised symbol/dates/prices; Reveal restores the truth. Underlying bars are generated `SYNTH-` demo data.</sub>
 
 ### Drawing tools
 
@@ -60,7 +60,7 @@ Floating **Draw** palette: horizontal / trend / rectangle, text, arrow, freehand
 
 ![Floating Draw palette open with trend line on the chart](docs/shot-drawings.png)
 
-<sub>**Drawing palette** — collapsible tools on the chart (not duplicated in the top bar).</sub>
+<sub>**Drawing palette** — collapsible tools on the chart (not duplicated in the top bar). Synthetic `SYNTH-` demo data.</sub>
 
 ### Two timeframes
 
@@ -68,7 +68,7 @@ Split view with linked crosshair and scroll. Change each pane’s timeframe (1m 
 
 ![Two charts: 1m and 15m linked](docs/shot-multitf.png)
 
-<sub>**Multi-timeframe** — practise the same moment on two charts without look-ahead.</sub>
+<sub>**Multi-timeframe** — practise the same moment on two charts without look-ahead. Synthetic `SYNTH-` demo data.</sub>
 
 ### Indicators
 
@@ -76,7 +76,7 @@ Searchable catalog: SMA / EMA (any periods), Bollinger, session VWAP, opening ra
 
 ![Indicators panel with SMA 9/20/50 and RSI enabled](docs/shot-indicators.png)
 
-<sub>**Indicators** — overlays and lower panes; settings stay on this computer only.</sub>
+<sub>**Indicators** — overlays and lower panes; settings stay on this computer only. Synthetic `SYNTH-` demo data.</sub>
 
 ### Semi-auto (半自動交易)
 
@@ -101,7 +101,25 @@ Simulated only — no broker. The manual ticket stays on the right. DSL and API:
 
 ### Orders & review
 
-Market / limit / stop, brackets (SL/TP), risk preview, flatten. Trades, journal, statistics, CSV / HTML / session export. Optional practice rules (daily loss, trailing drawdown, profit target).
+Market / limit / stop, brackets (SL/TP), risk preview, flatten. Trades, journal, statistics, CSV / HTML / session export. Optional practice rules (daily loss, trailing drawdown, profit target). Leave a rule blank to turn it off.
+
+#### Practice rules
+
+The new-session form has two clocks. They are not the same setting:
+
+- **Market open anchor** (`anchorMinutes`) is the market-open clock for the opening range (ORB), session VWAP, and the semi-auto `orb_break` window. Picking a dataset fills it from the first bar's exchange-local time.
+- **Trading day start** (`dayStartMinutes`) is only the daily-loss day boundary: when the daily loss limit resets.
+
+**Trailing drawdown mode** (`trailingDrawdownMode`) defaults to `close`. It only changes the trailing rule. Daily loss still uses equity at the bar close.
+
+- `close` — the peak follows equity at each bar close. A move inside the bar does not count.
+- `eod` — the peak updates only at the trading-day boundary (end of day).
+- `intraday` — the peak uses the favourable high or low. A breach uses the adverse high or low, and the position closes at that price.
+- `static` — the floor stays at starting balance minus the amount. It does not follow a peak.
+
+Older session files still import: `anchorMinutes` copies `dayStartMinutes`, and the mode is `close`. Added in [0.4.0](CHANGELOG.md). Order fills: [docs/FILL-MODEL.md](docs/FILL-MODEL.md).
+
+開市錨點（`anchorMinutes`）係 ORB、VWAP 同半自動 `orb_break` 嘅開市時鐘，同每日虧損重置嘅交易日開始（`dayStartMinutes`）分開。追蹤回撤模式（`trailingDrawdownMode`）預設 `close`（每根收市權益）；另可選 `eod`（交易日完先更新峰值）、`intraday`（盤中有利／不利高低點，並喺該價平倉）、`static`（起始資金減金額，唔跟峰值）。留空就唔設該條規則。
 
 ## Why CandleDrill
 
