@@ -1,28 +1,58 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Bottom panel: tabs for trades, fills and (later) statistics and export.
 
-import { sessionStats } from '@candledrill/core';
+import { sessionStats, type Trade } from '@candledrill/core';
 import { sessionsApi, type SessionSettings, type SessionStateDto } from './api.js';
 import { t, type MessageKey } from './i18n.js';
 import { el, fmtMoney, fmtNum, fmtPct, fmtTime, signClass, toast } from './format.js';
 import { exitReasonText, orderRoleText, weekdayKeyText } from './labels.js';
 import { fmtPrice } from './side.js';
 
+export interface TradeNavigation {
+  unavailable(trade: Pick<Trade, 'openTime' | 'closeTime'>): MessageKey | null;
+  view(tradeId: number): void;
+}
+
+function tradeButton(trade: Trade, navigation: TradeNavigation, prefix: string): HTMLButtonElement {
+  const reason = navigation.unavailable(trade);
+  const label = `${t('pr.viewChart')} #${trade.id}`;
+  const button = el(
+    'button',
+    {
+      type: 'button',
+      class: 'small',
+      'data-testid': `${prefix}-view-${trade.id}`,
+      'aria-label': reason ? `${label}: ${t(reason)}` : label,
+      title: reason ? t(reason) : label,
+    },
+    t('pr.viewChart'),
+  );
+  button.disabled = reason !== null;
+  button.addEventListener('click', () => navigation.view(trade.id));
+  return button;
+}
+
 export interface BottomTab {
   key: MessageKey;
   id: string;
+  /**
+   * Mount once into a stable panel. Later session renders leave that DOM in place
+   * so inputs in the macro wizard keep focus while the chart steps.
+   */
+  persistent?: boolean;
   render(
     panel: HTMLElement,
     settings: SessionSettings,
     state: SessionStateDto,
     sessionId: number,
+    navigation?: TradeNavigation,
   ): void;
 }
 
 export const tradesTab: BottomTab = {
   key: 'pr.trades',
   id: 'trades',
-  render(panel, s, state) {
+  render(panel, s, state, _id, navigation) {
     const trades = state.trading.trades;
     if (trades.length === 0) {
       panel.replaceChildren(el('p', { class: 'muted' }, t('pr.noTrades')));
@@ -53,6 +83,7 @@ export const tradesTab: BottomTab = {
         ),
       );
     }
+    if (navigation) head.append(el('th', {}, t('pr.viewChart')));
     const rows = [...trades]
       .reverse()
       .map((tr) =>
@@ -75,6 +106,7 @@ export const tradesTab: BottomTab = {
             ? el('td', { class: 'num muted', title: t('col.rNa') }, 'N/A')
             : el('td', { class: 'num' }, fmtNum(tr.rMultiple, 2)),
           el('td', {}, exitReasonText(tr.exitReason)),
+          ...(navigation ? [el('td', {}, tradeButton(tr, navigation, 'trades'))] : []),
         ),
       );
     panel.replaceChildren(
@@ -163,7 +195,10 @@ export const statsTab: BottomTab = {
 export const exportTab: BottomTab = {
   key: 'pr.export',
   id: 'export',
-  render(panel, _s, _state, id) {
+  render(panel, s, _state, id) {
+    // The session file must carry the disguise (symbol and offsets) to be re-importable,
+    // so offering it before the reveal would hand over the answer.
+    const blindHidden = s.blind?.revealed === false;
     const link = (key: MessageKey, file: string) =>
       el(
         'a',
@@ -181,9 +216,12 @@ export const exportTab: BottomTab = {
         { class: 'row' },
         link('pr.exportTrades', 'trades.csv'),
         link('pr.exportReport', 'report.html'),
-        link('pr.exportSession', 'session.json'),
+        ...(blindHidden ? [] : [link('pr.exportSession', 'session.json')]),
       ),
       el('p', { class: 'muted' }, t('pr.exportNote')),
+      ...(blindHidden
+        ? [el('p', { class: 'muted', 'data-testid': 'export-blind-note' }, t('pr.exportBlindNote'))]
+        : []),
     );
   },
 };
@@ -192,7 +230,7 @@ export const exportTab: BottomTab = {
 export const journalTab: BottomTab = {
   key: 'pr.journal',
   id: 'journal',
-  render(panel, s, state, id) {
+  render(panel, s, state, id, navigation) {
     const trades = state.trading.trades;
     if (trades.length === 0) {
       panel.replaceChildren(el('p', { class: 'muted' }, t('pr.noTrades')));
@@ -222,6 +260,7 @@ export const journalTab: BottomTab = {
               k === '#' ? '#' : t(k),
             ),
           );
+        if (navigation) head.append(el('th', {}, t('pr.viewChart')));
         const rows = [...trades].reverse().map((tr) => {
           const e = ex.get(tr.id);
           const entry = j.journal[String(tr.id)] ?? { tags: [], note: '' };
@@ -261,6 +300,7 @@ export const journalTab: BottomTab = {
             el('td', { class: 'num', 'data-testid': `mfe-${tr.id}` }, exc(e?.mfeTicks, e?.mfeR)),
             el('td', {}, tags),
             el('td', {}, note),
+            ...(navigation ? [el('td', {}, tradeButton(tr, navigation, 'journal'))] : []),
           );
         });
         const group = (title: MessageKey, rowsIn: typeof j.byHour) =>
@@ -314,10 +354,14 @@ export class BottomPanel {
   private readonly bar: HTMLElement;
   private panel: HTMLElement;
   private last: { s: SessionSettings; st: SessionStateDto; id: number } | undefined;
+  private readonly stable = new Map<string, HTMLElement>();
+  private readonly mounted = new Set<string>();
 
   constructor(
     root: HTMLElement,
     private readonly tabs: BottomTab[],
+    private readonly navigation?: TradeNavigation,
+    private readonly onSelect?: (id: string) => void,
   ) {
     this.active = tabs[0]!.id;
     this.bar = el('div', { class: 'tabbar', role: 'tablist' });
@@ -342,19 +386,47 @@ export class BottomPanel {
     this.refresh();
   }
 
+  select(id: string): void {
+    if (!this.tabs.some((tab) => tab.id === id)) return;
+    this.active = id;
+    this.refresh();
+  }
+
   private refresh(): void {
     this.tabs.forEach((tab, i) =>
       this.bar.children[i]!.setAttribute('aria-selected', String(tab.id === this.active)),
     );
+    const tab = this.tabs.find((x) => x.id === this.active)!;
+    if (tab.persistent) {
+      this.refreshPersistent(tab);
+      this.onSelect?.(this.active);
+      return;
+    }
     if (!this.last) return;
     // Each render owns its DOM: pending journal responses retain a detached panel.
     const scrollTop = this.panel.scrollTop;
     const panel = el('div', { class: 'tabpanel', role: 'tabpanel' });
     this.panel.replaceWith(panel);
     this.panel = panel;
-    this.tabs
-      .find((x) => x.id === this.active)!
-      .render(this.panel, this.last.s, this.last.st, this.last.id);
+    tab.render(this.panel, this.last.s, this.last.st, this.last.id, this.navigation);
     this.panel.scrollTop = scrollTop;
+    this.onSelect?.(this.active);
+  }
+
+  /** Show a host-owned node without rebuilding it on every session tick. */
+  private refreshPersistent(tab: BottomTab): void {
+    let stable = this.stable.get(tab.id);
+    if (!stable) {
+      stable = el('div', { class: 'tabpanel', role: 'tabpanel' });
+      this.stable.set(tab.id, stable);
+    }
+    if (this.last && !this.mounted.has(tab.id)) {
+      tab.render(stable, this.last.s, this.last.st, this.last.id, this.navigation);
+      this.mounted.add(tab.id);
+    }
+    if (this.panel !== stable) {
+      this.panel.replaceWith(stable);
+      this.panel = stable;
+    }
   }
 }

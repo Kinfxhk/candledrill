@@ -6,6 +6,206 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-15
+
+### Added
+
+- **Open-anchor separation (V1.0).** `SessionSettings.anchorMinutes` is the market-open clock for
+  ORB / VWAP / `orb_break`. `dayStartMinutes` is only the daily-loss day boundary. New session
+  form field; selecting a dataset prefills the anchor from the first bar’s exchange-local time.
+- **Trailing drawdown modes (V1.1).** `trailingDrawdownMode`: `close` (legacy) | `eod` |
+  `intraday` | `static`. Session state version 2 adds `eodPeak` / `intradayPeak`. Intraday
+  breaches force-close at the adverse high/low (fill model **v4**).
+
+### Changed
+
+- `FILL_MODEL_VERSION` → `4`; exported `simulationPolicy.lossRuleBasis` records the mode
+  (`closing-equity` | `end-of-day` | `intraday-high-low` | `static-floor`).
+- Session export `formatVersion` → `2` (0.3.x readers reject; old files still import with
+  defaults: `anchorMinutes = dayStartMinutes`, mode `close`).
+
+## [0.3.3] - 2026-10-15
+
+### Fixed
+
+- **Version alignment.** Root and workspace `package.json` versions, the README status line,
+  and `/api/health` `releaseVersion` now match the published GitHub releases (0.3.1 / 0.3.2
+  were tagged while packages still said 0.3.0), so the in-app “new version” banner no longer
+  falsely appears after those releases.
+
+### Changed
+
+- CI fails a tag push when the `v*` tag name (without the leading `v`) does not match the
+  root `package.json` `version`, so release tags cannot drift from the declared version again.
+- Vitest `testTimeout` and `hookTimeout` raised to 15s to cut intermittent timeouts on slower
+  runners. Fill / trade model unchanged.
+
+## [0.3.2] - 2026-10-14
+
+### Changed
+
+- **Semi-auto wizard UX rewrite (copy and layout only).** The bottom wizard is named
+  半自動交易 (chart chip: 半自動 / Semi-auto). Step strip is 1 條件 → 2 進出場 → 3 跑一轉 →
+  4 結果. Step 1 is indicator → reaction → Add, with ORB and SMA presets as small Quick
+  apply chips. Step 3 shows a readiness line plus Backtest (From start / From here) and
+  Follow while playing. Step 4 always shows a result card (never blank). Risk preview stays
+  open when editing the ticket. Fill model unchanged; Follow runs on play / next bar in
+  non-blind sessions only. Merged #19.
+
+### Fixed
+
+- **Risk preview.** Editing the ticket no longer collapses an expanded risk preview before
+  its toggle event lands, so the cost breakdown stays available.
+
+## [0.3.1] - 2026-10-14
+
+### Changed
+
+- **Practice rail cleanup and Macro as bottom-panel wizard.** Right column is practice
+  rules → order ticket → position only. Bottom tabs are Working orders plus Macro as a
+  four-step wizard. Run stays gated until name, qty, an enabled rule, and stop/target are
+  valid, and lists what is missing. Blind sessions warn on the new-session form (and when
+  demo data is generated with blind still on) and again when the session opens. The chart
+  Macro button opens the bottom Macro tab. Fill model, macro DSL, and APIs unchanged.
+  Merged #18.
+
+## [0.3.0] - 2026-10-14
+
+### Added
+
+- **Indicator catalog v2.** The Indicators panel has typeahead search and category chips
+  (Trend, Volatility, Momentum, Volume, Session). SMA and EMA are free-form instances, so a
+  chart can show SMA(21) and SMA(200) together. Preferences move from the fixed-slot key
+  `candledrill.indicators` to `candledrill.indicators.v2`; older lists are merged onto the
+  previous defaults. At most 12 non-volume overlays are visible at once.
+- **Opening range, Donchian, Stochastic and ADX.** ORB draws the session high/low (forming
+  during the window, then frozen). Donchian is highest-high / lowest-low. Stochastic is
+  smoothed %K and %D. ADX uses Wilder smoothing. Formulas are in `@candledrill/core` and
+  only see bars already passed in.
+- **Simulated macro.** A JSON condition list (price vs MA, ORB break, flat, time window,
+  plus RSI / MACD / Bollinger / Donchian / Stochastic / ADX presets) can place a market
+  order with a fixed stop and target (ticks, ATR multiple, percent, or R multiple). Rules
+  are priority ordered. One position at a time is the default. **Run backtest** executes
+  in the server via `POST /api/sessions/:id/macro-run` and reuses `computeStats`. It does
+  not move the practice cursor and does not return trade timestamps. **Arm watch** follows
+  the existing play loop, one bar at a time, through the same order API. The manual ticket
+  stays on screen. Copy is Simulated / Educational. Set `localStorage`
+  `candledrill.feature.macro` to `0` to hide the panel. Blind sessions stay blocked until
+  reveal. See [docs/MACRO.md](docs/MACRO.md).
+
+### Changed
+
+- README status line now matches this release.
+
+## [0.2.13] - 2026-10-13
+
+### Fixed
+
+- **Arrow tool:** thicker shaft, filled triangular head, and smaller endpoint handles so the
+  arrow stays readable.
+- **Indicators panel:** the Indicators button toggles the panel closed (same control /
+  `aria-expanded`); click-outside still closes it.
+- **SMA / EMA / VWAP (and other) colours:** colour changes apply immediately via series
+  `applyOptions` without toggling the indicator off/on.
+- **Volume:** shown as a toggleable row in the indicators panel (default on).
+- **Risk preview:** wrapped in a collapsible section (collapsed by default, preference in
+  `localStorage`) so it no longer blocks the ticket / position area.
+- **Text tool:** after placing, select the label to edit colour and size (and Edit text);
+  double-click also reopens the text prompt. Optional `fontSize` is persisted on drawings.
+- **Long/short R tools:** the risk/reward body is draggable to reposition the whole tool
+  (stop/target handles still adjust levels).
+- **Check for updates:** failed GitHub lookups are only quiet-cached briefly; About →
+  Check for updates sends `?refresh=1` so a newer release is detected when online (still
+  no auto-download; respects the startup-check preference).
+
+## [0.2.12] - 2026-10-11
+
+### Changed
+
+- **Drawing tools UX (Option A):** each chart pane has a single **collapsible floating
+  palette** (Draw toggle). The duplicate top-toolbar drawing buttons are gone. Expanded
+  strip keeps hline / trendline / rect / text / arrow / freehand / long / short; **Clear**
+  is a labeled control with confirm (no bare × that looked like “close”). Esc cancels an
+  active draw mode first, then collapses the palette. Expand preference is stored in
+  `localStorage`.
+- Language changes now refresh floating palette labels, Blind badge, Indicators panel, and
+  drawing delete tooltips (create-time `t()` alone left them stuck in the old language).
+- README **Synthetic data** points at the separate MIT samples repo
+  [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)
+  for a longer Globex-like practice CSV. Import with symbol `PRACTICE-NQ-GLOBEX` (not
+  `SYNTH-`, which is reserved for the built-in generator), tick `0.25`, UTC offset `-300`.
+  This app still ships **no market data**; sample CSVs stay out of this repo.
+
+### Notes
+
+- AGPL-3.0 for the app. Practice samples in `candledrill-synth-samples` are synthetic /
+  MIT — not FirstRate or other vendor ticks.
+- No immediate follow-up tag planned; treat this as the stable practice-UX cut after
+  v0.2.9–v0.2.11 indicator / drawing / blind work.
+
+## [0.2.11] - 2026-10-11
+
+### Fixed
+
+- SMA / EMA overlays support up to three periods at once (defaults 9 / 20 / 50 and 9 / 21 / 50).
+- Text, arrow and freehand drawings actually save: the drawings API schema now accepts
+  those kinds (they were only drawn in the UI), and freehand strokes call the save
+  callback when the pointer is released.
+
+## [0.2.10] - 2026-10-11
+
+### Added
+
+- `GET /api/health` reports `apiVersion` (the HTTP API schema version). The app version is
+  `releaseVersion`.
+- `GET /api/datasets` marks each dataset with `blindLocked` while an unrevealed blind
+  session uses it.
+
+### Changed
+
+- While a blind session is hidden, the Export tab no longer offers **Session JSON** and
+  explains why: the file must contain the real symbol and offsets so it can be imported
+  again. Trades CSV and the HTML report stay available (they contain no disguise data).
+
+### Removed
+
+- `version` in `GET /api/health` (deprecated in the #13 follow-up). Use `apiVersion` for the
+  HTTP schema and `releaseVersion` for the app version.
+
+### Fixed
+
+- README status line said v0.2.8 after the v0.2.9 release.
+- Selecting a blind-locked dataset in the library no longer requests its preview, which
+  logged a `423 Locked` error in the browser console.
+
+## [0.2.9] - 2026-10-11
+
+### Added
+
+- **Technical indicators** on the practice chart: SMA, EMA, Bollinger Bands, session VWAP,
+  RSI, MACD and ATR. Indicators are computed from revealed bars only (no look-ahead) and
+  can be configured per chart pane from the new indicator panel.
+- **Drawing tools**: text labels, arrows and freehand lines, plus a floating drawing palette
+  on each chart. Trendlines now snap with a rubber-band second anchor while placing the
+  second point.
+- **Simplified Chinese, Japanese and Korean localisations** (`zh-Hans`, `ja`, `ko`), using
+  the new language dropdown in the header.
+
+### Changed
+
+- **Blind practice is now on by default** and the preference is persisted. The blind checkbox
+  is no longer auto-unchecked after creating a blind session, so users can start multiple
+  blind sessions without re-enabling the option each time.
+- Extend the v0.2.8 order-ticket risk preview for fresh entries from flat: cost-inclusive stop
+  loss, percentage of current equity and net target reward:risk for each side.
+  Expandable details separate price risk, commission and slippage. Assumptions
+  and unsupported states are explicit; estimates do not guarantee fills or losses.
+
+### Fixed
+
+- Make the secret-scan script portable on Windows by replacing the bash wrapper with a
+  cross-platform Node script.
+
 Still planned:
 
 - Per-session command queue, session revision and idempotent commands (no stale
@@ -340,7 +540,21 @@ First public release.
   no-market-data and attribution checks, gitleaks secret scan) and a Playwright
   headless smoke test, both in CI.
 
-[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/Kinfxhk/candledrill/compare/v0.3.3...HEAD
+[0.4.0]: https://github.com/Kinfxhk/candledrill/compare/v0.3.3...v0.4.0
+[0.3.3]: https://github.com/Kinfxhk/candledrill/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/Kinfxhk/candledrill/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/Kinfxhk/candledrill/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/Kinfxhk/candledrill/compare/v0.2.13...v0.3.0
+[0.2.13]: https://github.com/Kinfxhk/candledrill/compare/v0.2.12...v0.2.13
+[0.2.12]: https://github.com/Kinfxhk/candledrill/compare/v0.2.11...v0.2.12
+[0.2.11]: https://github.com/Kinfxhk/candledrill/compare/v0.2.10...v0.2.11
+[0.2.10]: https://github.com/Kinfxhk/candledrill/compare/v0.2.9...v0.2.10
+[0.2.9]: https://github.com/Kinfxhk/candledrill/compare/v0.2.8...v0.2.9
+[0.2.8]: https://github.com/Kinfxhk/candledrill/compare/v0.2.7...v0.2.8
+[0.2.7]: https://github.com/Kinfxhk/candledrill/compare/v0.2.6...v0.2.7
+[0.2.6]: https://github.com/Kinfxhk/candledrill/compare/v0.2.5...v0.2.6
+[0.2.5]: https://github.com/Kinfxhk/candledrill/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/Kinfxhk/candledrill/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/Kinfxhk/candledrill/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/Kinfxhk/candledrill/compare/v0.2.1...v0.2.2

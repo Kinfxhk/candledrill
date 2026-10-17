@@ -135,7 +135,7 @@ export function buildApp(opts: AppOptions): FastifyInstance {
   app.get('/api/health', async () => ({
     status: 'ok',
     name: APP_NAME,
-    version: APP_VERSION,
+    apiVersion: APP_VERSION,
     releaseVersion,
     engineVersion: ENGINE_VERSION,
     fillModelVersion: FILL_MODEL_VERSION,
@@ -145,9 +145,10 @@ export function buildApp(opts: AppOptions): FastifyInstance {
 
   // Public GitHub Releases lookup, proxied so the browser never leaves loopback (CSP).
   // Failures return available:false — the UI stays silent, no scary errors.
-  app.get('/api/updates', async () =>
+  app.get<{ Querystring: { refresh?: string } }>('/api/updates', async (req) =>
     checkForUpdate({
       current: releaseVersion,
+      refresh: req.query.refresh === '1' || req.query.refresh === 'true',
       ...(opts.fetchUpdates ? { fetchImpl: opts.fetchUpdates } : {}),
     }),
   );
@@ -162,7 +163,10 @@ export function buildApp(opts: AppOptions): FastifyInstance {
   const cache = new BarCache(db);
   registerSessionRoutes(app, { db, cache, now });
 
-  app.get('/api/datasets', async () => ({ datasets: listDatasets(db) }));
+  app.get('/api/datasets', async () => {
+    const locked = blindLockedDatasets(db);
+    return { datasets: listDatasets(db).map((d) => ({ ...d, blindLocked: locked.has(d.id) })) };
+  });
 
   app.post<{
     Body: { seed: number; startDate: string; days: number; name?: string };

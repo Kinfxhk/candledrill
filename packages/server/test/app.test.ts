@@ -33,9 +33,11 @@ describe('HTTP API', () => {
       status: 'ok',
       name: 'CandleDrill',
       telemetry: false,
-      fillModelVersion: '3',
+      fillModelVersion: '4',
     });
-    expect(body.engineVersion).toBe(body.version);
+    expect(body.apiVersion).toBeDefined();
+    expect(body.version).toBeUndefined();
+    expect(typeof body.engineVersion).toBe('string');
     expect(typeof body.releaseVersion).toBe('string');
     expect(body.releaseVersion).toMatch(/^\d+\.\d+\.\d+/);
     expect(body.notice).toMatch(/not investment advice/);

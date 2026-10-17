@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test } from '@playwright/test';
-import { generateDemo } from './helpers.js';
+import { generateDemo, showWorkingOrders } from './helpers.js';
 
 test('optional discipline shows a bilingual pause while flatten and replay remain available', async ({
   page,
@@ -22,6 +22,7 @@ test('optional discipline shows a bilingual pause while flatten and replay remai
   await expect(page.getByText('Trailing floor', { exact: true })).toBeVisible();
   await page.getByTestId('sl-ticks').fill('200');
   await page.getByTestId('btn-buy').click();
+  await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText('MKT');
   await page.getByTestId('btn-step').click();
   await expect(page.getByTestId('discipline-paused')).toContainText('next trading day');
@@ -72,7 +73,7 @@ test('optional discipline shows a bilingual pause while flatten and replay remai
   const clock = await page.getByTestId('clock').textContent();
   await page.getByTestId('btn-step').click();
   await expect(page.getByTestId('clock')).not.toHaveText(clock!);
-  await page.click('#lang-toggle');
+  await page.locator('#lang-picker').selectOption('zh-Hant');
   await expect(page.getByTestId('discipline-paused')).toContainText('下一交易日');
   await expect(page.getByText('追蹤下限', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);

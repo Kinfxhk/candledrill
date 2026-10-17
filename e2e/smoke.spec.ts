@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Core flow: demo data -> new session -> replay -> bracket order -> trade recorded.
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo } from './helpers.js';
+import { generateDemo, showWorkingOrders } from './helpers.js';
 
 async function sessionState(page: Page) {
   const list = await (await page.request.get('/api/sessions')).json();
@@ -45,7 +45,9 @@ test('replay and bracket order flow', async ({ page }) => {
   await page.getByTestId('tp-ticks').fill('16');
   await page.getByTestId('btn-buy').click();
   // The order fills on the NEXT bar (never on the bar it was placed on).
+  await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText(/buy/i);
+  await page.getByTestId('tab-trades').click();
   await page.getByTestId('btn-step').click();
   const rows = page.getByTestId('trades-table').locator('tr:has(td)');
   await expect
@@ -66,8 +68,36 @@ test('replay and bracket order flow', async ({ page }) => {
   // Stats tab renders and the language toggle switches to Traditional Chinese.
   await page.getByTestId('tab-stats').click();
   await expect(page.getByTestId('stats')).toBeVisible();
-  await page.click('#lang-toggle');
+  await page.locator('#lang-picker').selectOption('zh-Hant');
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
+
+  await expect(page.getByTestId('side').locator('h3')).toHaveText(['練習規則', '落單', '持倉']);
+  await expect(page.getByTestId('macro-open')).toHaveText('半自動');
+  await page.getByTestId('macro-open').click();
+  await expect(page.getByTestId('tab-macro')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('tab-macro')).toHaveText('半自動交易');
+  await expect(page.getByTestId('macro-step-rules')).toBeVisible();
+  await expect(page.getByTestId('macro-goto-rules')).toHaveText('1 條件');
+  await expect(page.getByTestId('macro-goto-run')).toHaveText('3 跑一轉');
+  await expect(page.getByTestId('macro-indicator')).toBeVisible();
+  await expect(page.getByTestId('macro-reaction')).toBeVisible();
+  await expect(page.getByTestId('macro-add')).toHaveText('新增');
+  await expect(page.getByTestId('macro-quick')).toContainText('快速套用');
+  await expect(page.getByTestId('macro-next')).toBeVisible();
+  await page.getByTestId('macro-next').click();
+  await expect(page.getByTestId('macro-step-trade')).toBeVisible();
+  await expect(page.getByTestId('macro-back')).toBeVisible();
+  await page.getByTestId('macro-next').click();
+  await expect(page.getByTestId('macro-step-run')).toBeVisible();
+  await expect(page.getByTestId('macro-ready')).toContainText('就緒 — 可以回測或邊播邊跟');
+  await expect(page.getByTestId('macro-from-start')).toHaveText('由頭');
+  await expect(page.getByTestId('macro-from-cursor')).toHaveText('由而家');
+  await expect(page.getByTestId('macro-run')).toHaveText('回測');
+  await expect(page.getByTestId('macro-arm')).toHaveText('邊播邊跟');
+  await page.getByTestId('macro-next').click();
+  await expect(page.getByTestId('macro-step-result')).toBeVisible();
+  await expect(page.getByTestId('macro-result')).toContainText('尚未回測');
+  await expect(page.getByTestId('macro-go-run')).toHaveText('去跑一轉');
 
   expect(errors).toEqual([]);
 });

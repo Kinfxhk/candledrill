@@ -153,7 +153,7 @@ function validateLibrary(src: Db): void {
       const parsed = parseSessionFile(
         JSON.stringify({
           format: 'candledrill-session',
-          formatVersion: 1,
+          formatVersion: 2,
           name: row.name,
           startTime: row.startTime,
           settings,

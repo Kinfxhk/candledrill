@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Right-hand panel: order ticket, position, working orders and practice-rule meters.
+// Right-hand panel: practice-rule meters, order ticket, and position.
+// Working orders render into `ordersSection`, which the practice view mounts in the bottom panel.
 
 import {
   disciplineStatus,
   roundToTick,
   ruleStatus,
+  trailingPeak,
+  trailingFloor,
   sessionEquity,
   tickDecimals,
   unrealizedPnl,
@@ -15,6 +18,7 @@ import {
   type OrderType,
   type Side,
 } from '@candledrill/core';
+import { previewRisk, ticketOrder, type TicketInputs } from './risk.js';
 import type { SessionSettings, SessionStateDto } from './api.js';
 import { t, type MessageKey } from './i18n.js';
 import { orderRoleText, orderTypeText } from './labels.js';
@@ -35,8 +39,13 @@ export class SidePanel {
   private readonly sl: HTMLInputElement;
   private readonly tp: HTMLInputElement;
   private readonly priceRow: HTMLElement;
-  private readonly riskPreview: HTMLElement;
   private readonly ordersBox: HTMLElement;
+  private readonly ordersHeading: HTMLElement;
+  /** Working-order card. Mounted in the bottom panel, not the right rail. */
+  readonly ordersSection: HTMLElement;
+  private readonly riskBox: HTMLElement;
+  private readonly riskExpanded = new Map<string, boolean>();
+  private riskOpen = localStorage.getItem('candledrill.riskPreviewOpen') === '1';
   private readonly positionBox: HTMLElement;
   private readonly rulesBox: HTMLElement;
   readonly extra: HTMLElement;
@@ -100,7 +109,6 @@ export class SidePanel {
       'data-testid': 'tp-ticks',
     });
     this.priceRow = label('pr.price', this.price);
-    this.riskPreview = el('p', { class: 'muted small', 'data-testid': 'risk-preview' }, '');
     this.buyBtn = el(
       'button',
       { type: 'button', class: 'buy', 'data-i18n': 'pr.buy', 'data-testid': 'btn-buy' },
@@ -119,8 +127,14 @@ export class SidePanel {
     this.buyBtn.addEventListener('click', () => void this.submit('buy'));
     this.sellBtn.addEventListener('click', () => void this.submit('sell'));
     this.flattenBtn.addEventListener('click', () => void this.actions.flatten());
-    for (const input of [this.qty, this.sl, this.tp])
-      input.addEventListener('input', () => this.updateRiskPreview());
+
+    this.riskBox = el('div', {
+      'data-testid': 'risk-preview',
+      'aria-live': 'polite',
+      'aria-atomic': 'true',
+    });
+    for (const input of [this.qty, this.price, this.sl, this.tp])
+      input.addEventListener('input', () => this.renderRisk());
 
     const ticket = el(
       'section',
@@ -140,7 +154,7 @@ export class SidePanel {
         label('pr.tp', this.tp),
       ),
       el('p', { class: 'muted small', 'data-i18n': 'pr.bracketHint' }, t('pr.bracketHint')),
-      this.riskPreview,
+      this.riskBox,
       el('div', { class: 'grid2', style: 'margin-top:10px' }, this.buyBtn, this.sellBtn),
       el('div', { style: 'margin-top:6px' }, this.flattenBtn),
     );
@@ -163,12 +177,8 @@ export class SidePanel {
     );
     this.extra = el('div', { style: 'display:flex;flex-direction:column;gap:10px' }, rules);
     this.ordersBox = el('div', { 'data-testid': 'orders' });
-    const orders = el(
-      'section',
-      { class: 'card' },
-      el('h3', { 'data-i18n': 'pr.orders' }, t('pr.orders')),
-      this.ordersBox,
-    );
+    this.ordersHeading = el('h3', { 'data-i18n': 'pr.orders' }, t('pr.orders'));
+    this.ordersSection = el('section', { class: 'card' }, this.ordersHeading, this.ordersBox);
 
     this.dialogOrderId = el('span', {});
     this.dialogPrice = el('input', { type: 'number', step: 'any', 'data-testid': 'modify-price' });
@@ -179,12 +189,17 @@ export class SidePanel {
     this.dialogTpRow = label('pr.tpPrice', this.dialogTp);
     const dialogSubmit = el(
       'button',
-      { type: 'button', class: 'primary', 'data-testid': 'modify-submit' },
+      {
+        type: 'button',
+        class: 'primary',
+        'data-testid': 'modify-submit',
+        'data-i18n': 'pr.modify',
+      },
       t('pr.modify'),
     );
     const dialogCancel = el(
       'button',
-      { type: 'button', 'data-testid': 'modify-cancel' },
+      { type: 'button', 'data-testid': 'modify-cancel', 'data-i18n': 'pr.cancel' },
       t('pr.cancel'),
     );
     dialogSubmit.addEventListener('click', () => void this.submitModify());
@@ -192,7 +207,13 @@ export class SidePanel {
     this.dialog = el(
       'dialog',
       { 'data-testid': 'modify-dialog' },
-      el('h2', {}, t('pr.modifyTitle'), ' #', this.dialogOrderId),
+      el(
+        'h2',
+        {},
+        el('span', { 'data-i18n': 'pr.modifyTitle' }, t('pr.modifyTitle')),
+        ' #',
+        this.dialogOrderId,
+      ),
       el('div', { class: 'grid2', style: 'margin-top:12px' }, this.dialogPriceRow, el('span', {})),
       el('div', { class: 'grid2', style: 'margin-top:8px' }, this.dialogSlRow, this.dialogTpRow),
       el(
@@ -206,7 +227,7 @@ export class SidePanel {
       this.dialogCurrentOrderId = null;
     });
 
-    this.root.replaceChildren(ticket, position, this.extra, orders);
+    this.root.replaceChildren(this.extra, ticket, position);
     document.body.append(this.dialog);
     this.setType('market');
   }
@@ -216,7 +237,7 @@ export class SidePanel {
     for (const [k, b] of this.typeButtons) b.setAttribute('aria-pressed', String(k === ty));
     this.priceRow.hidden = ty === 'market';
     if (ty !== 'market' && this.state) this.price.value = String(this.state.trading.lastClose);
-    this.updateRiskPreview();
+    this.renderRisk();
   }
 
   /** Set the ticket price (e.g. from a chart click) and switch to limit if on market. */
@@ -224,37 +245,138 @@ export class SidePanel {
     if (!this.settings) return;
     if (this.type === 'market') this.setType('limit');
     this.price.value = String(roundToTick(p, this.settings.tickSize));
-  }
-
-  private updateRiskPreview(): void {
-    if (!this.settings) return;
-    const qty = Number(this.qty.value);
-    const slTicks = Number(this.sl.value);
-    if (!Number.isFinite(qty) || !Number.isFinite(slTicks) || qty <= 0 || slTicks <= 0) {
-      this.riskPreview.textContent = `${t('pr.riskPreview')}: ${t('pr.riskNa')}`;
-      return;
-    }
-    const risk = qty * slTicks * this.settings.tickSize * this.settings.pointValue;
-    this.riskPreview.textContent = `${t('pr.riskPreview')}: ${fmtMoney(risk)} (${slTicks} ${t('unit.tick')})`;
+    this.renderRisk();
   }
 
   async submit(side: Side): Promise<void> {
     if (!this.settings || !this.state) return;
-    const tick = this.settings.tickSize;
-    const qty = Number(this.qty.value);
-    const price = this.type === 'market' ? null : roundToTick(Number(this.price.value), tick);
-    const ref = price ?? this.state.trading.lastClose;
-    const dir = side === 'buy' ? 1 : -1;
-    const slT = Number(this.sl.value);
-    const tpT = Number(this.tp.value);
-    await this.actions.place({
-      side,
+    await this.actions.place(
+      ticketOrder(this.settings, this.state.trading.lastClose, this.ticketInputs(), side),
+    );
+  }
+
+  private ticketInputs(): TicketInputs {
+    return {
       type: this.type,
-      qty,
-      price,
-      stopLoss: slT > 0 ? roundToTick(ref - dir * slT * tick, tick) : null,
-      takeProfit: tpT > 0 ? roundToTick(ref + dir * tpT * tick, tick) : null,
+      qty: this.qty.value,
+      price: this.price.value,
+      stopTicks: this.sl.value,
+      targetTicks: this.tp.value,
+    };
+  }
+
+  private renderRisk(): void {
+    if (!this.settings || !this.state) return;
+    const settings = this.settings;
+    // `toggle` is queued, so a ticket edit can re-render before `riskOpen` updates
+    // and collapse a preview the user just expanded. Sample the live element.
+    const currentWrap = this.riskBox.querySelector<HTMLDetailsElement>('details.risk-preview-wrap');
+    if (currentWrap) {
+      this.riskOpen = currentWrap.open;
+      localStorage.setItem('candledrill.riskPreviewOpen', currentWrap.open ? '1' : '0');
+    }
+    this.riskBox
+      .querySelectorAll<HTMLDetailsElement>('details[data-risk-detail]')
+      .forEach((detail) => {
+        this.riskExpanded.set(detail.dataset.riskDetail!, detail.open);
+      });
+    const focus = document.activeElement?.getAttribute('data-risk-focus');
+    const details = (id: string, label: MessageKey, ...children: HTMLElement[]) =>
+      el(
+        'details',
+        {
+          'data-risk-detail': id,
+          ...(this.riskExpanded.get(id) ? { open: '' } : {}),
+        },
+        el('summary', { class: 'small', 'data-risk-focus': id }, t(label)),
+        ...children,
+      );
+    const reasons: Record<
+      Exclude<ReturnType<typeof previewRisk>['unavailable'], null>,
+      MessageKey
+    > = {
+      locked: 'risk.locked',
+      position: 'risk.position',
+      pending: 'risk.pending',
+      stop: 'risk.stop',
+      invalid: 'risk.invalid',
+    };
+    const sides = (['buy', 'sell'] as const).map((side) => {
+      const estimate = previewRisk(settings, this.state!, this.ticketInputs(), side);
+      const title = el('h4', {}, t(side === 'buy' ? 'pr.buy' : 'pr.sell'));
+      if (estimate.unavailable)
+        return el(
+          'div',
+          { 'data-testid': `risk-${side}` },
+          title,
+          el('p', { class: 'muted small' }, t(reasons[estimate.unavailable])),
+        );
+      const rows: [MessageKey, string, string][] = [
+        ['risk.entry', fmtPrice(estimate.entry, settings.tickSize), 'entry'],
+        ['risk.distance', `${fmtNum(estimate.stopTicks)} ${t('unit.tick')}`, 'distance'],
+        ['risk.price', fmtMoney(estimate.priceRisk), 'price'],
+        ['risk.commission', fmtMoney(estimate.commission), 'commission'],
+        ['risk.slippage', fmtMoney(estimate.slippage), 'slippage'],
+        ['risk.loss', fmtMoney(estimate.loss), 'loss'],
+        [
+          'risk.equity',
+          estimate.equityPercent === null
+            ? t('risk.percentUnavailable')
+            : `${fmtNum(estimate.equityPercent)}%`,
+          'equity',
+        ],
+        ['risk.reward', estimate.netReward === null ? '–' : fmtMoney(estimate.netReward), 'reward'],
+        [
+          'risk.ratio',
+          estimate.rewardRisk === null ? '–' : `${fmtNum(estimate.rewardRisk)}R`,
+          'ratio',
+        ],
+      ];
+      const list = (items: typeof rows) =>
+        el(
+          'dl',
+          { class: 'kv small' },
+          ...items.flatMap(([key, value, testId]) => [
+            el('dt', {}, t(key)),
+            el('dd', { 'data-testid': `risk-${side}-${testId}` }, value),
+          ]),
+        );
+      return el(
+        'div',
+        { 'data-testid': `risk-${side}` },
+        title,
+        list(rows.slice(5)),
+        details(side, 'risk.details', list(rows.slice(0, 5))),
+      );
     });
+    const wrap = el(
+      'details',
+      {
+        class: 'risk-preview-wrap',
+        'data-testid': 'risk-preview-wrap',
+        ...(this.riskOpen ? { open: '' } : {}),
+      },
+      el('summary', { 'data-i18n': 'risk.title' }, t('risk.title')),
+      el('div', { class: 'risk-sides' }, ...sides),
+      el('p', { class: 'muted small' }, t('risk.notice')),
+      details(
+        'assumptions',
+        'risk.assumptions',
+        el(
+          'p',
+          { class: 'muted small' },
+          t(this.type === 'market' ? 'risk.marketAssumption' : 'risk.priceAssumption'),
+        ),
+        el('p', { class: 'muted small' }, t('risk.costAssumption')),
+      ),
+    );
+    wrap.addEventListener('toggle', () => {
+      if (!wrap.isConnected) return;
+      this.riskOpen = wrap.open;
+      localStorage.setItem('candledrill.riskPreviewOpen', wrap.open ? '1' : '0');
+    });
+    this.riskBox.replaceChildren(wrap);
+    if (focus) this.riskBox.querySelector<HTMLElement>(`[data-risk-focus="${focus}"]`)?.focus();
   }
 
   private openModifyDialog(o: Order): void {
@@ -325,7 +447,7 @@ export class SidePanel {
     this.price.step = String(settings.tickSize);
     if (this.type !== 'market' && !this.price.value)
       this.price.value = String(state.trading.lastClose);
-    this.updateRiskPreview();
+    this.renderRisk();
     const locked = state.status !== 'active';
     this.buyBtn.disabled = locked;
     this.sellBtn.disabled = locked;
@@ -379,9 +501,18 @@ export class SidePanel {
         bar,
       ];
     };
+    const mode = settings.trailingDrawdownMode ?? 'close';
+    const trailingKey =
+      mode === 'eod'
+        ? 'pr.trailingEod'
+        : mode === 'intraday'
+          ? 'pr.trailingIntraday'
+          : mode === 'static'
+            ? 'pr.trailingStatic'
+            : 'pr.trailingClose';
     const meters = [
       ...meter('pr.dailyLoss', rs.dailyLossUsed, settings.dailyLossLimit),
-      ...meter('pr.trailing', rs.trailingUsed, settings.trailingDrawdown),
+      ...meter(trailingKey, rs.trailingUsed, settings.trailingDrawdown),
       ...meter('pr.target', rs.targetProgress, settings.profitTarget),
     ];
     if (settings.maxDailyTradeCycles || settings.maxConsecutiveLosses) {
@@ -413,10 +544,18 @@ export class SidePanel {
     }
     const drawdown: Node[] = [];
     if (settings.trailingDrawdown !== null) {
-      const peak = state.equityPeak;
-      const floor = peak - settings.trailingDrawdown;
+      const peak = trailingPeak(settings, state);
+      const floor = trailingFloor(settings, state) ?? peak - settings.trailingDrawdown;
       const currentDd = Math.max(0, peak - equity);
       const buffer = equity - floor;
+      const noteKey =
+        mode === 'eod'
+          ? 'pr.drawdownNoteEod'
+          : mode === 'intraday'
+            ? 'pr.drawdownNoteIntraday'
+            : mode === 'static'
+              ? 'pr.drawdownNoteStatic'
+              : 'pr.drawdownNote';
       drawdown.push(
         el(
           'dl',
@@ -426,9 +565,10 @@ export class SidePanel {
           ...kv('pr.ddCurrent', fmtMoney(currentDd), currentDd > 0 ? 'down' : ''),
           ...kv('pr.ddBuffer', fmtMoney(buffer), buffer < 0 ? 'down' : ''),
         ),
-        el('p', { class: 'muted small', 'data-i18n': 'pr.drawdownNote' }, t('pr.drawdownNote')),
+        el('p', { class: 'muted small', 'data-i18n': noteKey }, t(noteKey)),
       );
     }
+    this.ordersHeading.textContent = t('pr.orders');
     this.rulesBox.replaceChildren(
       ...(meters.length ? meters : [el('p', { class: 'muted' }, t('pr.noRules'))]),
       ...drawdown,

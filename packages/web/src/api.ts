@@ -7,6 +7,8 @@ import type {
   CsvImportReport,
   Excursion,
   GroupRow,
+  MacroRunResult,
+  MacroV1,
   OrderChange,
   OrderRequest,
   SessionState,
@@ -25,6 +27,8 @@ export interface DatasetRow {
   lastTime: number | null;
   utcOffsetMinutes: number;
   createdAt: string;
+  /** A running, unrevealed blind session uses this dataset; its bars are not served. */
+  blindLocked?: boolean;
 }
 
 export class ApiError extends Error {
@@ -96,11 +100,12 @@ export interface UpdateCheckResponse {
 
 export const api = {
   health: () =>
-    request<{ status: string; version: string; releaseVersion?: string; telemetry: boolean }>(
+    request<{ status: string; apiVersion?: string; releaseVersion?: string; telemetry: boolean }>(
       'GET',
       '/api/health',
     ),
-  updates: () => request<UpdateCheckResponse>('GET', '/api/updates'),
+  updates: (opts?: { refresh?: boolean }) =>
+    request<UpdateCheckResponse>('GET', opts?.refresh ? '/api/updates?refresh=1' : '/api/updates'),
   datasets: () => request<{ datasets: DatasetRow[] }>('GET', '/api/datasets'),
   createSynthetic: (seed: number, startDate: string, days: number) =>
     request<{ dataset: DatasetRow }>('POST', '/api/datasets/synthetic', { seed, startDate, days }),
@@ -134,11 +139,13 @@ export interface SessionSettings {
   startingBalance: number;
   dailyLossLimit: number | null;
   trailingDrawdown: number | null;
+  trailingDrawdownMode: 'close' | 'eod' | 'intraday' | 'static';
   profitTarget: number | null;
   maxDailyTradeCycles?: number | null;
   maxConsecutiveLosses?: number | null;
   utcOffsetMinutes: number;
   dayStartMinutes: number;
+  anchorMinutes: number;
 }
 
 export interface SessionMeta {
@@ -223,6 +230,15 @@ export const sessionsApi = {
   modifyOrder: (id: number, orderId: number, change: OrderChange) =>
     request<SessionViewDto>('PATCH', `/api/sessions/${id}/orders/${orderId}`, change),
   flatten: (id: number) => request<SessionViewDto>('POST', `/api/sessions/${id}/flatten`, {}),
+  macroRun: (
+    id: number,
+    body: { macro: MacroV1; mode: 'to_end' | 'n_bars'; count?: number; from: 'start' | 'cursor' },
+  ) =>
+    request<Omit<MacroRunResult, 'trades'> & { notice: string; researchCopy: true }>(
+      'POST',
+      `/api/sessions/${id}/macro-run`,
+      body,
+    ),
   saveDrawings: (id: number, drawings: unknown[]) =>
     request<{ drawings: unknown[] }>('PUT', `/api/sessions/${id}/drawings`, { drawings }),
 };

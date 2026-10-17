@@ -33,12 +33,15 @@ import {
   sessionPlaceOrder,
   sessionStats,
   upgradeState,
+  normalizeSettings,
   tradesToCsv,
   reportHtml,
   FILL_MODEL_NOTE,
-  SIMULATION_POLICY,
+  simulationPolicyFor,
   CANDLEDRILL_RISK_NOTICE_EN,
   stepSession,
+  parseMacro,
+  runMacro,
   validateSettings,
   visibleBars,
   type Bar,
@@ -197,9 +200,11 @@ export const settingsSchema = {
     'startingBalance',
     'dailyLossLimit',
     'trailingDrawdown',
+    'trailingDrawdownMode',
     'profitTarget',
     'utcOffsetMinutes',
     'dayStartMinutes',
+    'anchorMinutes',
   ],
   properties: {
     tickSize: { type: 'number', exclusiveMinimum: 0 },
@@ -209,11 +214,13 @@ export const settingsSchema = {
     startingBalance: { type: 'number', exclusiveMinimum: 0 },
     dailyLossLimit: nullablePositive,
     trailingDrawdown: nullablePositive,
+    trailingDrawdownMode: { type: 'string', enum: ['close', 'eod', 'intraday', 'static'] },
     profitTarget: nullablePositive,
     maxDailyTradeCycles: { type: ['integer', 'null'], minimum: 1 },
     maxConsecutiveLosses: { type: ['integer', 'null'], minimum: 1 },
     utcOffsetMinutes: { type: 'integer', minimum: -840, maximum: 840 },
     dayStartMinutes: { type: 'integer', minimum: 0, maximum: 1439 },
+    anchorMinutes: { type: 'integer', minimum: 0, maximum: 1439 },
   },
 } as const;
 
@@ -274,7 +281,15 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     const bars = row.settings.blind
       ? cache.disguised(row.datasetId, row.settings.blind, row.settings.tickSize)
       : cache.get(row.datasetId);
-    return { row: { ...row, state: upgradeState(bars, row.settings, row.state) }, bars };
+    const settings = normalizeSettings(row.settings);
+    return {
+      row: {
+        ...row,
+        settings: { ...row.settings, ...settings },
+        state: upgradeState(bars, settings, row.state),
+      },
+      bars,
+    };
   };
 
   const save = (row: Row, state: SessionState) =>
@@ -321,7 +336,10 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     async (req, reply) => {
       const ds = getDataset(db, req.body.datasetId);
       if (!ds) return reply.code(404).send({ error: 'dataset not found' });
-      const plain: SessionSettings = { ...req.body.settings, symbol: ds.symbol };
+      const plain: SessionSettings = normalizeSettings({
+        ...req.body.settings,
+        symbol: ds.symbol,
+      });
       const errors = validateSettings(plain);
       if (errors.length) return reply.code(400).send({ error: errors.join('; ') });
       const real = cache.get(ds.id);
@@ -399,6 +417,75 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
       const r = stepSession(bars, row.settings, row.state, req.body?.count ?? 1);
       save(row, r.state);
       return { ...sessionView(row, bars, r.state), revealed: r.revealed };
+    },
+  );
+
+  app.post<{
+    Params: { id: number };
+    Body: {
+      macro: unknown;
+      mode?: 'to_end' | 'n_bars';
+      count?: number;
+      from?: 'start' | 'cursor';
+    };
+  }>(
+    '/api/sessions/:id/macro-run',
+    {
+      schema: {
+        params: idParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['macro'],
+          properties: {
+            macro: { type: 'object' },
+            mode: { type: 'string', enum: ['to_end', 'n_bars'] },
+            count: { type: 'integer', minimum: 1, maximum: 500_000 },
+            from: { type: 'string', enum: ['start', 'cursor'] },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const loaded = load(req.params.id, reply);
+      if (!loaded) return reply;
+      const { row, bars } = loaded;
+      // A research copy may read the whole dataset. Refuse that while blind practice is hidden.
+      if (isBlindHidden(row.settings, row.state)) {
+        return reply.code(423).send({
+          error: 'blind session is hidden; macro backtest stays off until you reveal',
+        });
+      }
+      let macro;
+      try {
+        macro = parseMacro(req.body.macro);
+      } catch (err) {
+        return reply
+          .code(400)
+          .send({ error: err instanceof Error ? err.message : 'invalid macro' });
+      }
+      const mode = req.body.mode ?? 'to_end';
+      const from = req.body.from ?? 'start';
+      try {
+        const result = runMacro(bars, engineSettings(row.settings), row.state, macro, {
+          mode,
+          from,
+          ...(req.body.count !== undefined ? { count: req.body.count } : {}),
+        });
+        // Stats only: trade timestamps would show where future fills happened.
+        const { trades: _trades, ...rest } = result;
+        void _trades;
+        return {
+          ...rest,
+          notice: CANDLEDRILL_RISK_NOTICE_EN,
+          researchCopy: true,
+        };
+      } catch (err) {
+        if (err instanceof OrderError) return reply.code(400).send({ error: err.message });
+        return reply
+          .code(400)
+          .send({ error: err instanceof Error ? err.message : 'macro run failed' });
+      }
     },
   );
 
@@ -604,12 +691,13 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
       JSON.stringify(
         {
           format: 'candledrill-session',
-          formatVersion: 1,
+          formatVersion: 2,
           note:
             'Practice session without price bars (it does contain fill prices and times derived ' +
             'from the dataset; check your data licence before sharing). ' +
             CANDLEDRILL_RISK_NOTICE_EN,
-          simulationPolicy: SIMULATION_POLICY,
+          simulationPolicy: simulationPolicyFor(engineSettings(row.settings).trailingDrawdownMode),
+          simulationPolicyFor,
           name: row.name,
           startTime: row.startTime,
           settings: engineSettings(row.settings),
@@ -691,6 +779,58 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
                       p1: { type: 'number', exclusiveMinimum: 0 },
                       t2: { type: 'integer' },
                       p2: { type: 'number', exclusiveMinimum: 0 },
+                    },
+                  },
+                  {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['kind', 'id', 't1', 'p1', 't2', 'p2'],
+                    properties: {
+                      kind: { const: 'arrow' },
+                      id: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,40}$' },
+                      t1: { type: 'integer' },
+                      p1: { type: 'number', exclusiveMinimum: 0 },
+                      t2: { type: 'integer' },
+                      p2: { type: 'number', exclusiveMinimum: 0 },
+                      color: { type: 'string', maxLength: 32 },
+                    },
+                  },
+                  {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['kind', 'id', 't', 'price', 'text'],
+                    properties: {
+                      kind: { const: 'text' },
+                      id: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,40}$' },
+                      t: { type: 'integer' },
+                      price: { type: 'number', exclusiveMinimum: 0 },
+                      text: { type: 'string', minLength: 1, maxLength: 200 },
+                      color: { type: 'string', maxLength: 32 },
+                      fontSize: { type: 'integer', minimum: 8, maximum: 48 },
+                    },
+                  },
+                  {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['kind', 'id', 'points'],
+                    properties: {
+                      kind: { const: 'freehand' },
+                      id: { type: 'string', pattern: '^[A-Za-z0-9_-]{1,40}$' },
+                      color: { type: 'string', maxLength: 32 },
+                      points: {
+                        type: 'array',
+                        minItems: 2,
+                        maxItems: 2000,
+                        items: {
+                          type: 'object',
+                          additionalProperties: false,
+                          required: ['t', 'p'],
+                          properties: {
+                            t: { type: 'integer' },
+                            p: { type: 'number', exclusiveMinimum: 0 },
+                          },
+                        },
+                      },
                     },
                   },
                 ],
@@ -863,7 +1003,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
         issues.push(...journalIssues(f.journal, f.state.trading.trades));
       if (issues.length)
         return reply.code(400).send({ error: 'the session does not match this dataset', issues });
-      const state = upgradeState(bars, settings, f.state);
+      const state = upgradeState(bars, normalizeSettings(settings), f.state);
       const row = insertSession(db, {
         datasetId: ds.id,
         name: f.name,

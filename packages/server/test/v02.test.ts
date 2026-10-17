@@ -96,6 +96,8 @@ describe('blind mode', () => {
 
     const preview = await a.inject({ method: 'GET', url: `/api/datasets/${ds.id}/bars?limit=10` });
     expect(preview.statusCode).toBe(423);
+    const lockedList = (await a.inject({ method: 'GET', url: '/api/datasets' })).json();
+    expect(lockedList.datasets.find((d: { id: number }) => d.id === ds.id).blindLocked).toBe(true);
     expect(preview.json().code).toBe('blind-lock');
 
     const revealed = await a.inject({ method: 'POST', url: `/api/sessions/${id}/reveal` });
@@ -108,6 +110,8 @@ describe('blind mode', () => {
     expect(
       (await a.inject({ method: 'GET', url: `/api/datasets/${ds.id}/bars?limit=10` })).statusCode,
     ).toBe(200);
+    const unlocked = (await a.inject({ method: 'GET', url: '/api/datasets' })).json();
+    expect(unlocked.datasets.find((d: { id: number }) => d.id === ds.id).blindLocked).toBe(false);
   });
 
   it('each blind session gets its own random start and disguise', async () => {
@@ -592,6 +596,49 @@ describe('backup and restore', () => {
         })
       ).statusCode,
     ).toBe(403);
+  });
+});
+
+describe('drawings text / arrow / freehand', () => {
+  it('stores text, arrow and freehand strokes', async () => {
+    const { a, ds } = await setup();
+    const id = (
+      await a.inject({
+        method: 'POST',
+        url: '/api/sessions',
+        payload: {
+          datasetId: ds.id,
+          name: 'D2',
+          startTime: ds.firstTime + 3600,
+          settings: SETTINGS,
+        },
+      })
+    ).json().session.id;
+    const put = (drawings: unknown[]) =>
+      a.inject({ method: 'PUT', url: `/api/sessions/${id}/drawings`, payload: { drawings } });
+    const drawings = [
+      { kind: 'text', id: 'tx1', t: 100, price: 101.5, text: 'hello' },
+      { kind: 'arrow', id: 'ar1', t1: 100, p1: 100, t2: 200, p2: 105 },
+      {
+        kind: 'freehand',
+        id: 'fh1',
+        points: [
+          { t: 100, p: 100 },
+          { t: 110, p: 101 },
+          { t: 120, p: 99 },
+        ],
+      },
+    ];
+    expect((await put(drawings)).statusCode).toBe(200);
+    expect(
+      (await a.inject({ method: 'GET', url: `/api/sessions/${id}` })).json().session.drawings,
+    ).toEqual(drawings);
+    expect((await put([{ kind: 'text', id: 'bad', t: 1, price: 1, text: '' }])).statusCode).toBe(
+      400,
+    );
+    expect((await put([{ kind: 'freehand', id: 'f', points: [{ t: 1, p: 1 }] }])).statusCode).toBe(
+      400,
+    );
   });
 });
 

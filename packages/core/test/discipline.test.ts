@@ -26,6 +26,8 @@ const settings: SessionSettings = {
   profitTarget: null,
   utcOffsetMinutes: 0,
   dayStartMinutes: 0,
+  trailingDrawdownMode: 'close',
+  anchorMinutes: 0,
 };
 const bars: Bar[] = [0, 60, 120, 180, 240, 300, 86400, 86460, 86520].map((time) => ({
   time,

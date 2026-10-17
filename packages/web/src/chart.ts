@@ -9,10 +9,12 @@ import {
   ColorType,
   CrosshairMode,
   HistogramSeries,
+  LineSeries,
   LineStyle,
   createChart,
   createSeriesMarkers,
   type IChartApi,
+  type IPaneApi,
   type Logical,
   type IPriceLine,
   type ISeriesApi,
@@ -22,7 +24,51 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { roundToTick, tickDecimals, type Bar } from '@candledrill/core';
+import type { AggregateOptions } from '@candledrill/core';
 import { weekdayName } from './labels.js';
+import {
+  adx,
+  atr,
+  bollinger,
+  donchian,
+  ema,
+  macd,
+  orbLevels,
+  rsi,
+  sma,
+  stochastic,
+  vwap,
+} from './indicators.js';
+import {
+  isOverlayKind,
+  type IndicatorSetting,
+  type PaneIndicatorConfig,
+} from './indicator-prefs.js';
+import { t } from './i18n.js';
+
+/** A bounded window within loaded, revealed bars; both trade endpoints must exist. */
+export function tradeWindow(
+  times: readonly number[],
+  start: number,
+  end: number,
+  context = 5,
+): { from: number; to: number } | null {
+  if (
+    !Number.isFinite(start) ||
+    !Number.isFinite(end) ||
+    end < start ||
+    !Number.isInteger(context) ||
+    context < 0
+  )
+    return null;
+  const first = times.indexOf(start);
+  const last = times.indexOf(end);
+  if (first < 0 || last < first) return null;
+  const from = Math.max(0, first - context);
+  const to = Math.min(times.length - 1, last + context);
+  // A single loaded bar still needs non-zero logical width; the extra slot has no data.
+  return { from, to: Math.max(from + 1, to) };
+}
 
 export interface ChartTheme {
   background: string;
@@ -71,9 +117,9 @@ export interface MarkerSpec {
 }
 
 export type Drawing =
-  | { kind: 'hline'; id: string; price: number }
-  | { kind: 'tline'; id: string; t1: number; p1: number; t2: number; p2: number }
-  | { kind: 'rect'; id: string; t1: number; p1: number; t2: number; p2: number }
+  | { kind: 'hline'; id: string; price: number; color?: string }
+  | { kind: 'tline'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | { kind: 'rect'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | {
       kind: 'position';
       id: string;
@@ -83,7 +129,19 @@ export type Drawing =
       entry: number;
       stop: number;
       target: number;
-    };
+      color?: string;
+    }
+  | {
+      kind: 'text';
+      id: string;
+      t: number;
+      price: number;
+      text: string;
+      color?: string;
+      fontSize?: number;
+    }
+  | { kind: 'arrow'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | { kind: 'freehand'; id: string; points: { t: number; p: number }[]; color?: string };
 
 /**
  * Keep a long/short R tool consistent while dragging: the stop stays on the losing side
@@ -107,6 +165,21 @@ function svg<K extends keyof SVGElementTagNameMap>(
   const e = document.createElementNS(SVG_NS, tag);
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
   return e;
+}
+
+function elStyleBar(): HTMLElement {
+  const bar = document.createElement('div');
+  bar.className = 'drawing-style-bar';
+  bar.dataset.testid = 'drawing-style-bar';
+  bar.hidden = true;
+  return bar;
+}
+
+/** Filled triangular arrow head; size is tip-to-base length in CSS pixels. */
+export function arrowHeadPath(x: number, y: number, angle: number, size = 12): string {
+  const a1 = angle + Math.PI - 0.45;
+  const a2 = angle + Math.PI + 0.45;
+  return `M${x} ${y} L${x + size * Math.cos(a1)} ${y + size * Math.sin(a1)} L${x + size * Math.cos(a2)} ${y + size * Math.sin(a2)} Z`;
 }
 
 type DragPart = 'p1' | 'p2' | 'body' | 'price' | 'entry' | 'stop' | 'target' | 't2';
@@ -135,6 +208,7 @@ export class PriceChart {
   private drawings: Drawing[] = [];
   private snapFn: (t: number) => number = (t) => t;
   private readonly overlay: SVGSVGElement;
+  private readonly styleBar: HTMLElement;
   private overlaySig = '';
   private raf = 0;
   private selected: string | null = null;
@@ -152,6 +226,20 @@ export class PriceChart {
     priceLine: IPriceLine;
     handle: SVGRectElement;
   } | null = null;
+  // Indicators
+  private indicatorConfig?: PaneIndicatorConfig;
+  private indicatorAgg?: AggregateOptions;
+  private indicatorBars: Bar[] = [];
+  private overlaySeries = new Map<string, ISeriesApi<'Line'>>();
+  private paneIndicatorSeries = new Map<string, ISeriesApi<'Line' | 'Histogram'>>();
+  private indicatorPane: IPaneApi<Time> | undefined = undefined;
+  // Freehand capture
+  private freehandMode = false;
+  private freehandPoints: { t: number; p: number }[] = [];
+  private freehandHandler: ((points: { t: number; p: number }[]) => void) | undefined = undefined;
+  private freehandDone: (() => void) | undefined = undefined;
+  private pendingAnchor: { t: number; p: number } | null = null;
+  private crosshair: { t: number; p: number } | null = null;
 
   constructor(
     private readonly container: HTMLElement,
@@ -190,7 +278,8 @@ export class PriceChart {
     this.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     this.markers = createSeriesMarkers(this.candles, []);
     this.overlay = svg('svg', { class: 'draw-overlay', 'data-testid': 'draw-overlay' });
-    container.append(this.overlay);
+    this.styleBar = elStyleBar();
+    container.append(this.overlay, this.styleBar);
   }
 
   setTickSize(tickSize: number): void {
@@ -208,6 +297,20 @@ export class PriceChart {
   /** Bar length of this chart, used to place drawings to the right of the last bar. */
   setBarSeconds(seconds: number): void {
     this.barSeconds = seconds;
+  }
+
+  /** Indicator configuration for this pane and the calendar options used by VWAP. */
+  setIndicators(config: PaneIndicatorConfig, agg: AggregateOptions): void {
+    this.indicatorConfig = config;
+    this.indicatorAgg = agg;
+    this.renderIndicators();
+  }
+
+  /** Show a large anchor and rubber-band line while waiting for the second click. */
+  setPendingAnchor(point: { t: number; p: number } | null): void {
+    this.pendingAnchor = point;
+    this.overlaySig = '';
+    this.renderOverlay();
   }
 
   /** Blind mode: the time axis and crosshair show weekday and clock time, never a date. */
@@ -239,9 +342,19 @@ export class PriceChart {
   /** Called with the real time under the mouse (null when the mouse leaves the chart). */
   onCrosshair(handler: (time: number | null) => void): void {
     this.chart.subscribeCrosshairMove((param) => {
-      if (param.point === undefined || param.time === undefined) return handler(null);
+      if (param.point === undefined || param.time === undefined) {
+        this.crosshair = null;
+        this.overlaySig = '';
+        this.renderOverlay();
+        return handler(null);
+      }
       if (!param.sourceEvent) return; // set by another chart: do not echo it back
-      handler(Number(param.time) - this.timeShiftSeconds);
+      const time = Number(param.time) - this.timeShiftSeconds;
+      const price = this.candles.coordinateToPrice(param.point.y);
+      this.crosshair = { t: time, p: price === null ? NaN : Number(price) };
+      this.overlaySig = '';
+      this.renderOverlay();
+      handler(time);
     });
   }
 
@@ -309,6 +422,8 @@ export class PriceChart {
       bars.map((b) => ({ time: this.ts(b.time), value: b.volume, color: this.volColor(b) })),
     );
     this.lastBarTime = bars.at(-1)?.time;
+    this.indicatorBars = [...bars];
+    this.renderIndicators();
   }
 
   /** Append or update the last bar (bar.time must be >= the last bar time). */
@@ -322,6 +437,13 @@ export class PriceChart {
     });
     this.volume.update({ time: this.ts(b.time), value: b.volume, color: this.volColor(b) });
     this.lastBarTime = b.time;
+    if (this.indicatorBars.length && b.time < this.indicatorBars.at(-1)!.time) return;
+    if (this.indicatorBars.length && b.time === this.indicatorBars.at(-1)!.time) {
+      this.indicatorBars[this.indicatorBars.length - 1] = b;
+    } else {
+      this.indicatorBars.push(b);
+    }
+    this.renderIndicators();
   }
 
   get lastTime(): number | undefined {
@@ -377,6 +499,7 @@ export class PriceChart {
     this.renderPriceLines();
     this.overlaySig = '';
     this.renderOverlay();
+    this.syncStyleBar();
     if (!this.raf) this.loop();
   }
 
@@ -469,6 +592,8 @@ export class PriceChart {
     const plotW = Math.max(0, w - this.chart.priceScale('right').width());
     const pts = this.drawings.map((d) => {
       if (d.kind === 'hline') return [this.yOf(d.price)];
+      if (d.kind === 'text') return [this.xOf(d.t), this.yOf(d.price)];
+      if (d.kind === 'freehand') return d.points.map((p) => [this.xOf(p.t), this.yOf(p.p)]).flat();
       if (d.kind === 'position')
         return [
           this.xOf(d.t1),
@@ -482,7 +607,7 @@ export class PriceChart {
     const orderPts = this.orderLineSpecs.map((l) =>
       l.orderId === undefined ? null : this.yOf(l.price),
     );
-    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}`;
+    const sig = `${w}|${this.selected}|${JSON.stringify(pts)}|${this.drag ? JSON.stringify(this.drawings) : ''}|${JSON.stringify(orderPts)}|${this.orderDrag?.orderId ?? ''}|${JSON.stringify(this.pendingAnchor)}|${JSON.stringify(this.crosshair)}`;
     if (sig === this.overlaySig) return;
     this.overlaySig = sig;
     const nodes: SVGElement[] = [];
@@ -495,12 +620,13 @@ export class PriceChart {
       body = false,
     ) => {
       if (x === null || y === null) return;
+      const size = body ? 10 : 6;
       const h = svg('rect', {
-        x: x - 5,
-        y: y - 5,
-        width: 10,
-        height: 10,
-        rx: body ? 5 : 2,
+        x: x - size / 2,
+        y: y - size / 2,
+        width: size,
+        height: size,
+        rx: body ? 5 : 1.5,
         class: `handle${body ? ' body' : ''}${this.selected === d.id ? ' active' : ''}`,
         'data-drawing': d.id,
         'data-part': part,
@@ -512,6 +638,79 @@ export class PriceChart {
       const p = pts[i]!;
       if (d.kind === 'hline') {
         handle(d, 'price', plotW - 24, p[0]!);
+      } else if (d.kind === 'text') {
+        const [x, y] = p;
+        if (x == null || y == null) return;
+        const fontSize = d.fontSize && d.fontSize > 0 ? d.fontSize : 13;
+        const t = svg('text', {
+          x,
+          y: y - 6,
+          fill: d.color ?? accent,
+          'font-size': `${fontSize}px`,
+          'font-weight': '600',
+          class: 'drawing-text',
+          'data-drawing': d.id,
+        });
+        t.textContent = d.text;
+        t.addEventListener('dblclick', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          this.selected = d.id;
+          this.editTextContent(d);
+        });
+        nodes.push(t);
+        handle(d, 'body', x, y, true);
+      } else if (d.kind === 'arrow') {
+        const [x1, y1, x2, y2] = p;
+        if (x1 == null || y1 == null || x2 == null || y2 == null) return;
+        const color = d.color ?? accent;
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const head = 12;
+        const inset = head * 0.85;
+        const sx2 = x2 - Math.cos(angle) * inset;
+        const sy2 = y2 - Math.sin(angle) * inset;
+        nodes.push(
+          svg('line', {
+            x1,
+            y1,
+            x2: sx2,
+            y2: sy2,
+            stroke: color,
+            'stroke-width': 3,
+            'stroke-linecap': 'round',
+          }),
+          this.arrowHead(x2, y2, angle, color),
+        );
+        handle(d, 'p1', x1, y1);
+        handle(d, 'p2', x2, y2);
+      } else if (d.kind === 'freehand') {
+        const coords: number[] = [];
+        for (let j = 0; j < p.length; j += 2) {
+          const x = p[j]!;
+          const y = p[j + 1]!;
+          if (x == null || y == null) continue;
+          coords.push(x, y);
+        }
+        if (coords.length < 4) return;
+        const dstr =
+          `M${coords[0]} ${coords[1]} ` +
+          coords
+            .slice(2)
+            .map((v, idx) => (idx % 2 === 0 ? `L${v}` : v))
+            .join(' ');
+        nodes.push(
+          svg('path', {
+            d: dstr,
+            fill: 'none',
+            stroke: d.color ?? accent,
+            'stroke-width': 2,
+            'stroke-linejoin': 'round',
+            'stroke-linecap': 'round',
+            class: 'drawing-freehand-path',
+            'data-drawing': d.id,
+          }),
+        );
+        handle(d, 'body', coords[0]!, coords[1]!, true);
       } else if (d.kind === 'tline' || d.kind === 'rect') {
         const [x1, y1, x2, y2] = p;
         if (x1 == null || y1 == null || x2 == null || y2 == null) return;
@@ -538,23 +737,33 @@ export class PriceChart {
         if (x1 == null || x2 == null || ye == null || ys == null || yt == null) return;
         const left = Math.min(x1, x2);
         const width = Math.max(4, Math.abs(x2 - x1));
+        const riskRect = svg('rect', {
+          x: left,
+          y: Math.min(ye, ys),
+          width,
+          height: Math.max(2, Math.abs(ys - ye)),
+          fill: withAlpha(this.theme.down, 0.2),
+          'data-kind': 'risk',
+          class: 'position-body',
+          'data-drawing': d.id,
+          'data-part': 'body',
+        });
+        const rewardRect = svg('rect', {
+          x: left,
+          y: Math.min(ye, yt),
+          width,
+          height: Math.max(2, Math.abs(yt - ye)),
+          fill: withAlpha(this.theme.up, 0.2),
+          'data-kind': 'reward',
+          class: 'position-body',
+          'data-drawing': d.id,
+          'data-part': 'body',
+        });
+        riskRect.addEventListener('pointerdown', (ev) => this.startDrag(ev, d, 'body'));
+        rewardRect.addEventListener('pointerdown', (ev) => this.startDrag(ev, d, 'body'));
         nodes.push(
-          svg('rect', {
-            x: left,
-            y: Math.min(ye, ys),
-            width,
-            height: Math.abs(ys - ye),
-            fill: withAlpha(this.theme.down, 0.2),
-            'data-kind': 'risk',
-          }),
-          svg('rect', {
-            x: left,
-            y: Math.min(ye, yt),
-            width,
-            height: Math.abs(yt - ye),
-            fill: withAlpha(this.theme.up, 0.2),
-            'data-kind': 'reward',
-          }),
+          riskRect,
+          rewardRect,
           svg('line', {
             x1: left,
             x2: left + width,
@@ -576,7 +785,8 @@ export class PriceChart {
           label.textContent = text;
           nodes.push(label);
         }
-        handle(d, 'entry', left, ye, true);
+        handle(d, 'body', left + width / 2, ye, true);
+        handle(d, 'entry', left, ye);
         handle(d, 'stop', left + width / 2, ys);
         handle(d, 'target', left + width / 2, yt);
         handle(d, 't2', left + width, ye);
@@ -587,7 +797,11 @@ export class PriceChart {
             ? [plotW - 44, p[0]]
             : d.kind === 'position'
               ? [p[0], p[3]]
-              : [p[0], p[1]];
+              : d.kind === 'text'
+                ? [p[0], p[1]]
+                : d.kind === 'freehand'
+                  ? [p[0], p[1]]
+                  : [p[0], p[1]];
         const [ax, ay] = anchor as [number | null, number | null];
         if (ax != null && ay != null) {
           const g = svg('g', { class: 'del', 'data-testid': 'delete-drawing', role: 'button' });
@@ -600,7 +814,7 @@ export class PriceChart {
             }),
           );
           const title = svg('title', {});
-          title.textContent = 'Delete';
+          title.textContent = t('pr.deleteDrawing');
           g.append(title);
           g.addEventListener('pointerdown', (ev) => {
             ev.preventDefault();
@@ -611,6 +825,28 @@ export class PriceChart {
         }
       }
     });
+    // Rubber-band for trendline / arrow while waiting for the second click.
+    if (this.pendingAnchor && this.crosshair) {
+      const x1 = this.xOf(this.pendingAnchor.t);
+      const y1 = this.yOf(this.pendingAnchor.p);
+      const x2 = this.xOf(this.crosshair.t);
+      const y2 = this.yOf(this.crosshair.p);
+      if (x1 != null && y1 != null && x2 != null && y2 != null) {
+        nodes.push(
+          svg('line', {
+            x1,
+            y1,
+            x2,
+            y2,
+            stroke: accent,
+            'stroke-width': 2,
+            'stroke-dasharray': '4 4',
+          }),
+          svg('circle', { cx: x1, cy: y1, r: 6, fill: accent }),
+        );
+      }
+    }
+
     // Clip shapes to the plot area so they never cover the price scale.
     const clipId = this.clipId;
     const defs = svg('defs', {});
@@ -643,11 +879,21 @@ export class PriceChart {
     this.overlay.replaceChildren(defs, g, orderGroup);
   }
 
+  private arrowHead(x: number, y: number, angle: number, color: string): SVGPathElement {
+    return svg('path', {
+      d: arrowHeadPath(x, y, angle),
+      stroke: color,
+      'stroke-width': 1,
+      fill: color,
+    });
+  }
+
   private readonly clipId = `clip-${Math.random().toString(36).slice(2)}`;
 
   private startDrag(ev: PointerEvent, d: Drawing, part: DragPart): void {
     ev.stopPropagation();
     this.selected = d.id;
+    this.syncStyleBar();
     const rect = this.overlay.getBoundingClientRect();
     const t0 = this.timeAt(ev.clientX - rect.left) ?? 0;
     const p0 = this.priceAt(ev.clientY - rect.top) ?? 0;
@@ -752,13 +998,31 @@ export class PriceChart {
   ): Drawing {
     const shiftP = (v: number) => Number((v + dp).toFixed(10));
     if (d.kind === 'hline') return { ...d, price: p };
+    if (d.kind === 'text') return { ...d, t: d.t + dt, price: shiftP(d.price) };
+    if (d.kind === 'freehand') {
+      return {
+        ...d,
+        points: d.points.map((pt) => ({ t: pt.t + dt, p: shiftP(pt.p) })),
+      };
+    }
+    if (d.kind === 'arrow') {
+      if (part === 'p1') return { ...d, t1: t, p1: p };
+      if (part === 'p2') return { ...d, t2: t, p2: p };
+      return {
+        ...d,
+        t1: d.t1 + dt,
+        t2: d.t2 + dt,
+        p1: shiftP(d.p1),
+        p2: shiftP(d.p2),
+      };
+    }
     if (d.kind === 'tline' || d.kind === 'rect') {
       if (part === 'p1') return { ...d, t1: t, p1: p };
       if (part === 'p2') return { ...d, t2: t, p2: p };
       return { ...d, t1: d.t1 + dt, t2: d.t2 + dt, p1: shiftP(d.p1), p2: shiftP(d.p2) };
     }
     let n = d;
-    if (part === 'entry')
+    if (part === 'body' || part === 'entry')
       n = {
         ...d,
         t1: d.t1 + dt,
@@ -777,19 +1041,51 @@ export class PriceChart {
     // Native clicks (not the library's click events, which merge quick clicks into a
     // double-click): every click counts, a click that was really a pan (moved > 4 px) does not.
     let down: { x: number; y: number } | null = null;
+    let freehandMoved = false;
     // Capture phase: the chart library may stop these events from bubbling.
     this.container.addEventListener(
       'pointerdown',
       (e) => {
         down = { x: e.clientX, y: e.clientY };
+        if (!this.freehandMode) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.pushFreehandPoint(e.clientX, e.clientY);
+        freehandMoved = false;
+      },
+      true,
+    );
+    this.container.addEventListener(
+      'pointermove',
+      (e) => {
+        if (!this.freehandMode) return;
+        e.preventDefault();
+        freehandMoved = true;
+        this.pushFreehandPoint(e.clientX, e.clientY);
+      },
+      true,
+    );
+    this.container.addEventListener(
+      'pointerup',
+      (e) => {
+        if (!this.freehandMode) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (!freehandMoved) this.pushFreehandPoint(e.clientX, e.clientY);
+        const pts = PriceChart.simplifyFreehand(this.freehandPoints);
+        const cb = this.freehandHandler;
+        this.stopFreehand();
+        if (pts.length >= 2 && cb) cb(pts);
       },
       true,
     );
     this.container.addEventListener(
       'click',
       (e) => {
+        if (this.freehandMode) return;
         if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
-        if ((e.target as Element).closest?.('.handle, .del')) return;
+        if ((e.target as Element).closest?.('.handle, .del, .position-body, .drawing-style-bar'))
+          return;
         const rect = this.container.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -820,6 +1116,341 @@ export class PriceChart {
       wickUpColor: this.theme.up,
       wickDownColor: this.theme.down,
     });
+  }
+
+  // ---------------------------------------------------------------- freehand
+  startFreehand(onPoint: (point: { t: number; p: number }) => void, onDone: () => void): void {
+    this.freehandMode = true;
+    this.freehandPoints = [];
+    this.freehandHandler = (pts) => {
+      for (const p of pts) onPoint(p);
+      onDone();
+    };
+    this.freehandDone = onDone;
+    this.overlay.classList.add('drawing-freehand');
+  }
+
+  stopFreehand(): void {
+    this.freehandMode = false;
+    this.freehandPoints = [];
+    this.freehandHandler = undefined;
+    this.freehandDone = undefined;
+    this.overlay.classList.remove('drawing-freehand');
+  }
+
+  private pushFreehandPoint(clientX: number, clientY: number): void {
+    const rect = this.overlay.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const t = this.timeAt(x);
+    const p = this.priceAt(y);
+    if (t === null || p === null) return;
+    this.freehandPoints.push({ t, p });
+  }
+
+  private syncStyleBar(): void {
+    const d = this.drawings.find((x) => x.id === this.selected);
+    if (!d || d.kind !== 'text') {
+      this.styleBar.hidden = true;
+      this.styleBar.replaceChildren();
+      return;
+    }
+    this.styleBar.hidden = false;
+    const color = document.createElement('input');
+    color.type = 'color';
+    color.value = d.color ?? '#7cc4ff';
+    color.title = t('pr.textColor');
+    color.dataset.testid = 'text-color';
+    color.addEventListener('input', () => {
+      const next = { ...d, color: color.value };
+      this.drawings = this.drawings.map((x) => (x.id === next.id ? next : x));
+      this.overlaySig = '';
+      this.renderOverlay();
+      this.editHandler?.(next);
+    });
+    const size = document.createElement('input');
+    size.type = 'number';
+    size.min = '8';
+    size.max = '48';
+    size.step = '1';
+    size.value = String(d.fontSize && d.fontSize > 0 ? d.fontSize : 13);
+    size.title = t('pr.textSize');
+    size.dataset.testid = 'text-size';
+    size.addEventListener('change', () => {
+      const v = Number(size.value);
+      if (!Number.isFinite(v) || v < 8 || v > 48) return;
+      const next = { ...d, fontSize: Math.round(v) };
+      this.drawings = this.drawings.map((x) => (x.id === next.id ? next : x));
+      this.overlaySig = '';
+      this.renderOverlay();
+      this.editHandler?.(next);
+    });
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'small';
+    edit.textContent = t('pr.textEdit');
+    edit.dataset.testid = 'text-edit';
+    edit.addEventListener('click', () => this.editTextContent(d));
+    const label = document.createElement('span');
+    label.className = 'muted small';
+    label.textContent = t('pr.textStyle');
+    this.styleBar.replaceChildren(label, color, size, edit);
+  }
+
+  private editTextContent(d: Extract<Drawing, { kind: 'text' }>): void {
+    const nextText = prompt(t('pr.textPrompt'), d.text);
+    if (nextText === null) return;
+    const trimmed = nextText.trim();
+    if (!trimmed) return;
+    const next = { ...d, text: trimmed.slice(0, 200) };
+    this.drawings = this.drawings.map((x) => (x.id === next.id ? next : x));
+    this.overlaySig = '';
+    this.renderOverlay();
+    this.syncStyleBar();
+    this.editHandler?.(next);
+  }
+
+  /** Simplify a freehand stroke with a basic distance threshold. */
+  static simplifyFreehand(
+    points: { t: number; p: number }[],
+    threshold = 8,
+  ): { t: number; p: number }[] {
+    if (points.length < 3) return points;
+    const out: { t: number; p: number }[] = [points[0]!];
+    for (let i = 1; i < points.length - 1; i++) {
+      const a = out[out.length - 1]!;
+      const b = points[i]!;
+      const dx = b.t - a.t;
+      const dy = b.p - a.p;
+      if (Math.hypot(dx, dy) >= threshold) out.push(b);
+    }
+    out.push(points[points.length - 1]!);
+    return out;
+  }
+
+  // ---------------------------------------------------------------- indicators
+  private indicatorLineData(
+    values: readonly (number | null)[],
+    bars: readonly Bar[],
+  ): { time: UTCTimestamp; value: number | null }[] {
+    return bars.map((b, i) => ({ time: this.ts(b.time), value: values[i] ?? null }));
+  }
+
+  private indicatorSeriesOptions(setting: IndicatorSetting) {
+    return {
+      color: setting.color ?? '#888888',
+      lineWidth: 2 as const,
+      lastValueVisible: false,
+      priceLineVisible: false,
+    };
+  }
+
+  private overlayKeys(s: IndicatorSetting): string[] {
+    if (s.kind === 'bollinger') return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
+    if (s.kind === 'orb') return [`${s.id}:h`, `${s.id}:l`];
+    if (s.kind === 'donchian') return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
+    return [s.id];
+  }
+
+  private paneKeys(s: IndicatorSetting): string[] {
+    if (s.kind === 'macd') return [`${s.id}:macd`, `${s.id}:signal`, `${s.id}:hist`];
+    if (s.kind === 'stochastic') return [`${s.id}:k`, `${s.id}:d`];
+    if (s.kind === 'adx') return [`${s.id}:adx`, `${s.id}:pdi`, `${s.id}:mdi`];
+    return [s.id];
+  }
+
+  private renderIndicators(): void {
+    if (!this.indicatorConfig || !this.indicatorAgg) return;
+    const bars = this.indicatorBars;
+    if (bars.length === 0) return;
+
+    const vol = this.indicatorConfig.overlays.find((s) => s.kind === 'volume');
+    this.volume.applyOptions({ visible: vol ? vol.visible : true });
+
+    const overlayWanted = new Set<string>();
+    for (const s of this.indicatorConfig.overlays) {
+      if (!s.visible || s.kind === 'volume') continue;
+      for (const key of this.overlayKeys(s)) overlayWanted.add(key);
+    }
+    for (const [key, series] of [...this.overlaySeries]) {
+      if (!overlayWanted.has(key)) {
+        this.chart.removeSeries(series);
+        this.overlaySeries.delete(key);
+      }
+    }
+
+    for (const s of this.indicatorConfig.overlays) {
+      if (!s.visible || s.kind === 'volume' || !isOverlayKind(s.kind)) continue;
+      const source = s.source ?? 'close';
+      switch (s.kind) {
+        case 'sma':
+          this.ensureOverlayLine(s.id, s).setData(
+            this.indicatorLineData(sma(bars, s.period ?? 20, source), bars),
+          );
+          break;
+        case 'ema':
+          this.ensureOverlayLine(s.id, s).setData(
+            this.indicatorLineData(ema(bars, s.period ?? 21, source), bars),
+          );
+          break;
+        case 'bollinger': {
+          const r = bollinger(bars, s.period ?? 20, s.stdDev ?? 2, source);
+          this.ensureOverlayLine(`${s.id}:u`, s).setData(this.indicatorLineData(r.upper, bars));
+          this.ensureOverlayLine(`${s.id}:m`, s).setData(this.indicatorLineData(r.middle, bars));
+          this.ensureOverlayLine(`${s.id}:l`, s).setData(this.indicatorLineData(r.lower, bars));
+          break;
+        }
+        case 'vwap': {
+          const r = vwap(bars, this.indicatorAgg);
+          this.ensureOverlayLine(s.id, s).setData(
+            r.map((p) => ({ time: this.ts(p.time), value: p.value })),
+          );
+          break;
+        }
+        case 'orb': {
+          const r = orbLevels(bars, s.minutes ?? 30, this.indicatorAgg);
+          this.ensureOverlayLine(`${s.id}:h`, s).setData(this.indicatorLineData(r.high, bars));
+          this.ensureOverlayLine(`${s.id}:l`, s).setData(this.indicatorLineData(r.low, bars));
+          break;
+        }
+        case 'donchian': {
+          const r = donchian(bars, s.period ?? 20);
+          this.ensureOverlayLine(`${s.id}:u`, s).setData(this.indicatorLineData(r.upper, bars));
+          this.ensureOverlayLine(`${s.id}:m`, s).setData(this.indicatorLineData(r.middle, bars));
+          this.ensureOverlayLine(`${s.id}:l`, s).setData(this.indicatorLineData(r.lower, bars));
+          break;
+        }
+        default: {
+          const leftover: never = s.kind;
+          void leftover;
+          break;
+        }
+      }
+    }
+
+    const paneWanted = new Set<string>();
+    for (const s of this.indicatorConfig.panes) {
+      if (!s.visible) continue;
+      for (const key of this.paneKeys(s)) paneWanted.add(key);
+    }
+    const hasPane = paneWanted.size > 0;
+    if (!hasPane && this.indicatorPane) {
+      this.chart.removePane(1);
+      this.indicatorPane = undefined;
+      this.paneIndicatorSeries.clear();
+    } else if (hasPane && !this.indicatorPane) {
+      this.indicatorPane = this.chart.addPane();
+      this.indicatorPane.setHeight(120);
+    }
+    for (const [key, series] of [...this.paneIndicatorSeries]) {
+      if (!paneWanted.has(key)) {
+        this.chart.removeSeries(series);
+        this.paneIndicatorSeries.delete(key);
+      }
+    }
+
+    for (const s of this.indicatorConfig.panes) {
+      if (!s.visible || isOverlayKind(s.kind)) continue;
+      const source = s.source ?? 'close';
+      switch (s.kind) {
+        case 'rsi':
+          this.ensurePaneLine(s.id, s, 1).setData(
+            this.indicatorLineData(rsi(bars, s.period ?? 14, source), bars),
+          );
+          break;
+        case 'atr':
+          this.ensurePaneLine(s.id, s, 1).setData(
+            this.indicatorLineData(atr(bars, s.period ?? 14), bars),
+          );
+          break;
+        case 'macd': {
+          const r = macd(bars, s.fast ?? 12, s.slow ?? 26, s.signal ?? 9, source);
+          this.ensurePaneLine(`${s.id}:macd`, s, 1).setData(this.indicatorLineData(r.macd, bars));
+          this.ensurePaneLine(`${s.id}:signal`, s, 1).setData(
+            this.indicatorLineData(r.signal, bars),
+          );
+          this.ensurePaneHistogram(`${s.id}:hist`, s, 1).setData(
+            this.indicatorLineData(r.histogram, bars),
+          );
+          break;
+        }
+        case 'stochastic': {
+          const r = stochastic(bars, s.period ?? 14, s.signal ?? 3, s.fast ?? 3);
+          this.ensurePaneLine(`${s.id}:k`, s, 1).setData(this.indicatorLineData(r.k, bars));
+          this.ensurePaneLine(`${s.id}:d`, s, 1).setData(this.indicatorLineData(r.d, bars));
+          break;
+        }
+        case 'adx': {
+          const r = adx(bars, s.period ?? 14);
+          this.ensurePaneLine(`${s.id}:adx`, s, 1).setData(this.indicatorLineData(r.adx, bars));
+          this.ensurePaneLine(`${s.id}:pdi`, s, 1).setData(this.indicatorLineData(r.plusDi, bars));
+          this.ensurePaneLine(`${s.id}:mdi`, s, 1).setData(this.indicatorLineData(r.minusDi, bars));
+          break;
+        }
+        default: {
+          const leftover: never = s.kind;
+          void leftover;
+          break;
+        }
+      }
+    }
+  }
+
+  private ensureOverlayLine(key: string, setting: IndicatorSetting): ISeriesApi<'Line'> {
+    let s = this.overlaySeries.get(key);
+    if (!s) {
+      s = this.chart.addSeries(LineSeries, this.indicatorSeriesOptions(setting));
+      this.overlaySeries.set(key, s);
+    } else {
+      s.applyOptions(this.indicatorSeriesOptions(setting));
+    }
+    return s;
+  }
+
+  private ensurePaneLine(key: string, setting: IndicatorSetting, pane: number): ISeriesApi<'Line'> {
+    let s = this.paneIndicatorSeries.get(key);
+    if (!s) {
+      s = this.chart.addSeries(LineSeries, this.indicatorSeriesOptions(setting), pane);
+      this.paneIndicatorSeries.set(key, s);
+    } else {
+      s.applyOptions(this.indicatorSeriesOptions(setting));
+    }
+    return s as ISeriesApi<'Line'>;
+  }
+
+  private ensurePaneHistogram(
+    key: string,
+    setting: IndicatorSetting,
+    pane: number,
+  ): ISeriesApi<'Histogram'> {
+    const opts = {
+      color: setting.color ?? '#888888',
+      priceScaleId: 'hist',
+      priceFormat: { type: 'price' as const, precision: 4, minMove: 0.0001 },
+      lastValueVisible: false,
+      priceLineVisible: false,
+    };
+    let s = this.paneIndicatorSeries.get(key);
+    if (!s) {
+      s = this.chart.addSeries(HistogramSeries, opts, pane);
+      this.chart.priceScale('hist', pane).applyOptions({ scaleMargins: { top: 0.1, bottom: 0.1 } });
+      this.paneIndicatorSeries.set(key, s);
+    } else {
+      s.applyOptions({ color: opts.color });
+    }
+    return s as ISeriesApi<'Histogram'>;
+  }
+
+  /** Focus already-loaded history. Times use the same snapped buckets as fill markers. */
+  focusInterval(start: number, end: number): boolean {
+    const range = tradeWindow(
+      this.candles.data().map((bar) => Number(bar.time)),
+      Number(this.ts(start)),
+      Number(this.ts(end)),
+    );
+    if (!range) return false;
+    this.chart.timeScale().setVisibleLogicalRange(range);
+    return true;
   }
 
   scrollToEnd(): void {
