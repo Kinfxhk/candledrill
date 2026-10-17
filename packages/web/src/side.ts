@@ -3,6 +3,7 @@
 // Working orders render into `ordersSection`, which the practice view mounts in the bottom panel.
 
 import {
+  disciplineStatus,
   roundToTick,
   ruleStatus,
   trailingPeak,
@@ -514,6 +515,33 @@ export class SidePanel {
       ...meter(trailingKey, rs.trailingUsed, settings.trailingDrawdown),
       ...meter('pr.target', rs.targetProgress, settings.profitTarget),
     ];
+    if (settings.maxDailyTradeCycles || settings.maxConsecutiveLosses) {
+      const discipline = disciplineStatus(settings, state);
+      meters.push(
+        el(
+          'p',
+          { class: 'muted', 'data-testid': 'discipline-counts' },
+          t('pr.disciplineCounts', {
+            cycles: discipline.cycles,
+            streak: discipline.losingStreak,
+            maxCycles: settings.maxDailyTradeCycles ?? t('pr.disciplineOff'),
+            maxLosses: settings.maxConsecutiveLosses ?? t('pr.disciplineOff'),
+          }),
+        ),
+      );
+      if (discipline.reason)
+        meters.push(
+          el(
+            'p',
+            { role: 'status', 'data-testid': 'discipline-paused' },
+            t(
+              discipline.reason === 'daily-trade-cycle limit'
+                ? 'pr.disciplineCyclesPaused'
+                : 'pr.disciplineLossPaused',
+            ),
+          ),
+        );
+    }
     const drawdown: Node[] = [];
     if (settings.trailingDrawdown !== null) {
       const peak = trailingPeak(settings, state);

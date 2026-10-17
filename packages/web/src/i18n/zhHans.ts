@@ -501,4 +501,14 @@ export const zhHans: Record<MessageKey, string> = {
   'wd.sat': '周六',
   shortcuts:
     '快捷键：空格键 播放／暂停 · → 下一根 · Shift+→ +10 · [ 或 - 减速 · ] 或 = 加速 · B 买入 · S 卖出 · F 平仓 · Esc 取消画线',
+  'ns.maxDailyTradeCycles': '每日最多交易周期（可选）',
+  'ns.maxConsecutiveLosses': '最多连续已平仓亏损（可选）',
+  'ns.disciplineNote':
+    '留空即关闭。新增敞口会暂停至下一个交易所当地交易日。加仓不另计周期；零盈亏平仓会中断亏损连续次数。减仓、保护单及回放仍可用。暂停期间会整笔取消超额反手单。练习规则不保证成果。',
+  'pr.disciplineOff': '关闭',
+  'pr.disciplineCounts':
+    '今日：{cycles} 个交易周期（上限 {maxCycles}）· 连续 {streak} 次已平仓亏损（上限 {maxLosses}）',
+  'pr.disciplineCyclesPaused': '已达每日交易周期上限：新增敞口暂停至下一交易日。仍可减仓及清仓。',
+  'pr.disciplineLossPaused':
+    '已达连续亏损上限：新增敞口暂停至下一交易日，其后盈利平仓亦不解除暂停。仍可减仓及清仓。',
 };

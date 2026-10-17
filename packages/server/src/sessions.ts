@@ -216,6 +216,8 @@ export const settingsSchema = {
     trailingDrawdown: nullablePositive,
     trailingDrawdownMode: { type: 'string', enum: ['close', 'eod', 'intraday', 'static'] },
     profitTarget: nullablePositive,
+    maxDailyTradeCycles: { type: ['integer', 'null'], minimum: 1 },
+    maxConsecutiveLosses: { type: ['integer', 'null'], minimum: 1 },
     utcOffsetMinutes: { type: 'integer', minimum: -840, maximum: 840 },
     dayStartMinutes: { type: 'integer', minimum: 0, maximum: 1439 },
     anchorMinutes: { type: 'integer', minimum: 0, maximum: 1439 },

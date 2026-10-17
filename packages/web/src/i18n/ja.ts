@@ -518,4 +518,15 @@ export const ja: Record<MessageKey, string> = {
   'wd.sat': '土',
   shortcuts:
     'ショートカット：スペース 再生／一時停止 · → 次の足 · Shift+→ +10 · [ または - 減速 · ] または = 加速 · B 買い · S 売り · F 全決済 · Esc 描画キャンセル',
+  'ns.maxDailyTradeCycles': '1日の最大トレードサイクル数（任意）',
+  'ns.maxConsecutiveLosses': '最大連続決済損失回数（任意）',
+  'ns.disciplineNote':
+    '空欄はオフです。新規エクスポージャーは取引所現地時間の次の取引日まで停止します。増し玉は新しいサイクルに数えません。損益ゼロの決済は連敗を止めます。縮小、保護注文、リプレイは引き続き使えます。停止中は過大なドテン注文を全体で取り消します。練習ルールは成果を保証しません。',
+  'pr.disciplineOff': 'オフ',
+  'pr.disciplineCounts':
+    '本日：{cycles} サイクル（上限 {maxCycles}）· 連続決済損失 {streak} 回（上限 {maxLosses}）',
+  'pr.disciplineCyclesPaused':
+    '1日のサイクル上限に達しました：次の取引日まで新規エクスポージャーを停止します。縮小と全決済は引き続き使えます。',
+  'pr.disciplineLossPaused':
+    '連続損失の上限に達しました：その後の利益決済があっても、次の取引日まで新規エクスポージャーを停止します。縮小と全決済は引き続き使えます。',
 };

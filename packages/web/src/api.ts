@@ -141,6 +141,8 @@ export interface SessionSettings {
   trailingDrawdown: number | null;
   trailingDrawdownMode: 'close' | 'eod' | 'intraday' | 'static';
   profitTarget: number | null;
+  maxDailyTradeCycles?: number | null;
+  maxConsecutiveLosses?: number | null;
   utcOffsetMinutes: number;
   dayStartMinutes: number;
   anchorMinutes: number;

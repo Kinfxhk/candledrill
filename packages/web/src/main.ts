@@ -97,6 +97,8 @@ async function createSession(ds: DatasetRow, form: HTMLFormElement): Promise<voi
           return v === 'eod' || v === 'intraday' || v === 'static' || v === 'close' ? v : 'close';
         })(),
         profitTarget: num(form, 'target'),
+        maxDailyTradeCycles: num(form, 'maxDailyTradeCycles'),
+        maxConsecutiveLosses: num(form, 'maxConsecutiveLosses'),
         utcOffsetMinutes: utcOffset,
         dayStartMinutes: Number(hh) * 60 + Number(mm),
         anchorMinutes: (() => {

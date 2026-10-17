@@ -514,4 +514,15 @@ export const ko: Record<MessageKey, string> = {
   'wd.sat': '토',
   shortcuts:
     '단축키: 스페이스 재생／일시정지 · → 다음 봉 · Shift+→ +10 · [ 또는 - 감속 · ] 또는 = 가속 · B 매수 · S 매도 · F 전량 청산 · Esc 그리기 취소',
+  'ns.maxDailyTradeCycles': '일일 최대 거래 사이클(선택)',
+  'ns.maxConsecutiveLosses': '최대 연속 청산 손실 횟수(선택)',
+  'ns.disciplineNote':
+    '비워 두면 꺼집니다. 새 익스포저는 거래소 현지 기준 다음 거래일까지 중지됩니다. 추가 진입은 새 사이클로 세지 않으며, 손익 0 청산은 연속 손실을 끊습니다. 축소, 보호 주문, 리플레이는 계속 사용할 수 있습니다. 중지 중에는 과도한 반전 주문을 전체 취소합니다. 연습 규칙은 결과를 보장하지 않습니다.',
+  'pr.disciplineOff': '꺼짐',
+  'pr.disciplineCounts':
+    '오늘: {cycles} 거래 사이클(한도 {maxCycles}) · 연속 청산 손실 {streak}회(한도 {maxLosses})',
+  'pr.disciplineCyclesPaused':
+    '일일 사이클 한도 도달: 다음 거래일까지 새 익스포저가 중지됩니다. 축소와 전량 청산은 계속 가능합니다.',
+  'pr.disciplineLossPaused':
+    '연속 손실 한도 도달: 이후 수익 청산이 있어도 다음 거래일까지 새 익스포저가 중지됩니다. 축소와 전량 청산은 계속 가능합니다.',
 };

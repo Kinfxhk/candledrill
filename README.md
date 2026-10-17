@@ -117,6 +117,8 @@ The new-session form has two clocks. They are not the same setting:
 - `intraday` — the peak uses the favourable high or low. A breach uses the adverse high or low, and the position closes at that price.
 - `static` — the floor stays at starting balance minus the amount. It does not follow a peak.
 
+**Entry discipline** (optional, blank = off): `maxDailyTradeCycles` and `maxConsecutiveLosses` pause new exposure until the next trading day (`dayStartMinutes`). A flat-to-open execution or reversal opens one cycle; scale-ins and partial exits do not. Negative **net** P&L extends the loss streak; once the limit is hit, a later win does not unpause that day. Reductions, protective exits and Flatten stay available; an oversized reversal is cancelled in full while paused. Older imports keep both rules off. Details: [docs/FILL-MODEL.md](docs/FILL-MODEL.md).
+
 Older session files still import: `anchorMinutes` copies `dayStartMinutes`, and the mode is `close`. Added in [0.4.0](CHANGELOG.md). Order fills: [docs/FILL-MODEL.md](docs/FILL-MODEL.md).
 
 開市錨點（`anchorMinutes`）係 ORB、VWAP 同半自動 `orb_break` 嘅開市時鐘，同每日虧損重置嘅交易日開始（`dayStartMinutes`）分開。追蹤回撤模式（`trailingDrawdownMode`）預設 `close`（每根收市權益）；另可選 `eod`（交易日完先更新峰值）、`intraday`（盤中有利／不利高低點，並喺該價平倉）、`static`（起始資金減金額，唔跟峰值）。留空就唔設該條規則。

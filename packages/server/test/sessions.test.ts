@@ -30,6 +30,149 @@ afterEach(async () => {
 });
 
 describe('session API', () => {
+  it('enforces optional daily cycle discipline after queued fills and preserves it across reopen/import/restore', async () => {
+    const { a, ds } = await setup();
+    const created = await a.inject({
+      method: 'POST',
+      url: '/api/sessions',
+      payload: {
+        datasetId: ds.id,
+        name: 'Discipline',
+        startTime: ds.firstTime + 3600,
+        settings: { ...SETTINGS, maxDailyTradeCycles: 1, maxConsecutiveLosses: null },
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().session.id;
+    const buy = () =>
+      a.inject({
+        method: 'POST',
+        url: `/api/sessions/${id}/orders`,
+        payload: { side: 'buy', type: 'market', qty: 1 },
+      });
+    expect((await buy()).statusCode).toBe(200);
+    expect((await buy()).statusCode).toBe(200);
+    const stepped = await a.inject({
+      method: 'POST',
+      url: `/api/sessions/${id}/step`,
+      payload: { count: 1 },
+    });
+    expect(stepped.json().state.trading.fills).toHaveLength(1);
+    expect(stepped.json().state.trading.orders[1].status).toBe('cancelled');
+    expect((await buy()).statusCode).toBe(400);
+    expect(
+      (await a.inject({ method: 'GET', url: `/api/sessions/${id}` })).json().session.settings
+        .maxDailyTradeCycles,
+    ).toBe(1);
+    const exported = (
+      await a.inject({ method: 'GET', url: `/api/sessions/${id}/export/session.json` })
+    ).body;
+    const imported = await a.inject({
+      method: 'POST',
+      url: '/api/sessions/import',
+      payload: { file: exported },
+    });
+    expect(imported.statusCode).toBe(201);
+    expect(
+      (
+        await a.inject({
+          method: 'POST',
+          url: `/api/sessions/${imported.json().session.id}/orders`,
+          payload: { side: 'buy', type: 'market', qty: 1 },
+        })
+      ).statusCode,
+    ).toBe(400);
+    const backup = (await a.inject({ method: 'GET', url: '/api/backup' })).rawPayload;
+    expect(
+      (
+        await a.inject({
+          method: 'POST',
+          url: '/api/restore',
+          payload: backup,
+          headers: { 'content-type': 'application/vnd.sqlite3' },
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect((await buy()).statusCode).toBe(400);
+    expect(
+      (await a.inject({ method: 'POST', url: `/api/sessions/${id}/flatten` })).statusCode,
+    ).toBe(200);
+    const flat = await a.inject({
+      method: 'POST',
+      url: `/api/sessions/${id}/step`,
+      payload: { count: 1 },
+    });
+    expect(flat.json().state.trading.position).toBeNull();
+  });
+
+  it('enforces a closed-loss pause through the API and resumes new exposure on the next trading day', async () => {
+    const { a, ds } = await setup();
+    const created = await a.inject({
+      method: 'POST',
+      url: '/api/sessions',
+      payload: {
+        datasetId: ds.id,
+        name: 'Loss discipline',
+        startTime: ds.firstTime + 3600,
+        settings: {
+          ...SETTINGS,
+          pointValue: 1,
+          commissionPerContract: 1000,
+          maxConsecutiveLosses: 1,
+        },
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().session.id;
+    const buy = () =>
+      a.inject({
+        method: 'POST',
+        url: `/api/sessions/${id}/orders`,
+        payload: { side: 'buy', type: 'market', qty: 1 },
+      });
+    expect((await buy()).statusCode).toBe(200);
+    await a.inject({ method: 'POST', url: `/api/sessions/${id}/step`, payload: { count: 1 } });
+    await a.inject({ method: 'POST', url: `/api/sessions/${id}/flatten` });
+    const closed = await a.inject({
+      method: 'POST',
+      url: `/api/sessions/${id}/step`,
+      payload: { count: 1 },
+    });
+    expect(closed.json().state.trading.trades[0].netPnl).toBeLessThan(0);
+    const blocked = await buy();
+    expect(blocked.statusCode).toBe(400);
+    expect(blocked.json().error).toContain('consecutive-loss limit');
+    const resumed = await a.inject({
+      method: 'POST',
+      url: `/api/sessions/${id}/jump`,
+      payload: { time: created.json().cursorTime + 86400 },
+    });
+    expect(resumed.statusCode).toBe(200);
+    expect(resumed.json().state.status).toBe('active');
+    expect((await buy()).statusCode).toBe(200);
+  });
+
+  it('rejects fractional/zero optional discipline settings and ignores no unknown settings', async () => {
+    const { a, ds } = await setup();
+    for (const extra of [
+      { maxDailyTradeCycles: 0 },
+      { maxConsecutiveLosses: 1.5 },
+      { unexpectedDiscipline: 1 },
+    ]) {
+      const response = await a.inject({
+        method: 'POST',
+        url: '/api/sessions',
+        payload: {
+          datasetId: ds.id,
+          name: 'Bad',
+          startTime: ds.firstTime + 3600,
+          settings: { ...SETTINGS, ...extra },
+        },
+      });
+      expect(response.statusCode).toBe(400);
+    }
+  });
+
   it('creates, steps, jumps and never sends bars past the cursor', async () => {
     const { a, ds } = await setup();
     const start = ds.firstTime + 60 * 60;

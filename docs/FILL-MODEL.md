@@ -18,7 +18,7 @@ outcome changes.
 | `gapPolicy`         | `fill-at-open`              | An order already crossed when it becomes active fills at the bar open, never outside the bar.  |
 | `bracketReference`  | `absolute-price`            | Stop-loss and take-profit are absolute prices.                                                 |
 | `bracketModify`     | `atomic-revalidate`         | An edit re-checks the whole bracket and is applied in full or rejected. Every edit is logged.  |
-| `ruleEvaluation`    | `bar-close`                 | Practice rules are checked at each bar close.                                                  |
+| `ruleEvaluation`    | `bar-close`                 | Equity practice rules are checked at each bar close.                                           |
 | `profitTargetBasis` | `net-after-exit-costs`      | The profit target counts only after estimated exit commission and slippage.                    |
 | `lossRuleBasis`     | `closing-equity`            | The daily loss limit and trailing drawdown use mark-to-market closing equity.                  |
 | `endOfDataPolicy`   | `keep-open`                 | At the end of the data an open position stays open, valued at the last close.                  |
@@ -74,7 +74,7 @@ high.
 
 ## Practice rules
 
-- Rules are evaluated at each bar close. Intrabar breaches are not detected.
+- Equity rules are evaluated at each bar close. Intrabar breaches are not detected.
 - **Profit target:** the target is reached when
   `equity − estimated exit costs − starting balance ≥ target`. The estimated exit costs
   are the commission plus the adverse slippage for the open quantity. The position is
@@ -83,6 +83,15 @@ high.
 - **Daily loss limit / trailing drawdown:** compared against mark-to-market closing
   equity, before exit costs. On a breach the position is closed at the close, with
   costs.
+
+Optional **entry discipline** limits are checked before accepting new exposure and before
+**each** queued entry execution, against the current exchange-local day. A protective
+same-bar close can therefore pause the next queued entry on that bar. These limits do
+not force-close a position or lock replay. The loss pause stays latched until the next
+trading day even if a later reduction wins. Oversized reversals are cancelled in full
+if paused or if their closing leg would trigger the loss pause; a separate reduction
+or flatten remains available. See [README entry discipline](../README.md#features) for
+cycle, zero-P&L and reset semantics.
 
 ## End of data
 

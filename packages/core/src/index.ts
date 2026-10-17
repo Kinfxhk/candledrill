@@ -78,6 +78,8 @@ export {
   estimatedExitCost,
   sessionStats,
   ruleStatus,
+  disciplineStatus,
+  type DisciplineStatus,
   upgradeState,
   normalizeSettings,
   equityAtPrice,

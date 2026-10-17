@@ -107,6 +107,7 @@ const SETTINGS_KEYS = [
   'anchorMinutes',
 ] as const;
 
+const OPTIONAL_SETTINGS_KEYS = ['maxDailyTradeCycles', 'maxConsecutiveLosses'] as const;
 const LEGACY_OPTIONAL = new Set(['anchorMinutes', 'trailingDrawdownMode']);
 
 function settingsIssues(s: unknown): string[] {
@@ -116,7 +117,11 @@ function settingsIssues(s: unknown): string[] {
     if (!(k in s) && !LEGACY_OPTIONAL.has(k)) out.push(`settings.${k}: missing`);
   }
   for (const k of Object.keys(s))
-    if (!(SETTINGS_KEYS as readonly string[]).includes(k)) out.push(`settings.${k}: unknown`);
+    if (
+      !(SETTINGS_KEYS as readonly string[]).includes(k) &&
+      !(OPTIONAL_SETTINGS_KEYS as readonly string[]).includes(k)
+    )
+      out.push(`settings.${k}: unknown`);
   if (out.length) return out;
   // Old formatVersion 1 files: default new fields before validation.
   if (!('anchorMinutes' in s) && isInt(s.dayStartMinutes)) s.anchorMinutes = s.dayStartMinutes;
