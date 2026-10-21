@@ -2,7 +2,7 @@
 
 **CandleDrill**（中文：**K線操練場**）是免費、開源的 **K 線回放練習工具**。在**同一台電腦**上自架服務，用**桌面瀏覽器**開啟介面：匯入 K 線 → 逐根前進（看不到未來）→ 模擬下單 → 檢討結果。無需帳戶、無訂閱、無遙測。**不構成投資建議。**
 
-> **優勢：** Web 介面、本機自架——服務只聽 `127.0.0.1`，請在**執行 CandleDrill 的那台電腦**上，用桌面瀏覽器開啟。同一台電腦的其他瀏覽器視窗／分頁亦可；**不支援**區網內其他裝置連線，也**請勿**對外網開放（無登入機制）。
+> **優勢：** Web 介面、本機自架——服務預設只聽 `127.0.0.1`，請在**執行 CandleDrill 的那台電腦**上，用桌面瀏覽器開啟。同一台電腦的其他瀏覽器視窗／分頁亦可。產品**不會**改聽區網位址；若要在家裡其他裝置使用，見下方「其他裝置（安全隧道）」。**請勿**把服務直接發佈到區網或公網（無登入機制）。
 
 > **v0.4.0** · 僅供本機練習。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
@@ -30,6 +30,12 @@ npm start
 在**本機**開啟 <http://127.0.0.1:4870/> → **Generate demo data** → 填寫練習表單 → **Start practising**。
 
 資料留在本機（`~/.candledrill/`）。若要使用 Docker，見下方「補充說明」。
+
+## 其他裝置（安全隧道）
+
+CandleDrill **預設只聽** `127.0.0.1`，程式不會改成區網 listen。若你要在家裡用平板或其他電腦練習，請自行架設安全隧道，例如 **Tailscale**，或 **SSH 本地埠轉發**（把遠端本機的 `127.0.0.1:4870` 轉到你手邊裝置），再以瀏覽器連線。
+
+**請勿**把埠直接 publish／對映到區網或公網——沒有登入機制。細節見 [SECURITY.md](SECURITY.md)。
 
 ## 練習資料
 
@@ -115,9 +121,9 @@ npm start
 ## 為何選擇 CandleDrill
 
 - **永久免費** — 無付費層級、無廣告、無追蹤、無需帳戶。
-- **僅本機 loopback** — 伺服器只綁定 `127.0.0.1`；單一 SQLite 檔可自行備份。**請勿**暴露到區網或公網（無登入）。
+- **僅本機 loopback** — 伺服器只綁定 `127.0.0.1`；單一 SQLite 檔可自行備份。**請勿**直接暴露到區網或公網（無登入）；其他裝置請用安全隧道（見上）。
 - **成交規則公開** — 規則與限制有文件說明（[docs/FILL-MODEL.md](docs/FILL-MODEL.md)）。
-- **桌面瀏覽器** — 介面供執行服務的那台電腦上的桌面瀏覽器使用；不為手機視窗設計，亦不支援家中其他裝置連線。
+- **桌面瀏覽器** — 介面以桌面瀏覽器為主；不為手機視窗設計。家中其他裝置請用 Tailscale／SSH 轉發，勿直接開區網埠。
 - 獨立專案；**與** FX Replay、Forex Tester、TradeZella、TradingView 或任何券商／交易所**無關**。
 
 ## 補充說明
@@ -186,7 +192,7 @@ CandleDrill 免費，也會持續免費。若這個工具對你有幫助：https
 
 **CandleDrill** (Chinese: **K線操練場**) is a free, open-source **candlestick replay practice** tool. Self-host on **one computer** and open the **desktop browser UI on that same machine**: load bars → step without seeing the future → place simulated orders → review. No account, no subscription, no telemetry. **Not investment advice.**
 
-> **Web UI:** local service + desktop browser on the machine that runs CandleDrill. Other tabs/windows on **that** computer are fine. The server binds to **`127.0.0.1` only** — not LAN devices, and never expose it to a network (no login).
+> **Web UI:** local service + desktop browser on the machine that runs CandleDrill. Other tabs/windows on **that** computer are fine. The server listens on **`127.0.0.1` by default** and does **not** bind to your LAN. For another device at home, use a secure tunnel (see **Other devices** below). **Do not** publish the port to your LAN or the public internet (no login).
 
 > **v0.4.0** · Local practice only. Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
@@ -218,6 +224,12 @@ npm start
 Open <http://127.0.0.1:4870/> on **this machine** → **Generate demo data** → fill the session form → **Start practising**.
 
 Data stays on your machine (`~/.candledrill/`). Prefer Docker? See [Quick extras](#quick-extras) below.
+
+## Other devices (secure tunnel)
+
+CandleDrill listens on **`127.0.0.1` only** by design. It will not switch to a LAN listen address. To practise from a tablet or another computer at home, set up your own secure tunnel — for example **Tailscale**, or **SSH local port forwarding** (forward the host’s `127.0.0.1:4870` to the device in your hand) — then open the UI in a browser.
+
+**Do not** publish / map the port onto your LAN or the public internet — there is no login. See [SECURITY.md](SECURITY.md).
 
 ## Practice data
 
@@ -303,9 +315,9 @@ Older session files still import: `anchorMinutes` copies `dayStartMinutes`, and 
 ## Why CandleDrill
 
 - **Free forever** — no paid tiers, ads, tracking, or accounts.
-- **Local loopback only** — server binds to `127.0.0.1`; one SQLite file you can back up. Do not expose to a network — no login.
+- **Local loopback only** — server binds to `127.0.0.1`; one SQLite file you can back up. Do not publish to LAN/public internet (no login); use a secure tunnel for other devices (see above).
 - **Honest fills** — rules and limits are documented ([docs/FILL-MODEL.md](docs/FILL-MODEL.md)).
-- **Desktop browsers on the host** — not for phone-sized windows; not for other devices on your home Wi‑Fi.
+- **Desktop browsers** — designed for desktop windows. Other home devices: Tailscale / SSH forward — never open a raw LAN port.
 - Independent project; **not affiliated with** FX Replay, Forex Tester, TradeZella, TradingView, or any broker/exchange.
 
 ## Quick extras
