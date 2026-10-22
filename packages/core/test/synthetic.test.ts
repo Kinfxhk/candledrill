@@ -177,3 +177,21 @@ describe('golden output (seed 20261007, 2026-10-05, 5 days)', () => {
     }).toMatchSnapshot();
   });
 });
+
+describe('synthetic finer timeframe', () => {
+  it('emits 10s bars when timeframeSeconds is 10', () => {
+    const { meta, bars } = generateSyntheticBars({
+      ...base,
+      days: 1,
+      timeframeSeconds: 10,
+    });
+    expect(meta.timeframeSeconds).toBe(10);
+    expect(bars.length).toBe(510 * 6); // one weekday session, 6 bars per minute
+    expect(bars[1]!.time - bars[0]!.time).toBe(10);
+    expect(validateBars(bars, { timeframeSeconds: 10 })).toEqual([]);
+  });
+
+  it('rejects a timeframe that does not divide 60', () => {
+    expect(() => generateSyntheticBars({ ...base, timeframeSeconds: 7 })).toThrow(/divisor/);
+  });
+});

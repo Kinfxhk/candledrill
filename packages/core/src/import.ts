@@ -105,9 +105,14 @@ const SETTINGS_KEYS = [
   'utcOffsetMinutes',
   'dayStartMinutes',
   'anchorMinutes',
+  'practiceTimeframeSeconds',
 ] as const;
 
-const LEGACY_OPTIONAL = new Set(['anchorMinutes', 'trailingDrawdownMode']);
+const LEGACY_OPTIONAL = new Set([
+  'anchorMinutes',
+  'trailingDrawdownMode',
+  'practiceTimeframeSeconds',
+]);
 
 function settingsIssues(s: unknown): string[] {
   if (!isObj(s)) return ['settings: missing'];
@@ -127,6 +132,11 @@ function settingsIssues(s: unknown): string[] {
       const m = s[k];
       if (m !== 'close' && m !== 'eod' && m !== 'intraday' && m !== 'static')
         out.push('settings.trailingDrawdownMode: invalid');
+      continue;
+    }
+    if (k === 'practiceTimeframeSeconds') {
+      if (k in s && s[k] !== undefined && typeof s[k] !== 'number')
+        out.push('settings.practiceTimeframeSeconds: not a number');
       continue;
     }
     const v = s[k];

@@ -6,6 +6,13 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Forming 1m from finer source (dual-cursor, V0).** Synthetic (and CSV) can use a 10s
+  source; the chart reveals those bars so a 1m pane updates as a real forming candle.
+  Fills and practice rules still run only when the practice timeframe (default 1m) closes.
+  No 10s chart option in the UI. Demo data generates 10s bars. Fill model version unchanged.
+
 ## [0.4.0] - 2026-10-15
 
 ### Added
