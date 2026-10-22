@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Core flow: demo data -> new session -> replay -> bracket order -> trade recorded.
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo, showWorkingOrders } from './helpers.js';
+import { generateDemo, showWorkingOrders, stepUntil } from './helpers.js';
 
 async function sessionState(page: Page) {
   const list = await (await page.request.get('/api/sessions')).json();
@@ -44,18 +44,15 @@ test('replay and bracket order flow', async ({ page }) => {
   await page.getByTestId('sl-ticks').fill('16');
   await page.getByTestId('tp-ticks').fill('16');
   await page.getByTestId('btn-buy').click();
-  // The order fills on the NEXT bar (never on the bar it was placed on).
+  // Fills on the next *practice* bar close (1m), not the next 10s source bar.
   await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText(/buy/i);
   await page.getByTestId('tab-trades').click();
-  await page.getByTestId('btn-step').click();
   const rows = page.getByTestId('trades-table').locator('tr:has(td)');
-  await expect
-    .poll(async () => {
-      const pos = (await page.getByTestId('position').textContent()) ?? '';
-      return /Long/.test(pos) || (await rows.count()) > 0;
-    })
-    .toBe(true);
+  await stepUntil(page, async () => {
+    const pos = (await page.getByTestId('position').textContent()) ?? '';
+    return /Long/.test(pos) || (await rows.count()) > 0;
+  });
 
   // Step until the bracket resolves into a closed trade.
   for (let i = 0; i < 30 && (await rows.count()) === 0; i++) {

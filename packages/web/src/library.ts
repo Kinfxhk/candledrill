@@ -60,7 +60,8 @@ export class LibraryView {
   private async createDemo(): Promise<void> {
     const seed = (Math.floor(Math.random() * 0xffffffff) >>> 0) % 4294967295;
     const start = new Date(Date.UTC(2026, 0, 5)).toISOString().slice(0, 10);
-    const { dataset } = await api.createSynthetic(seed, start, 28);
+    // 10s source → default 1m pane shows a real forming candle (fills still at 1m close).
+    const { dataset } = await api.createSynthetic(seed, start, 7, { timeframeSeconds: 10 });
     const bars = `${dataset.symbol}: ${dataset.barCount} ${t('lib.bars')}`;
     toast(this.getBlindPref() ? `${bars} ${t('macro.blindStart')}` : bars);
     await this.reload(dataset.id);

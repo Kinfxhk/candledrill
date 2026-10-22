@@ -113,6 +113,15 @@ point value`. `rMultiple = netPnl / initialRisk`.
 - Partial exits do not change the risk basis. A reversal starts a new trade with its own
   basis. Moving a stop after entry does not change the initial risk.
 
+## Forming candles from a finer source
+
+When the dataset timeframe is finer than the practice timeframe (for example 10s
+source with a 1m practice chart), CandleDrill may reveal those finer bars so the
+**chart** can update a forming higher-timeframe candle. **Order fills and practice
+rules still evaluate only on practice-timeframe bar closes** — the same bar-based
+model as above. Finer bars are a display path only; they do not change
+`fillTiming`, `simulationPolicy`, or fill-model version.
+
 ## Model limitations
 
 - Bar-based: no order book, no queue position, no partial fills. Volume is not liquidity.

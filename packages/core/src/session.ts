@@ -6,6 +6,7 @@
 // depend on data the user has not seen yet.
 
 import type { Bar } from './types.js';
+import { BarAggregator, bucketStart } from './aggregate.js';
 import { initialCursor, stepsUntil } from './replay.js';
 import {
   cancelAllWorking,
@@ -65,6 +66,14 @@ export interface SessionSettings {
    * Independent of dayStartMinutes. Defaults to dayStartMinutes on import of old sessions.
    */
   readonly anchorMinutes: number;
+  /**
+   * Timeframe (seconds) used for fills and practice rules.
+   * When omitted, each revealed source bar is a practice bar (legacy 1:1).
+   * When set larger than the source spacing (e.g. 60 with 10s bars), stepping
+   * still reveals source bars for the chart, but `processBar` / rules run only
+   * when a practice bar closes (dual-cursor forming).
+   */
+  readonly practiceTimeframeSeconds?: number;
 }
 
 export type SessionStatus = 'active' | 'breached' | 'passed' | 'finished';
@@ -101,9 +110,11 @@ export function normalizeSettings(
   s: SessionSettings & {
     readonly anchorMinutes?: number;
     readonly trailingDrawdownMode?: TrailingDrawdownMode;
+    readonly practiceTimeframeSeconds?: number;
   },
 ): SessionSettings {
   const mode = s.trailingDrawdownMode;
+  const ptf = s.practiceTimeframeSeconds;
   return {
     ...s,
     anchorMinutes:
@@ -116,6 +127,7 @@ export function normalizeSettings(
       mode === 'close' || mode === 'eod' || mode === 'intraday' || mode === 'static'
         ? mode
         : 'close',
+    ...(ptf !== undefined ? { practiceTimeframeSeconds: ptf } : {}),
   };
 }
 
@@ -370,6 +382,11 @@ export function validateSettings(s: SessionSettings): string[] {
     s.trailingDrawdownMode !== 'static'
   )
     errors.push("trailingDrawdownMode must be 'close' | 'eod' | 'intraday' | 'static'");
+  if (s.practiceTimeframeSeconds !== undefined) {
+    const p = s.practiceTimeframeSeconds;
+    if (!Number.isInteger(p) || p < 60 || p > 86400)
+      errors.push('practiceTimeframeSeconds must be an integer 60-86400 when set');
+  }
   return errors;
 }
 
@@ -465,7 +482,60 @@ export interface StepResult {
   readonly revealed: Bar[];
 }
 
-/** Reveal up to `count` more bars. */
+/**
+ * When a practice bar spanning source indices [lo..hi] closes, return it.
+ * `processBar` must receive `index = lo` so orders placed mid-bucket
+ * (`placedIndex >= lo`) wait for the *next* practice bar (next-bar-or-later).
+ */
+function closedPracticeBar(
+  bars: readonly Bar[],
+  index: number,
+  practiceTf: number,
+  opts: { utcOffsetMinutes: number; dayStartMinutes: number; anchorMinutes: number },
+): { bar: Bar; startIndex: number } | null {
+  const bar = bars[index]!;
+  const bucket = bucketStart(bar.time, practiceTf, opts);
+  const next = bars[index + 1];
+  if (next && bucketStart(next.time, practiceTf, opts) === bucket) return null;
+  let startIndex = index;
+  while (startIndex > 0 && bucketStart(bars[startIndex - 1]!.time, practiceTf, opts) === bucket) {
+    startIndex--;
+  }
+  const agg = new BarAggregator(practiceTf, opts);
+  let out: Bar | undefined;
+  for (let i = startIndex; i <= index; i++) out = agg.push(bars[i]!).bar;
+  return { bar: out!, startIndex };
+}
+
+function applyPracticeClose(
+  settings: SessionSettings,
+  s: SessionState,
+  costs: ReturnType<typeof costModel>,
+  practiceBar: Bar,
+  startIndex: number,
+): SessionState {
+  const key = dayKeyOf(practiceBar.time, settings);
+  if (key !== s.dayKey) {
+    const prevCloseEq = sessionEquity(settings, s);
+    s = {
+      ...s,
+      dayKey: key,
+      dayStartEquity: prevCloseEq,
+      eodPeak: Math.max(s.eodPeak, prevCloseEq),
+    };
+  }
+  s = markEquity(settings, {
+    ...s,
+    trading: processBar(s.trading, costs, practiceBar, startIndex),
+  });
+  if (settings.trailingDrawdownMode === 'intraday') {
+    const fav = equityAtPrice(settings, s, favourableMarkPrice(s, practiceBar));
+    if (fav > s.intradayPeak) s = { ...s, intradayPeak: fav };
+  }
+  return applyRules(settings, s, practiceBar);
+}
+
+/** Reveal up to `count` more source bars (chart). Fills run on practice-TF closes. */
 export function stepSession(
   bars: readonly Bar[],
   settings: SessionSettings,
@@ -478,27 +548,50 @@ export function stepSession(
   let s = state;
   const costs = costModel(settings);
   const revealed: Bar[] = [];
+  const practiceTf = settings.practiceTimeframeSeconds;
+  const aggOpts = practiceTf
+    ? {
+        utcOffsetMinutes: settings.utcOffsetMinutes,
+        dayStartMinutes: settings.dayStartMinutes,
+        anchorMinutes: settings.anchorMinutes,
+      }
+    : null;
+
   for (let i = 0; i < count; i++) {
     if (atEnd(bars, s)) break;
     const cursor = s.cursor + 1;
     const bar = bars[cursor]!;
     revealed.push(bar);
-    const key = dayKeyOf(bar.time, settings);
-    if (key !== s.dayKey) {
-      const prevCloseEq = sessionEquity(settings, s);
-      s = {
+
+    if (!practiceTf || !aggOpts) {
+      // Legacy 1:1 — each source bar is a practice bar.
+      const key = dayKeyOf(bar.time, settings);
+      if (key !== s.dayKey) {
+        const prevCloseEq = sessionEquity(settings, s);
+        s = {
+          ...s,
+          dayKey: key,
+          dayStartEquity: prevCloseEq,
+          eodPeak: Math.max(s.eodPeak, prevCloseEq),
+        };
+      }
+      s = markEquity(settings, {
         ...s,
-        dayKey: key,
-        dayStartEquity: prevCloseEq,
-        eodPeak: Math.max(s.eodPeak, prevCloseEq),
-      };
+        cursor,
+        trading: processBar(s.trading, costs, bar, cursor),
+      });
+      if (settings.trailingDrawdownMode === 'intraday') {
+        const fav = equityAtPrice(settings, s, favourableMarkPrice(s, bar));
+        if (fav > s.intradayPeak) s = { ...s, intradayPeak: fav };
+      }
+      s = applyRules(settings, s, bar);
+      continue;
     }
-    s = markEquity(settings, { ...s, cursor, trading: processBar(s.trading, costs, bar, cursor) });
-    if (settings.trailingDrawdownMode === 'intraday') {
-      const fav = equityAtPrice(settings, s, favourableMarkPrice(s, bar));
-      if (fav > s.intradayPeak) s = { ...s, intradayPeak: fav };
-    }
-    s = applyRules(settings, s, bar);
+
+    // Dual-cursor: advance display cursor; fill only when the practice bar closes.
+    s = { ...s, cursor, trading: { ...s.trading, lastClose: bar.close } };
+    const closed = closedPracticeBar(bars, cursor, practiceTf, aggOpts);
+    if (closed) s = applyPracticeClose(settings, s, costs, closed.bar, closed.startIndex);
   }
   if (atEnd(bars, s)) s = endOfData(s);
   return { state: s, revealed };
