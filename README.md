@@ -4,7 +4,7 @@
 
 > **優勢：** Web 介面、本機自架——服務預設只聽 `127.0.0.1`，請在**執行 CandleDrill 的那台電腦**上，用桌面瀏覽器開啟。同一台電腦的其他瀏覽器視窗／分頁亦可。產品**不會**改聽區網位址；若要在家裡其他裝置使用，見下方「其他裝置（安全隧道）」。**請勿**把服務直接發佈到區網或公網（無登入機制）。
 
-> **v0.4.0** · 僅供本機練習。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> **v0.5.0** · 僅供本機練習。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill 練習畫面：雙時框、Long R 繪圖、括號單、下單票與成交紀錄](docs/screenshot.png)
 
@@ -194,7 +194,7 @@ CandleDrill 免費，也會持續免費。若這個工具對你有幫助：https
 
 > **Web UI:** local service + desktop browser on the machine that runs CandleDrill. Other tabs/windows on **that** computer are fine. The server listens on **`127.0.0.1` by default** and does **not** bind to your LAN. For another device at home, use a secure tunnel (see **Other devices** below). **Do not** publish the port to your LAN or the public internet (no login).
 
-> **v0.4.0** · Local practice only. Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v0.5.0** · Local practice only. Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 
