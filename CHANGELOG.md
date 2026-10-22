@@ -6,6 +6,8 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-23
+
 ### Added
 
 - **Forming 1m from finer source (dual-cursor, V0).** Synthetic (and CSV) can use a 10s
