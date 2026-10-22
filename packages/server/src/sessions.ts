@@ -219,6 +219,7 @@ export const settingsSchema = {
     utcOffsetMinutes: { type: 'integer', minimum: -840, maximum: 840 },
     dayStartMinutes: { type: 'integer', minimum: 0, maximum: 1439 },
     anchorMinutes: { type: 'integer', minimum: 0, maximum: 1439 },
+    practiceTimeframeSeconds: { type: 'integer', minimum: 60, maximum: 86400 },
   },
 } as const;
 
@@ -334,9 +335,13 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     async (req, reply) => {
       const ds = getDataset(db, req.body.datasetId);
       if (!ds) return reply.code(404).send({ error: 'dataset not found' });
+      // Finer-than-1m source → dual-cursor: chart reveals source bars; fills at 1m (or coarser).
+      const practiceTf =
+        req.body.settings.practiceTimeframeSeconds ?? (ds.timeframeSeconds < 60 ? 60 : undefined);
       const plain: SessionSettings = normalizeSettings({
         ...req.body.settings,
         symbol: ds.symbol,
+        ...(practiceTf !== undefined ? { practiceTimeframeSeconds: practiceTf } : {}),
       });
       const errors = validateSettings(plain);
       if (errors.length) return reply.code(400).send({ error: errors.join('; ') });

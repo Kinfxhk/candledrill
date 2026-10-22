@@ -16,6 +16,7 @@ import {
   type SessionSettings,
   type SessionState,
 } from './session.js';
+import { aggregateBars, bucketStart } from './aggregate.js';
 
 export const SESSION_FILE_FORMAT = 'candledrill-session';
 export const SESSION_FILE_VERSION = 2;
@@ -105,9 +106,14 @@ const SETTINGS_KEYS = [
   'utcOffsetMinutes',
   'dayStartMinutes',
   'anchorMinutes',
+  'practiceTimeframeSeconds',
 ] as const;
 
-const LEGACY_OPTIONAL = new Set(['anchorMinutes', 'trailingDrawdownMode']);
+const LEGACY_OPTIONAL = new Set([
+  'anchorMinutes',
+  'trailingDrawdownMode',
+  'practiceTimeframeSeconds',
+]);
 
 function settingsIssues(s: unknown): string[] {
   if (!isObj(s)) return ['settings: missing'];
@@ -127,6 +133,11 @@ function settingsIssues(s: unknown): string[] {
       const m = s[k];
       if (m !== 'close' && m !== 'eod' && m !== 'intraday' && m !== 'static')
         out.push('settings.trailingDrawdownMode: invalid');
+      continue;
+    }
+    if (k === 'practiceTimeframeSeconds') {
+      if (k in s && s[k] !== undefined && typeof s[k] !== 'number')
+        out.push('settings.practiceTimeframeSeconds: not a number');
       continue;
     }
     const v = s[k];
@@ -335,8 +346,31 @@ export function checkSessionState(
     if (!isNum(tr[k])) out.push(`state.trading.${k}: invalid`);
   if (out.length) return out;
 
+  // Dual-cursor: fills/rules use practice-TF bars; placedIndex/cursor stay on source bars.
+  // Validate fill times/prices against closed practice bars aggregated from revealed source.
+  const practiceTf = settings.practiceTimeframeSeconds;
+  let fillBars: readonly Bar[] = bars.slice(0, cursor + 1);
+  if (practiceTf !== undefined) {
+    const aggOpts = {
+      utcOffsetMinutes: settings.utcOffsetMinutes,
+      dayStartMinutes: settings.dayStartMinutes,
+      anchorMinutes: settings.anchorMinutes,
+    };
+    const revealed = bars.slice(0, cursor + 1);
+    const practice = aggregateBars(revealed, practiceTf, aggOpts);
+    const next = bars[cursor + 1];
+    if (
+      next &&
+      bucketStart(next.time, practiceTf, aggOpts) ===
+        bucketStart(revealed[revealed.length - 1]!.time, practiceTf, aggOpts)
+    ) {
+      practice.pop(); // forming practice bar is not a fill bar yet
+    }
+    fillBars = practice;
+  }
+
   const indexOf = new Map<number, number>();
-  for (let i = 0; i <= cursor; i++) indexOf.set(bars[i]!.time, i);
+  for (let i = 0; i < fillBars.length; i++) indexOf.set(fillBars[i]!.time, i);
   const tol = settings.slippageTicks * settings.tickSize + settings.tickSize / 2 + 1e-9;
 
   const orders = tr.orders as unknown[];
@@ -379,8 +413,9 @@ export function checkSessionState(
     else commission += f.commission;
     if (isInt(f.qty)) net += f.side === 'buy' ? f.qty : -f.qty;
     const idx = isInt(f.time) ? indexOf.get(f.time) : undefined;
-    if (idx === undefined) return void out.push(`${p}: time is not a revealed bar of this dataset`);
-    const bar = bars[idx]!;
+    if (idx === undefined)
+      return void out.push(`${p}: time is not a revealed practice bar of this dataset`);
+    const bar = fillBars[idx]!;
     if (!isNum(f.price) || f.price < bar.low - tol || f.price > bar.high + tol)
       out.push(`${p}: price ${String(f.price)} is outside that bar (${bar.low}–${bar.high})`);
   });

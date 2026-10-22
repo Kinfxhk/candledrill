@@ -401,7 +401,9 @@ export class PracticeView {
     speed.addEventListener('change', () => (this.speed = Number(speed.value)));
     jumpBtn.addEventListener('click', () => void this.jump());
 
-    this.addPane(this.baseTf);
+    // Pane menu stays on STANDARD timeframes (≥60s); never offer a sub-minute chart option.
+    const defaultTf = TIMEFRAMES.find((x) => x >= this.baseTf) ?? TIMEFRAMES[0]!;
+    this.addPane(defaultTf);
     if (localStorage.getItem('candledrill.split') === '1') this.toggleSplit();
   }
 

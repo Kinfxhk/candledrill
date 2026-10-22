@@ -181,3 +181,24 @@ describe('importCsv', () => {
     expect(detectTimeframe([0, 300, 600, 1200, 1500])).toBe(300);
   });
 });
+
+describe('10-second CSV import (forming source)', () => {
+  it('imports 10s bars and reports timeframeSeconds 10', () => {
+    const rows = ['time,open,high,low,close,volume'];
+    const t0 = Date.UTC(2026, 0, 5, 9, 0) / 1000;
+    for (let i = 0; i < 12; i++) {
+      const px = 100 + i * 0.25;
+      rows.push(`${t0 + i * 10},${px},${px + 0.25},${px - 0.25},${px},10`);
+    }
+    const res = importCsv(rows.join('\n'), {
+      mapping: { time: 0, open: 1, high: 2, low: 3, close: 4, volume: 5 },
+      tickSize: 0.25,
+      timeframeSeconds: 10,
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.report.timeframeSeconds).toBe(10);
+    expect(res.bars).toHaveLength(12);
+    expect(res.bars[1]!.time - res.bars[0]!.time).toBe(10);
+  });
+});

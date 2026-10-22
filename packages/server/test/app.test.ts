@@ -82,6 +82,29 @@ describe('HTTP API', () => {
     expect(bars.json().synthetic).toBe(true);
   });
 
+  it('accepts timeframeSeconds:10 for dual-cursor forming demos', async () => {
+    const a = setup();
+    const created = await a.inject({
+      method: 'POST',
+      url: '/api/datasets/synthetic',
+      payload: { seed: 7, startDate: '2026-01-05', days: 1, timeframeSeconds: 10 },
+    });
+    expect(created.statusCode).toBe(201);
+    const ds = created.json().dataset;
+    expect(ds.timeframeSeconds).toBe(10);
+    expect(ds.barCount).toBe(510 * 6); // 08:00–16:30 session × 6 ten-second bars
+  });
+
+  it('rejects timeframeSeconds that do not divide 60', async () => {
+    const a = setup();
+    const bad = await a.inject({
+      method: 'POST',
+      url: '/api/datasets/synthetic',
+      payload: { seed: 1, startDate: '2026-01-05', days: 1, timeframeSeconds: 7 },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+
   it('validates input', async () => {
     const a = setup();
     const r1 = await a.inject({

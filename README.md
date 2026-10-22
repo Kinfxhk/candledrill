@@ -4,7 +4,7 @@
 
 > **優勢：** Web 介面、本機自架——服務預設只聽 `127.0.0.1`，請在**執行 CandleDrill 的那台電腦**上，用桌面瀏覽器開啟。同一台電腦的其他瀏覽器視窗／分頁亦可。產品**不會**改聽區網位址；若要在家裡其他裝置使用，見下方「其他裝置（安全隧道）」。**請勿**把服務直接發佈到區網或公網（無登入機制）。
 
-> **v0.4.0** · 僅供本機練習。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> **v0.5.0** · 僅供本機練習。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill 練習畫面：雙時框、Long R 繪圖、括號單、下單票與成交紀錄](docs/screenshot.png)
 
@@ -14,7 +14,7 @@
 
 ## 風險聲明
 
-CandleDrill 是**教育與練習工具**。**不構成投資建議**，不提供交易訊號，**模擬或練習成績不能預示真實交易結果**。期貨、外匯等槓桿商品可能損失超過本金。以 K 棒為單位的模擬，無法還原一根棒內真實的價格先後順序。
+CandleDrill 是**教育與練習工具**。**不構成投資建議**，不提供交易訊號，**模擬或練習成績不能預示真實交易結果**。期貨、外匯等槓桿商品可能損失超過本金。以 K 棒為單位的模擬，無法還原一根棒內真實的價格先後順序。若資料源比練習時框更細（例如 10 秒），圖表可用其更新 forming 1 分鐘 K；**成交仍只在練習時框收棒時發生**（見 [docs/FILL-MODEL.md](docs/FILL-MODEL.md)）。
 
 ## 安裝（約 5 分鐘）
 
@@ -39,7 +39,7 @@ CandleDrill **預設只聽** `127.0.0.1`，程式不會改成區網 listen。若
 
 ## 練習資料
 
-- **一鍵示範：** **Generate demo data** 會產生合成 K 線（`SYNTH-…`）。相同種子 → 相同 K 線。
+- **一鍵示範：** **Generate demo data** 會產生合成 **10 秒** K 線（`SYNTH-…`）；練習畫面預設 1 分鐘圖，forming 會隨 10 秒更新，成交仍跟 1 分鐘收棒。相同種子 → 相同 K 線。
 - **較長的 Globex 風格樣本（僅合成）：**  
   [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)  
   匯入 `SYNTH-NQ-GLOBEX_1min.csv`，代號 **`PRACTICE-NQ-GLOBEX`**，tick 大小 **`0.25`**，UTC 偏移 **`-300`**。
@@ -142,7 +142,7 @@ docker compose up --build    # http://127.0.0.1:4870/
 <details>
 <summary>CSV 匯入提示</summary>
 
-每列一根棒：時間戳、開、高、低、收，可選成交量。匯入對話框會嘗試猜測欄位。無時區的時間會套用你選擇的 UTC 偏移。只匯入你有權使用的資料。
+每列一根棒：時間戳、開、高、低、收，可選成交量。匯入對話框會嘗試猜測欄位。無時區的時間會套用你選擇的 UTC 偏移。可匯入 10 秒等細週期；練習畫面時框選單仍從 1 分鐘起，forming 1 分鐘由細源更新，成交跟練習時框收棒。只匯入你有權使用的資料。
 
 </details>
 
@@ -194,7 +194,7 @@ CandleDrill 免費，也會持續免費。若這個工具對你有幫助：https
 
 > **Web UI:** local service + desktop browser on the machine that runs CandleDrill. Other tabs/windows on **that** computer are fine. The server listens on **`127.0.0.1` by default** and does **not** bind to your LAN. For another device at home, use a secure tunnel (see **Other devices** below). **Do not** publish the port to your LAN or the public internet (no login).
 
-> **v0.4.0** · Local practice only. Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v0.5.0** · Local practice only. Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 
@@ -208,7 +208,7 @@ CandleDrill is an **educational practice tool**. It is **not investment advice**
 it gives no trading signals, and **simulated or practice results do not predict
 real trading results**. Trading futures, forex and other leveraged products can
 lose more than your deposit. Bar-based simulation cannot know the true order of
-prices inside a bar.
+prices inside a bar. If the data source is finer than the practice timeframe (for example 10s bars while you watch 1m), the chart may use those bars to update a forming 1m candle; **fills still occur only on practice-timeframe closes** (see [docs/FILL-MODEL.md](docs/FILL-MODEL.md)).
 
 ## Install (about 5 minutes)
 
@@ -233,7 +233,7 @@ CandleDrill listens on **`127.0.0.1` only** by design. It will not switch to a L
 
 ## Practice data
 
-- **One-click demo:** **Generate demo data** creates synthetic bars (`SYNTH-…`). Same seed → same bars.
+- **One-click demo:** **Generate demo data** creates synthetic **10s** bars (`SYNTH-…`); the practice UI defaults to a 1m pane so forming updates from 10s, while fills still follow 1m closes. Same seed → same bars.
 - **Longer Globex-like sample (synthetic only):**  
   [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)  
   Import `SYNTH-NQ-GLOBEX_1min.csv` as symbol **`PRACTICE-NQ-GLOBEX`**, tick size **`0.25`**, UTC offset **`-300`**.
@@ -336,7 +336,7 @@ Publishes on the host’s **127.0.0.1 only**. Never expose CandleDrill to a netw
 <details>
 <summary>CSV import tips</summary>
 
-One row per bar: timestamp, open, high, low, close, optional volume. The import dialog guesses columns. Times without a zone use the UTC offset you choose. Only import data you are entitled to use.
+One row per bar: timestamp, open, high, low, close, optional volume. The import dialog guesses columns. Times without a zone use the UTC offset you choose. You may import 10s (or other fine) bars; the practice pane menu still starts at 1m, forming 1m updates from the fine source, and fills follow practice-TF closes. Only import data you are entitled to use.
 
 </details>
 

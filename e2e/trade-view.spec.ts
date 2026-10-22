@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo, showWorkingOrders } from './helpers.js';
+import { generateDemo, showWorkingOrders, stepUntil } from './helpers.js';
 
 async function setup(page: Page, name: string, blind = false) {
   await page.goto('/');
@@ -20,13 +20,12 @@ async function setup(page: Page, name: string, blind = false) {
   await page.getByTestId('btn-buy').click();
   await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText('MKT');
-  await page.getByTestId('btn-step').click();
-  await expect.poll(async () => (await read()).state.trading.fills.length).toBeGreaterThan(0);
+  await stepUntil(page, async () => (await read()).state.trading.fills.length > 0);
   if ((await read()).state.trading.trades.length === 0) {
     await page.getByTestId('btn-flatten').click();
     await showWorkingOrders(page);
     await expect(page.getByTestId('orders')).toContainText('MKT');
-    await page.getByTestId('btn-step').click();
+    await stepUntil(page, async () => (await read()).state.trading.trades.length > 0);
   }
   await page.getByTestId('tab-trades').click();
   await expect(page.getByTestId('trades-view-1')).toBeVisible();
