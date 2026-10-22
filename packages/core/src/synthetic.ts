@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Deterministic synthetic 1-minute OHLCV generator.
+// Deterministic synthetic OHLCV generator (default 1-minute; optional finer bars).
 //
 // The output is meant to LOOK like an intraday market (volatility clustering,
 // U-shaped intraday activity, overnight gaps, tick-rounded prices) so the
 // replay UI can be developed and demonstrated without bundling any real market
 // data. It is NOT a model of any real instrument and must never be presented as
 // one: every symbol is forced to start with "SYNTH-" and metadata marks it synthetic.
+// Finer bars (e.g. 10s) exist so a 1m chart can show a real forming candle; they
+// are not a model of tick/trade flow.
 
 import { createRng } from './rng.js';
 import { expandSessions } from './calendar.js';
@@ -46,6 +48,11 @@ export interface SyntheticOptions {
   readonly missingBarProbability?: number;
   /** Typical contracts per minute at mid-session. */
   readonly baseVolume?: number;
+  /**
+   * Bar length in seconds. Default 60. Must be a positive integer that divides
+   * 60 (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60) so session spans stay aligned.
+   */
+  readonly timeframeSeconds?: number;
 }
 
 export interface SyntheticDataset {
@@ -82,6 +89,7 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
   const missingP = options.missingBarProbability ?? 0;
   const baseVolume = options.baseVolume ?? 400;
   const name = options.name ?? 'DEMO';
+  const timeframeSeconds = options.timeframeSeconds ?? 60;
 
   assertTickSize(tickSize);
   checkRange('startPrice', startPrice, tickSize * 10, 1e9);
@@ -89,21 +97,31 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
   checkRange('sessionGapVolatility', gapVol, 0, 0.2);
   checkRange('missingBarProbability', missingP, 0, 0.5);
   checkRange('baseVolume', baseVolume, 1, 1e9);
+  if (!Number.isInteger(timeframeSeconds) || timeframeSeconds <= 0 || 60 % timeframeSeconds !== 0) {
+    throw new RangeError(
+      `timeframeSeconds must be a positive divisor of 60, got ${timeframeSeconds}`,
+    );
+  }
   if (!/^[A-Z0-9_-]{1,24}$/.test(name)) {
     throw new RangeError('name must be 1-24 chars of A-Z, 0-9, "_" or "-"');
   }
 
   const spans = expandSessions(calendar, options.startDate, options.days);
   const totalMinutes = spans.reduce((n, s) => n + s.minutes, 0);
-  if (totalMinutes > MAX_SYNTHETIC_BARS) {
-    throw new RangeError(`requested ${totalMinutes} bars, max is ${MAX_SYNTHETIC_BARS}`);
+  const barsPerMinute = 60 / timeframeSeconds;
+  const totalBars = totalMinutes * barsPerMinute;
+  if (totalBars > MAX_SYNTHETIC_BARS) {
+    throw new RangeError(`requested ${totalBars} bars, max is ${MAX_SYNTHETIC_BARS}`);
   }
 
   const rng = createRng(options.seed);
   const decimals = tickDecimals(tickSize);
   const avgSessionMinutes = spans.length ? totalMinutes / spans.length : 1;
-  // Per-minute volatility so that one average session ~ one trading day.
-  const minuteVol = annualVol / Math.sqrt(TRADING_DAYS_PER_YEAR * avgSessionMinutes);
+  // Per-bar volatility so that one average session ~ one trading day of annual vol.
+  const barsPerSession = avgSessionMinutes * barsPerMinute;
+  const barVol = annualVol / Math.sqrt(TRADING_DAYS_PER_YEAR * barsPerSession);
+  // Scale "per minute" base volume down to each finer bar.
+  const barBaseVolume = baseVolume / barsPerMinute;
   const minTicks = 1;
 
   let logPrice = Math.log(startPrice);
@@ -114,12 +132,13 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
     if (spanIndex > 0 && gapVol > 0) {
       logPrice += gapVol * rng.normal(); // overnight / between-session gap
     }
-    for (let i = 0; i < span.minutes; i++) {
-      const x = span.minutes > 1 ? i / (span.minutes - 1) : 0.5;
+    const nBars = span.minutes * barsPerMinute;
+    for (let i = 0; i < nBars; i++) {
+      const x = nBars > 1 ? i / (nBars - 1) : 0.5;
       logVolState = VOL_PERSISTENCE * logVolState + VOL_OF_VOL * rng.normal();
       const activity = intradayActivity(x);
       const volMultiplier = Math.exp(logVolState - LOG_VOL_VAR);
-      const sigma = minuteVol * activity * volMultiplier;
+      const sigma = barVol * activity * volMultiplier;
       const subSigma = sigma / Math.sqrt(SUBSTEPS);
 
       const openTicks = Math.max(minTicks, Math.round(Math.exp(logPrice) / tickSize));
@@ -142,7 +161,7 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
       const volume = Math.max(
         1,
         Math.round(
-          baseVolume *
+          barBaseVolume *
             activity *
             volMultiplier ** 0.7 *
             Math.exp(0.45 * rng.normal()) *
@@ -153,7 +172,7 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
       const skip = missingP > 0 && rng.next() < missingP;
       if (skip) continue;
       bars.push({
-        time: span.startTime + i * 60,
+        time: span.startTime + i * timeframeSeconds,
         open: ticksToPrice(openTicks, tickSize, decimals),
         high: ticksToPrice(hi, tickSize, decimals),
         low: ticksToPrice(lo, tickSize, decimals),
@@ -168,7 +187,7 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
       source: 'synthetic',
       synthetic: true,
       symbol: `${SYNTHETIC_SYMBOL_PREFIX}${name}`,
-      timeframeSeconds: 60,
+      timeframeSeconds,
       tickSize,
       generator: {
         name: SYNTHETIC_GENERATOR_NAME,

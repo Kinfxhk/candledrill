@@ -2,7 +2,7 @@
 
 /**
  * One OHLCV bar. `time` is the bar's OPEN time in Unix seconds (UTC).
- * The bar length is the dataset timeframe (synthetic data is always one minute).
+ * The bar length is the dataset timeframe (synthetic default is one minute; may be finer).
  */
 export interface Bar {
   readonly time: number;
