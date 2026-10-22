@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aggregateBars,
+  checkSessionState,
   createSession,
   generateSyntheticBars,
   sessionPlaceOrder,
@@ -114,6 +115,18 @@ describe('dual-cursor forming (10s source / 1m fill)', () => {
     expect(dual.trading.fills.map(slimFill)).toEqual(legacy.trading.fills.map(slimFill));
     expect(dual.trading.trades.map(slimTrade)).toEqual(legacy.trading.trades.map(slimTrade));
     expect(dual.trading.realizedPnl).toBe(legacy.trading.realizedPnl);
+  });
+
+  it('checkSessionState accepts dual-cursor fills on practice bars', () => {
+    let s = createSession(source, dualSettings, source[30]!.time);
+    s = sessionPlaceOrder(source, dualSettings, s, { side: 'buy', type: 'market', qty: 1 });
+    for (let n = 0; n < 30 && s.trading.fills.length === 0; n++) {
+      s = stepSession(source, dualSettings, s, 1).state;
+    }
+    expect(s.trading.fills.length).toBeGreaterThan(0);
+    // Step a bit further so we are mid-forming again (common e2e/backup shape).
+    s = stepSession(source, dualSettings, s, 3).state;
+    expect(checkSessionState(source, dualSettings, s)).toEqual([]);
   });
 
   it('without practiceTimeframeSeconds, each 10s bar still fills (path 1 — not V0 default)', () => {

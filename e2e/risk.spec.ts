@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo, showWorkingOrders } from './helpers.js';
+import { generateDemo, showWorkingOrders, stepUntil } from './helpers.js';
 
 async function freshSession(page: Page, name: string, trailing?: number) {
   await page.goto('/');
@@ -114,7 +114,9 @@ test('working entries and open positions have explanatory unsupported previews',
   await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText('MKT');
   await expect(page.getByTestId('risk-buy')).toContainText('entry order is already working');
-  await page.getByTestId('btn-step').click();
+  await stepUntil(page, async () =>
+    /Long/.test((await page.getByTestId('position').textContent()) ?? ''),
+  );
   await expect(page.getByTestId('position')).toContainText('Long');
   await expect(page.getByTestId('risk-buy')).toContainText('fresh entries from flat only');
   await expect(page.getByTestId('risk-buy-loss')).toHaveCount(0);
