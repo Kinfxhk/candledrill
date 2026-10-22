@@ -13,7 +13,8 @@ export async function generateDemo(page: Page): Promise<void> {
   const before = (await list()).length;
   await page.click('#btn-demo');
   let now = await list();
-  for (let i = 0; i < 50 && now.length === before; i++) {
+  // 10s demo can insert ~60k bars; allow up to ~15s on slow Windows runners.
+  for (let i = 0; i < 150 && now.length === before; i++) {
     await page.waitForTimeout(100);
     now = await list();
   }
@@ -34,4 +35,20 @@ export async function generateDemo(page: Page): Promise<void> {
 export async function showWorkingOrders(page: Page): Promise<void> {
   await page.getByTestId('tab-orders').click();
   await expect(page.getByTestId('orders')).toBeVisible();
+}
+
+/**
+ * Click "Next bar" until `check` is true. Demo data is 10s with fills on 1m
+ * practice closes, so a market order needs several source steps (up to ~12).
+ */
+export async function stepUntil(
+  page: Page,
+  check: () => Promise<boolean>,
+  maxSteps = 24,
+): Promise<void> {
+  for (let i = 0; i < maxSteps; i++) {
+    if (await check()) return;
+    await page.getByTestId('btn-step').click();
+  }
+  expect(await check()).toBe(true);
 }

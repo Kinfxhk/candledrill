@@ -2,7 +2,7 @@
 // v0.2: blind practice, drawing tools, session file import, backup and restore, reminder.
 import { copyFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo, showWorkingOrders } from './helpers.js';
+import { generateDemo, showWorkingOrders, stepUntil } from './helpers.js';
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -103,16 +103,19 @@ test('a delayed journal response cannot replace the statistics tab', async ({ pa
   await page.getByTestId('btn-buy').click();
   await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText('MKT');
-  await page.getByTestId('btn-step').click();
-  await expect
-    .poll(async () => (await sessionByName(page, 'Journal race')).state.trading.fills.length)
-    .toBeGreaterThan(0);
+  await stepUntil(
+    page,
+    async () => (await sessionByName(page, 'Journal race')).state.trading.fills.length > 0,
+  );
   const view = await sessionByName(page, 'Journal race');
   if (view.state.trading.trades.length === 0) {
     await page.getByTestId('btn-flatten').click();
     await showWorkingOrders(page);
     await expect(page.getByTestId('orders')).toContainText('MKT');
-    await page.getByTestId('btn-step').click();
+    await stepUntil(
+      page,
+      async () => (await sessionByName(page, 'Journal race')).state.trading.trades.length > 0,
+    );
   }
   await page.getByTestId('tab-trades').click();
   await expect(page.getByTestId('trades-table').locator('tr:has(td)')).toHaveCount(1);
@@ -180,6 +183,8 @@ test('blind practice hides the period, symbol and preview until revealed', async
   await expect(page.getByTestId('btn-jump')).toBeHidden();
   await page.getByTestId('btn-step10').click();
   await page.getByTestId('btn-buy').click();
+  // Dual-cursor: need more than one 10-bar burst to close the next 1m practice bar.
+  await page.getByTestId('btn-step10').click();
   await page.getByTestId('btn-step10').click();
   await expect(page.locator('#practice-root')).not.toContainText(symbol);
   await expect(page.locator('.charts')).not.toContainText(/20\d\d-\d\d-\d\d/);
@@ -307,6 +312,7 @@ test('session file import, full backup and restore, reminder', async ({ page }) 
   await newSession(page, 'Keep me');
   await page.getByTestId('btn-buy').click();
   await page.getByTestId('btn-step10').click();
+  await page.getByTestId('btn-step10').click();
   const orig = await sessionByName(page, 'Keep me');
   const file = test.info().outputPath('session.json');
   const exp = await page.request.get(`/api/sessions/${orig.session.id}/export/session.json`);
@@ -343,10 +349,17 @@ test('session file import, full backup and restore, reminder', async ({ page }) 
   await page.request.delete(`/api/sessions/${orig.session.id}`, {
     headers: { 'x-candledrill-token': (await (await page.request.get('/api/token')).json()).token },
   });
+  const restoreResp = page.waitForResponse(
+    (r) => r.url().includes('/api/restore') && r.request().method() === 'POST',
+    { timeout: 120_000 },
+  );
   page.once('dialog', (d) => void d.accept());
   await page.locator('#restore-file').setInputFiles(backup);
+  const restored = await restoreResp;
+  expect(restored.ok(), await restored.text()).toBe(true);
   await expect(page.locator('.toast')).toContainText(
     new RegExp(`Restored \\d+ datasets and ${atBackup} sessions`),
+    { timeout: 30_000 },
   );
   await expect(page.locator('#session-table tbody tr')).toHaveCount(atBackup);
   const back = await sessionByName(page, 'Keep me');

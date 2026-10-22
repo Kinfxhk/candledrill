@@ -169,7 +169,14 @@ export function buildApp(opts: AppOptions): FastifyInstance {
   });
 
   app.post<{
-    Body: { seed: number; startDate: string; days: number; name?: string };
+    Body: {
+      seed: number;
+      startDate: string;
+      days: number;
+      name?: string;
+      /** Bar length in seconds; must divide 60 (same rule as generateSyntheticBars). */
+      timeframeSeconds?: number;
+    };
   }>(
     '/api/datasets/synthetic',
     {
@@ -183,15 +190,25 @@ export function buildApp(opts: AppOptions): FastifyInstance {
             startDate: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
             days: { type: 'integer', minimum: 1, maximum: MAX_SYNTHETIC_DAYS },
             name: { type: 'string', pattern: '^[A-Z0-9_-]{1,24}$' },
+            timeframeSeconds: {
+              type: 'integer',
+              enum: [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60],
+            },
           },
         },
       },
     },
     async (req, reply) => {
-      const { seed, startDate, days, name } = req.body;
+      const { seed, startDate, days, name, timeframeSeconds } = req.body;
       let dataset;
       try {
-        dataset = generateSyntheticBars({ seed, startDate, days, ...(name ? { name } : {}) });
+        dataset = generateSyntheticBars({
+          seed,
+          startDate,
+          days,
+          ...(name ? { name } : {}),
+          ...(timeframeSeconds !== undefined ? { timeframeSeconds } : {}),
+        });
       } catch (err) {
         return reply.code(400).send({ error: (err as Error).message });
       }
