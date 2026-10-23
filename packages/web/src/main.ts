@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import './styles.css';
 import './v1.css';
+import './align.css';
 import {
   api,
   ApiError,

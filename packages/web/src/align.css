@@ -1,0 +1,595 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/*
+ * Alignment system (loaded last). One scale for every control so rows line up:
+ *   control heights  --h-sm 26 · --h-md 32 · --h-lg 40   (touch: md/lg -> 44)
+ *   font sizes       --fs-xs 11 · --fs-sm 12 · --fs-md 13 · --fs-lg 15
+ *   radius           --r-sm 4 (chips, tags) · --r 6 (controls, cards) · pill 999
+ *   spacing          4 / 8 / 12
+ * Rules: every control in a row has the same height and is vertically centred; text in
+ * controls is one line; cards share padding and title style; rows never wrap mid-control.
+ */
+:root {
+  --h-sm: 26px;
+  --h-md: 32px;
+  --h-lg: 40px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 15px;
+  --r-sm: 4px;
+  --r: 6px;
+  --sp1: 4px;
+  --sp2: 8px;
+  --sp3: 12px;
+  --radius: var(--r);
+}
+@media (pointer: coarse) {
+  :root {
+    --h-md: 40px;
+    --h-lg: 44px;
+  }
+}
+
+/* ---------- controls: one box model */
+/* :where() keeps this base at element specificity, so component rules override it. */
+:where(
+  button,
+  a.button,
+  select,
+  input:not([type='checkbox'], [type='radio'], [type='color'], [type='range'], [type='file'])
+) {
+  box-sizing: border-box;
+  height: var(--h-md);
+  min-height: 0;
+  padding: 0 10px;
+  border-radius: var(--r);
+  font-size: var(--fs-md);
+  line-height: 1;
+  vertical-align: middle;
+}
+button,
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+button.small,
+a.button.small {
+  height: var(--h-sm);
+  padding: 0 8px;
+  font-size: var(--fs-sm);
+}
+textarea {
+  border-radius: var(--r);
+  font-size: var(--fs-md);
+}
+input[type='color'] {
+  height: var(--h-sm);
+  width: 36px;
+  padding: 2px;
+  border-radius: var(--r-sm);
+}
+label.field > span {
+  font-size: var(--fs-sm);
+  line-height: 16px;
+}
+label.field > input,
+label.field > select {
+  font-size: var(--fs-md);
+}
+
+/* ---------- cards */
+.card {
+  padding: var(--sp3);
+  border-radius: var(--r);
+}
+.card h2,
+.card h3 {
+  margin: 0 0 var(--sp2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.side .card {
+  padding: var(--sp3);
+}
+.side {
+  gap: var(--sp2);
+  padding: var(--sp2);
+}
+
+/* ---------- header: one row, one height */
+header.app {
+  min-height: 48px;
+  padding: 0 var(--sp2);
+  gap: var(--sp2);
+  align-items: center;
+}
+header.app nav.tabs {
+  display: flex;
+  gap: var(--sp1);
+}
+body.in-practice header.app {
+  min-height: 40px;
+}
+body.in-practice header.app button,
+body.in-practice header.app select {
+  height: var(--h-sm);
+  padding: 0 8px;
+  font-size: var(--fs-sm);
+}
+
+/* ---------- practice toolbar: every item the same height, centred */
+.toolbar {
+  min-height: 44px;
+  padding: 0 var(--sp2);
+  gap: var(--sp2);
+  align-items: center;
+}
+.toolbar > *,
+.toolbar .row {
+  align-items: center;
+}
+.toolbar button,
+.toolbar select,
+.toolbar input {
+  height: var(--h-md);
+}
+.toolbar .replay {
+  height: calc(var(--h-md) + 6px);
+  padding: 2px;
+  gap: 2px;
+  border-radius: calc(var(--r) + 2px);
+}
+.toolbar .replay button,
+.toolbar .replay select {
+  height: var(--h-md);
+}
+.toolbar .sep {
+  height: 20px;
+}
+.toolbar strong {
+  font-size: var(--fs-md);
+  line-height: var(--h-md);
+}
+.toolbar .clock {
+  font-size: var(--fs-sm);
+  line-height: var(--h-md);
+  font-variant-numeric: tabular-nums;
+}
+.pnl-chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: var(--h-sm);
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  line-height: 1;
+}
+
+/* ---------- chart head: Draw sits in the head row, legend below it */
+.chart-cell .chart-head {
+  min-height: 34px;
+  padding: var(--sp1) var(--sp2);
+  gap: var(--sp1);
+  align-items: center;
+}
+.chart-cell .chart-head button,
+.chart-cell .chart-head select {
+  height: var(--h-sm);
+  padding: 0 8px;
+  font-size: var(--fs-sm);
+}
+.drawing-palette {
+  top: var(--sp1);
+  left: var(--sp2);
+  padding: 0;
+  gap: var(--sp1);
+}
+.drawing-palette button {
+  height: var(--h-sm);
+  min-width: 0;
+  padding: 0 8px;
+  font-size: var(--fs-sm);
+}
+.drawing-palette:not(.collapsed) {
+  padding: var(--sp1);
+  border-radius: var(--r);
+}
+.ohlc-legend {
+  top: 40px;
+  left: var(--sp2);
+  font-size: var(--fs-xs);
+  line-height: 16px;
+}
+
+/* ---------- order ticket: equal columns, equal heights */
+.side .seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0;
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.side .seg button {
+  border-radius: 0;
+  height: var(--h-md);
+}
+.side .grid2 {
+  gap: var(--sp2);
+  align-items: end;
+}
+.side button.buy,
+.side button.sell {
+  height: var(--h-lg);
+  font-size: var(--fs-lg);
+}
+.qty-presets {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--sp1);
+  margin-top: var(--sp2);
+}
+.qty-presets button {
+  height: var(--h-sm);
+}
+.side .row {
+  gap: var(--sp2);
+}
+
+/* ---------- rule check rows */
+.rule-head {
+  grid-template-columns: 1fr auto 72px;
+  font-size: var(--fs-sm);
+  line-height: 18px;
+}
+.rule-state {
+  box-sizing: border-box;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  font-size: var(--fs-xs);
+  border-radius: 999px;
+}
+.rule-overall {
+  align-items: center;
+  min-height: var(--h-sm);
+  box-sizing: border-box;
+  padding: 0 var(--sp2);
+  border-radius: var(--r);
+}
+
+/* ---------- bottom tab strip */
+.bottom .tabbar {
+  align-items: center;
+  gap: var(--sp1);
+  padding: 0 var(--sp2);
+}
+.bottom .tabbar button,
+.bottom .tabbar button.small {
+  height: var(--h-sm);
+  padding: 0 10px;
+  font-size: var(--fs-sm);
+  border-radius: var(--r);
+}
+
+/* ---------- trade bar (phone / tablet portrait): equal columns */
+.trade-bar {
+  gap: var(--sp2);
+  padding: var(--sp2) var(--sp2) calc(var(--sp2) + env(safe-area-inset-bottom));
+}
+.trade-bar .tb-replay,
+.trade-bar .tb-order {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp2);
+}
+.trade-bar button,
+.trade-bar input {
+  height: var(--h-lg);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  border-radius: var(--r);
+}
+.trade-bar .tb-replay button {
+  font-size: var(--fs-md);
+}
+.trade-bar input {
+  text-align: center;
+  padding: 0 4px;
+}
+
+/* ---------- toast: aligned to the content margins */
+.toast {
+  left: var(--sp3);
+  right: var(--sp3);
+  border-radius: var(--r);
+}
+@media (min-width: 768px) {
+  .toast {
+    left: auto;
+    right: var(--sp3);
+    max-width: 420px;
+  }
+}
+
+/* ---------- library */
+.library {
+  gap: var(--sp3);
+  padding: var(--sp3);
+}
+.library .row {
+  gap: var(--sp2);
+  align-items: center;
+}
+.grid3,
+.grid2 {
+  gap: var(--sp2);
+}
+
+/* ---------- short screens (phone landscape): the chart flexes, nothing is pushed over */
+@media (max-height: 520px) {
+  .chart-cell {
+    min-height: 0;
+  }
+  /* Keep navigation, but at the compact height. */
+  body.in-practice header.app {
+    min-height: 32px;
+  }
+  .practice-root {
+    height: calc(100dvh - 32px);
+  }
+  .toolbar {
+    min-height: 36px;
+  }
+  .toolbar button,
+  .toolbar select,
+  .toolbar input,
+  .toolbar .replay button {
+    height: var(--h-sm);
+  }
+  .toolbar .replay {
+    height: calc(var(--h-sm) + 6px);
+  }
+  /* Status (breached / passed / finished) stays visible, as one short line. */
+  .status-banner.show,
+  .reveal-banner:not([hidden]) {
+    padding: 2px var(--sp2);
+    font-size: var(--fs-sm);
+    line-height: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+/* Phone landscape uses the trade bar but on one row: replay left, order right. */
+@media (max-height: 520px) and (max-width: 1199px) {
+  .side {
+    position: fixed;
+    z-index: 40;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, 60vw);
+    border-left: 1px solid var(--border);
+    transform: translateX(105%);
+    transition: transform 0.18s ease-out;
+    box-shadow: var(--shadow);
+  }
+  body.sheet-open .side {
+    transform: none;
+  }
+  .sheet-toggle {
+    display: inline-flex;
+  }
+  .trade-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp2);
+    padding: var(--sp1) calc(var(--sp2) + env(safe-area-inset-right)) var(--sp1)
+      calc(var(--sp2) + env(safe-area-inset-left));
+  }
+  .trade-bar button,
+  .trade-bar input {
+    height: var(--h-md);
+    font-size: var(--fs-md);
+  }
+  /* Folded strip stays (trades / fills one tap away); expanded panel takes half the height. */
+  .bottom.expanded {
+    height: 50dvh;
+  }
+}
+/* Notch / Dynamic Island in landscape: keep content inside the safe area. */
+@supports (padding: env(safe-area-inset-left)) {
+  .toolbar,
+  .chart-cell .chart-head {
+    padding-left: max(var(--sp2), env(safe-area-inset-left));
+    padding-right: max(var(--sp2), env(safe-area-inset-right));
+  }
+}
+
+/* Older rules set min-height from --tap; the scale above owns heights now. */
+button.small,
+a.button.small {
+  min-height: 0 !important;
+}
+/* Touch: small buttons stay small-but-tappable (36px) and match each other. */
+@media (pointer: coarse) {
+  :root {
+    --h-sm: 32px;
+  }
+}
+/* Inputs in the trade bar match its buttons. */
+
+/* When the trade bar carries replay controls, the toolbar copy is redundant. */
+@media (max-height: 520px) and (max-width: 1199px) {
+  .toolbar .replay,
+  #view-practice .toolbar [data-testid='btn-checkpoint'],
+  .toolbar strong,
+  .toolbar > .muted:not(.clock),
+  .tb-wide {
+    display: none !important;
+  }
+}
+
+/* Status row: Panel matches the chip; header and toolbar share one right edge. */
+.toolbar .sheet-toggle {
+  height: var(--h-sm);
+}
+header.app,
+.toolbar {
+  padding-right: var(--sp2);
+  padding-left: var(--sp2);
+}
+header.app > :last-child {
+  margin-right: 0;
+}
+/* Number inputs without spinners: the value sits centred, steppers are not needed on touch. */
+.trade-bar input[type='number'],
+.side input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.trade-bar input[type='number']::-webkit-inner-spin-button,
+.trade-bar input[type='number']::-webkit-outer-spin-button,
+.side input[type='number']::-webkit-inner-spin-button,
+.side input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+/* Toasts sit above the trade bar instead of over it. */
+@media (max-width: 899px), (max-height: 520px) {
+  body.in-practice .toast {
+    bottom: calc(var(--toast-lift, 140px) + env(safe-area-inset-bottom));
+  }
+}
+@media (max-height: 520px) {
+  body.in-practice .toast {
+    --toast-lift: 56px;
+  }
+}
+
+/* Accent stripe drawn inside the card, so its edge lines up with the card and content. */
+.toast {
+  box-sizing: border-box;
+  border-left: 1px solid var(--border);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    var(--shadow);
+  padding: var(--sp2) var(--sp3);
+  font-size: var(--fs-md);
+  line-height: 18px;
+}
+.toast.error {
+  border-left-color: var(--border);
+  box-shadow:
+    inset 3px 0 0 var(--down),
+    var(--shadow);
+}
+
+/* Toast: same 8px side margins as the content, and clear of the trade bar. */
+.toast {
+  right: var(--sp2);
+}
+@media (max-width: 767px) {
+  .toast {
+    left: var(--sp2);
+    right: var(--sp2);
+    max-width: none;
+  }
+}
+@media (max-width: 899px) {
+  body.in-practice .toast {
+    --toast-lift: 156px;
+  }
+}
+/* Short landscape screens: clear the one-row trade bar (32px controls + 2×4px padding +
+   8px gap → ~56px measured 53) plus the 34px tab strip. Kept after the portrait rule so it
+   wins on narrow + short screens. */
+@media (max-height: 520px) {
+  body.in-practice .toast {
+    --toast-lift: 96px;
+  }
+}
+
+/* Phone toolbar: clock, P&L and Panel spread across the row from the left content edge. */
+@media (max-width: 899px), (max-height: 520px) {
+  .toolbar .spacer {
+    display: none;
+  }
+  .toolbar .clock {
+    margin-right: auto;
+  }
+}
+
+/* Rule rows: fixed rhythm. Name truncates, status never wraps, every row reserves the
+   meter track so all rows are the same height. */
+.rule-list {
+  gap: 0;
+}
+.rule {
+  display: grid;
+  grid-template-rows: 18px 4px auto;
+  row-gap: 4px;
+  padding: 4px 0;
+}
+.rule-head {
+  grid-template-columns: minmax(0, 1fr) auto 84px;
+  column-gap: var(--sp2);
+}
+.rule-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rule-val {
+  text-align: right;
+  white-space: nowrap;
+}
+.rule-state {
+  width: 84px;
+  white-space: nowrap;
+  justify-self: end;
+}
+.rule .meter {
+  margin-top: 0;
+  height: 4px;
+}
+.rule:not(:has(.meter))::after {
+  content: '';
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--panel-2);
+}
+/* Toolbar: one control style for the replay group (outlined like its neighbours). */
+.toolbar .replay button:not(.primary) {
+  border: 1px solid transparent;
+}
+.toolbar .replay button:not(.primary):hover {
+  border-color: var(--border);
+}
+/* Checkbox labels in toolbars read as normal text, not disabled. */
+.toolbar label.row {
+  color: var(--text);
+  font-size: var(--fs-sm);
+  gap: 6px;
+}
+/* Rail cards keep a visible top edge when scrolled under the toolbar. */
+.side {
+  scroll-padding-top: var(--sp2);
+}
+
+.rule-head {
+  column-gap: var(--sp3);
+  font-variant-numeric: tabular-nums;
+}

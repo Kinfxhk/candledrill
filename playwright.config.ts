@@ -22,6 +22,20 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
     launchOptions: executablePath ? { executablePath } : {},
   },
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    // Safari's engine for the phone fit / alignment checks (iPhones run WebKit).
+    // Opt-in with E2E_WEBKIT=1 (needs `npx playwright install webkit`); the Linux CI job sets it.
+    ...(process.env.E2E_WEBKIT
+      ? [
+          {
+            name: 'webkit',
+            testMatch: /devices\.spec\.ts/,
+            use: { browserName: 'webkit' as const, launchOptions: {} },
+          },
+        ]
+      : []),
+  ],
   webServer: {
     // A plain Node entry point works on every OS (the Unix-style .bin shim path does not
     // run under Windows cmd.exe).
