@@ -138,6 +138,48 @@ describe('browser backend parity with the local server', () => {
       `/api/sessions/${id}/drawings`,
       { drawings: [{ kind: 'hline', id: 'h1', price: close }] },
     ]);
+    await both([
+      'PUT',
+      `/api/sessions/${id}/drawings`,
+      {
+        drawings: [
+          {
+            kind: 'fib',
+            id: 'f1',
+            t1: ds.firstTime,
+            p1: close + 5,
+            t2: ds.firstTime + 600,
+            p2: close - 5,
+          },
+          {
+            kind: 'channel',
+            id: 'c1',
+            t1: ds.firstTime,
+            p1: close,
+            t2: ds.firstTime + 600,
+            p2: close + 2,
+            w: 3,
+          },
+        ],
+      },
+    ]);
+    // A channel without its width is rejected by both.
+    await both([
+      'PUT',
+      `/api/sessions/${id}/drawings`,
+      {
+        drawings: [
+          {
+            kind: 'channel',
+            id: 'c2',
+            t1: ds.firstTime,
+            p1: close,
+            t2: ds.firstTime + 600,
+            p2: close,
+          },
+        ],
+      },
+    ]);
     await both(['GET', '/api/sessions']);
     // Errors match too.
     await both([

@@ -6,7 +6,20 @@ import { t, type MessageKey } from './i18n.js';
 import { el } from './format.js';
 
 export type PaletteTool =
-  'hline' | 'tline' | 'rect' | 'text' | 'arrow' | 'freehand' | 'long' | 'short' | null;
+  | 'hline'
+  | 'tline'
+  | 'ray'
+  | 'vline'
+  | 'channel'
+  | 'fib'
+  | 'measure'
+  | 'rect'
+  | 'text'
+  | 'arrow'
+  | 'freehand'
+  | 'long'
+  | 'short'
+  | null;
 
 export interface DrawingPaletteHooks {
   select: (tool: PaletteTool) => void;
@@ -29,6 +42,11 @@ export function writePaletteExpanded(
 const TOOLS: { key: Exclude<PaletteTool, null>; i18n: MessageKey }[] = [
   { key: 'hline', i18n: 'pr.hline' },
   { key: 'tline', i18n: 'pr.tline' },
+  { key: 'ray', i18n: 'v1.toolRay' },
+  { key: 'vline', i18n: 'v1.toolVline' },
+  { key: 'channel', i18n: 'v1.toolChannel' },
+  { key: 'fib', i18n: 'v1.toolFib' },
+  { key: 'measure', i18n: 'v1.toolMeasure' },
   { key: 'rect', i18n: 'pr.rect' },
   { key: 'text', i18n: 'pr.textTool' },
   { key: 'arrow', i18n: 'pr.arrowTool' },

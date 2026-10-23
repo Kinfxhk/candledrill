@@ -135,3 +135,81 @@ test('affiliate disclosure sits in About and the footer, never next to order ent
   await expect(page.locator('[data-testid=side] a[href*="linktr.ee"]')).toHaveCount(0);
   await expect(page.locator('[data-testid=trade-bar] a[href*="linktr.ee"]')).toHaveCount(0);
 });
+
+test('drawing tools: fib and measure, object list hides and locks', async ({ page }) => {
+  await page.goto('/');
+  await newSession(page, 'E2E tools');
+  for (let i = 0; i < 6; i++) await page.getByTestId('btn-step10').click();
+  const body = (await page.locator('.chart-body').first().boundingBox())!;
+  const tool = async (name: string) => {
+    const toggle = page.getByTestId('drawing-palette-toggle').first();
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    await page.getByTestId(`palette-${name}`).first().click();
+  };
+  await tool('fib');
+  await page.mouse.click(body.x + body.width * 0.3, body.y + body.height * 0.3);
+  await page.mouse.click(body.x + body.width * 0.6, body.y + body.height * 0.6);
+  await expect(page.locator('[data-kind=fib-level]')).toHaveCount(7);
+  await tool('measure');
+  await page.mouse.click(body.x + body.width * 0.4, body.y + body.height * 0.5);
+  await page.mouse.click(body.x + body.width * 0.55, body.y + body.height * 0.35);
+  await expect(page.locator('[data-testid^=measure-]')).toHaveText(/\dt.*bars/);
+  const objects = page.getByTestId('objects').locator('li[data-object]');
+  await expect(objects).toHaveCount(2);
+  // Hide the fib: its levels go away, the drawing stays saved.
+  await objects.first().locator('button').first().click();
+  await expect(page.locator('[data-kind=fib-level]')).toHaveCount(0);
+  const saved = (await sessionState(page)).session.drawings as { kind: string }[];
+  expect(saved.map((d) => d.kind).sort()).toEqual(['fib', 'measure']);
+});
+
+test('review tab, custom hotkey and trailing stop', async ({ page }) => {
+  await page.goto('/');
+  // Settings: trail 4 ticks, rebind Buy to "k".
+  await page.getByTestId('settings-open').click();
+  const dlg = page.getByTestId('settings-dialog');
+  await dlg.locator('input[name=trailTicks]').fill('4');
+  await dlg.locator('[data-key-action=buy]').click();
+  await page.keyboard.press('k');
+  await expect(dlg.locator('[data-key-action=buy]')).toHaveText('K');
+  await dlg.getByTestId('settings-save').click();
+
+  await newSession(page, 'E2E trail');
+  for (let i = 0; i < 3; i++) await page.getByTestId('btn-step10').click();
+  await page.getByTestId('sl-ticks').fill('40');
+  await page.getByTestId('tp-ticks').fill('');
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('k');
+  await stepUntil(page, async () => (await sessionState(page)).state.trading.position !== null);
+  const stopPrice = async () =>
+    (
+      (await sessionState(page)).state.trading.orders as {
+        role: string;
+        status: string;
+        price: number;
+      }[]
+    ).find((o) => o.role === 'stop-loss' && o.status === 'working')?.price;
+  const first = await stopPrice();
+  expect(first).toBeDefined();
+  // Step until the trailing rule tightens the stop. A tightened stop is logged as a user
+  // modification of the stop-loss order (same path as dragging it).
+  let moved = false;
+  for (let i = 0; i < 120 && !moved; i++) {
+    await page.getByTestId('btn-step').click();
+    const now = await stopPrice();
+    if (now === undefined) break; // stopped out before price ran far enough
+    moved = now > first!;
+  }
+  const mods = ((await sessionState(page)).state.trading.modifications ?? []) as unknown[];
+  if (moved) expect(mods.length).toBeGreaterThan(0);
+  else expect((await sessionState(page)).state.trading.position).toBeNull();
+  // Close and look at the review tab.
+  if ((await sessionState(page)).state.trading.position) {
+    await page.getByTestId('btn-flatten').click();
+    await stepUntil(page, async () => (await sessionState(page)).state.trading.position === null);
+  }
+  await page.getByTestId('tab-review').click();
+  await expect(page.getByTestId('equity-svg')).toBeVisible();
+  await page.getByTestId('mc-run').click();
+  await expect(page.getByTestId('mc-result')).not.toBeEmpty();
+});

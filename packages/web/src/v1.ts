@@ -8,13 +8,36 @@ import { getLang, t } from './i18n.js';
 import { el, toast } from './format.js';
 import { ProfileManager } from './rules-view.js';
 import {
+  DEFAULT_KEYS,
   DEFAULT_SETTINGS,
   getSettings,
   loadSettings,
   readProfiles,
   saveSettings,
+  type HotkeyAction,
   type UiSettings,
 } from './settings.js';
+import type { MessageKey } from './i18n.js';
+
+const KEY_LABELS: Record<HotkeyAction, MessageKey> = {
+  step: 'pr.step',
+  back: 'v1.rewind',
+  play: 'pr.play',
+  buy: 'pr.buy',
+  sell: 'pr.sell',
+  flatten: 'pr.flatten',
+  checkpoint: 'v1.checkpoint',
+  slower: 'v1.keySlower',
+  faster: 'v1.keyFaster',
+};
+const ARROWS: Record<string, string> = {
+  arrowleft: '←',
+  arrowright: '→',
+  arrowup: '↑',
+  arrowdown: '↓',
+};
+/** Readable key name for the settings table. */
+const keyName = (k: string) => (k === ' ' ? 'Space' : (ARROWS[k] ?? k.toUpperCase()));
 
 export const REFERRAL_URL = 'https://linktr.ee/kinfx';
 
@@ -51,6 +74,52 @@ export function mountSettings(button: HTMLElement): void {
       value: s.qtyPresets.join(', '),
       inputmode: 'numeric',
     });
+    const numN = (name: string, v: number | null) =>
+      el('input', {
+        type: 'number',
+        name,
+        min: '0',
+        step: '1',
+        inputmode: 'numeric',
+        ...(v ? { value: String(v) } : {}),
+      });
+    // Click a key cell, then press the new key (Esc keeps the old one). A key already in use
+    // swaps with the action that had it, so no two actions share a key.
+    const keys = { ...s.keys };
+    const keyTable = el('div', { class: 'key-table', 'data-testid': 'key-table' });
+    const drawKeys = () =>
+      keyTable.replaceChildren(
+        ...(Object.keys(DEFAULT_KEYS) as HotkeyAction[]).map((a) => {
+          const b = el(
+            'button',
+            { type: 'button', class: 'small key', 'data-key-action': a },
+            keyName(keys[a]),
+          );
+          b.addEventListener('click', () => {
+            b.textContent = '…';
+            const on = (e: KeyboardEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.removeEventListener('keydown', on, true);
+              const k = e.key.toLowerCase();
+              if (k !== 'escape') {
+                for (const other of Object.keys(keys) as HotkeyAction[])
+                  if (other !== a && keys[other] === k) keys[other] = keys[a];
+                keys[a] = k;
+              }
+              drawKeys();
+            };
+            window.addEventListener('keydown', on, true);
+          });
+          return el(
+            'label',
+            { class: 'row' },
+            el('span', { class: 'key-name' }, t(KEY_LABELS[a])),
+            b,
+          );
+        }),
+      );
+    drawKeys();
     const field = (label: string, ctl: HTMLElement) =>
       el('label', { class: 'field' }, el('span', {}, label), ctl);
     const row = (ctl: HTMLElement, label: string) =>
@@ -117,8 +186,23 @@ export function mountSettings(button: HTMLElement): void {
         { class: 'row', style: 'margin-top:8px' },
         row(check('confirmFlatten', s.confirmFlatten), t('v1.setConfirm')),
       ),
+      el('h3', {}, t('v1.setStops')),
+      el(
+        'div',
+        { class: 'grid3' },
+        field(t('v1.setBreakEven'), numN('breakEvenTicks', s.breakEvenTicks)),
+        field(t('v1.setBreakEvenOffset'), numN('breakEvenOffset', s.breakEvenOffset || null)),
+        field(t('v1.setTrail'), numN('trailTicks', s.trailTicks)),
+      ),
+      el('p', { class: 'muted small' }, t('v1.setStopsNote')),
+      el(
+        'div',
+        { class: 'row', style: 'margin-top:8px' },
+        row(check('previewBracket', s.previewBracket), t('v1.setPreview')),
+        row(check('magnet', s.magnet), t('v1.setMagnet')),
+      ),
       el('h3', {}, t('v1.setHotkeys')),
-      el('p', { class: 'muted small keys' }, t('v1.keysList')),
+      keyTable,
       el(
         'div',
         { class: 'row', style: 'justify-content:space-between;margin-top:12px' },
@@ -144,6 +228,12 @@ export function mountSettings(button: HTMLElement): void {
         defaultSl: n('defaultSl'),
         defaultTp: n('defaultTp'),
         confirmFlatten: fd.get('confirmFlatten') === 'on',
+        breakEvenTicks: n('breakEvenTicks'),
+        breakEvenOffset: n('breakEvenOffset') ?? 0,
+        trailTicks: n('trailTicks'),
+        previewBracket: fd.get('previewBracket') === 'on',
+        magnet: fd.get('magnet') === 'on',
+        keys,
       });
       toast(t('v1.setSaved'));
     });
