@@ -6,7 +6,7 @@
 >
 > 手機、平板、電腦瀏覽器都可以用，不用安裝、不用登入。資料只存於你自己的瀏覽器，不會上傳。
 
-> **v1.0.6** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> **v1.0.7** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill 練習畫面：雙時框、好倉 R、括號單、下單票與成交紀錄](docs/screenshot.png)
 
@@ -269,7 +269,7 @@ CandleDrill 免費，也會持續免費。若這個工具對你有幫助：https
 >
 > Works in any phone, tablet or desktop browser. No install, no sign-in. Your data stays in your own browser.
 
-> **v1.0.6** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v1.0.7** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 
@@ -403,7 +403,7 @@ Older session files still import: `anchorMinutes` copies `dayStartMinutes`, and 
 
 ## Practice data
 
-- **One-click demo:** Pick a practice timeframe (default 1 minute), then **Generate demo data** builds synthetic bars at one third of that timeframe (1m←20s, 5m←100s, 15m←5m; 1h and 1D follow the same rule, `SYNTH-…`). The chart menu does not add a seconds timeframe. Forming updates from the source; fills still follow practice-timeframe closes. Same seed → same bars.
+- **One-click demo:** Pick a practice timeframe (default 1 minute), then **Generate demo data** builds synthetic bars at one third of that timeframe (1m←20s, 5m←100s, 15m←5m, 1h←20m, 1D←8h, `SYNTH-…`). 1m–1h use the 08:00–16:30 session. 1D uses a full day so the three 8h bars can form the daily candle. The chart menu does not add a seconds timeframe. Forming updates from the source; fills still follow practice-timeframe closes. Same seed → same bars.
 - **Longer Globex-like sample (synthetic only):** [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples) — import `SYNTH-NQ-GLOBEX_1min.csv` as symbol **`PRACTICE-NQ-GLOBEX`**, tick size **`0.25`**, UTC offset **`-300`**.
 - Or **Import CSV** of data you are entitled to use. CandleDrill ships **no real market data**.
 
