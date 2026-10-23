@@ -2,7 +2,11 @@
 
 **CandleDrill**（中文：**K線操練場**）是免費、開源的 **K 線回放練習工具**：匯入 K 線 → 逐根前進（看不到未來）→ 模擬下單 → 檢討結果。電腦、平板、手機都可以用。無需帳戶、無訂閱、無遙測。**不構成投資建議。**
 
-> **v1.0.0** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> ### ▶ 線上版，開網址即玩：**<https://kinfxhk.github.io/candledrill/>**
+>
+> 手機、平板、電腦瀏覽器都可以用，不用安裝、不用登入。資料只存於你自己的瀏覽器，不會上傳。
+
+> **v1.0.1** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill 練習畫面：雙時框、好倉 R、括號單、下單票與成交紀錄](docs/screenshot.png)
 
@@ -39,11 +43,11 @@ npm start
 
 ## 三種版面
 
-| 裝置                      | 版面                                                                                                                 |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 桌面（≥ 1200px）          | 圖表佔大部分畫面；右欄由上至下：落單、持倉、規則檢查、練習規則、存檔點、繪圖物件；底部面板平時收成一條分頁列。       |
-| 平板橫放（900–1199px）    | 右欄收窄，仍與圖表並排。                                                                                             |
-| 平板直放、手機（< 900px） | 圖表優先；右欄變側邊抽屜（按「面板」）；底部固定交易列：退後／播放／下一根／+10，沽出／數量／買入／平倉，按鈕 44px。 |
+| 裝置                      | 版面                                                                                                                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 桌面（≥ 1200px）          | 圖表佔大部分畫面；右欄由上至下：落單、持倉、規則檢查、練習規則、存檔點、繪圖物件；底部面板平時收成一條分頁列。                                                                                    |
+| 平板橫放（900–1199px）    | 右欄收窄，仍與圖表並排。                                                                                                                                                                          |
+| 平板直放、手機（< 900px） | 圖表優先；右欄變側邊抽屜（按「面板」）；底部固定交易列：退後／播放（播放中變暫停）／下一根／+10，沽出／數量／買入／平倉。任何面板（抽屜、交易分頁、指標、畫圖工具）撳外面即收起，畫面不用左右掃。 |
 
 ![手機版：大圖表與底部交易列](docs/shot-phone.png)
 
@@ -58,6 +62,7 @@ npm start
 ### 回放手感
 
 - **逐根前進**、+10、播放（0.5×–120×／秒），**退後**一步（左方向鍵）撤銷上一個動作，連同其成交。
+- 「下一根」以練習時框計：示範數據是 10 秒 K、練習時框 1 分鐘，按一下就走完一根 1 分鐘 K（6 根 10 秒），市價單即在下一根 1 分鐘開市成交。
 - **存檔點**：保存當下一刻，之後一鍵回到該處重練同一段。
 - **跳到**指定時間（非盲練）。
 - 圖表：滾輪／雙指縮放、拖曳平移、雙擊價格軸重設；左上角顯示開高低收。
@@ -260,7 +265,11 @@ CandleDrill 免費，也會持續免費。若這個工具對你有幫助：https
 
 **CandleDrill** (Chinese: **K線操練場**) is a free, open-source **candlestick replay practice** tool: load bars → step without seeing the future → place simulated orders → review. Works on desktop, tablet and phone. No account, no subscription, no telemetry. **Not investment advice.**
 
-> **v1.0.0** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> ### ▶ Try it online: **<https://kinfxhk.github.io/candledrill/>**
+>
+> Works in any phone, tablet or desktop browser. No install, no sign-in. Your data stays in your own browser.
+
+> **v1.0.1** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 
@@ -301,17 +310,18 @@ Open <http://127.0.0.1:4870/> on this machine. Data stays in `~/.candledrill/`. 
 
 ## Three layouts
 
-| Device                           | Layout                                                                                                                                                                           |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Desktop (≥ 1200px)               | Chart takes most of the screen; the rail holds, top to bottom: order ticket, position, rule check, practice rules, save points, drawings; the bottom panel folds to a tab strip. |
-| Tablet landscape (900–1199px)    | Narrower rail, still beside the chart.                                                                                                                                           |
-| Tablet portrait, phone (< 900px) | Chart first; the rail is a drawer (**Panel**); a sticky trade bar: back / play / next / +10, sell / qty / buy / close, 44px buttons.                                             |
+| Device                           | Layout                                                                                                                                                                                                                                                                         |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Desktop (≥ 1200px)               | Chart takes most of the screen; the rail holds, top to bottom: order ticket, position, rule check, practice rules, save points, drawings; the bottom panel folds to a tab strip.                                                                                               |
+| Tablet landscape (900–1199px)    | Narrower rail, still beside the chart.                                                                                                                                                                                                                                         |
+| Tablet portrait, phone (< 900px) | Chart first; the rail is a drawer (**Panel**); a sticky trade bar: back / play (shows pause while playing) / next / +10, sell / qty / buy / close. Any panel (drawer, bottom tabs, indicators, draw tools) closes when you tap outside it, and nothing needs a sideways swipe. |
 
 ## What you can do
 
 ### Replay feel
 
 - **Step**, +10, play (0.5–120 bars/s), and **Back** (Left arrow) undoes the last action, fills included.
+- **Next bar** counts practice bars: with 10s demo data and a 1m practice timeframe, one press completes a whole 1m bar (six 10s bars), so a market order fills at the next 1m open.
 - **Save points** keep a moment so you can return and drill the same stretch again.
 - **Jump to** a time (non-blind); **two charts** with linked crosshair and scroll, each with its own timeframe (1m → daily).
 - Chart: wheel / pinch zoom, drag to pan, double-click the price scale to reset; OHLC legend top-left.

@@ -1,0 +1,388 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/*
+ * Phone rules (loaded last). Principles:
+ * - No sideways swiping anywhere: rows wrap or reflow instead of scrolling horizontally,
+ *   so an edge swipe never turns into the browser's "back" gesture by accident.
+ * - The practice screen fills the visible viewport (dvh) and keeps its last row above
+ *   Safari's floating toolbar.
+ * - Inputs use 16px text on touch screens so iOS does not zoom the page on focus.
+ * - Panels open with a tap, close with a tap outside, Escape, or their own ✕ (overlays.ts).
+ */
+
+/* ---------- never scroll the page sideways */
+/* clip, not hidden: hidden on html/body turns body into its own scroll container, which
+   breaks scrolling and stacking on desktop. clip only cuts the overflow. */
+html {
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
+/* ---------- 16px text in touch fields (iOS zooms below 16px); --fs-input is set in align.css */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='color'], [type='range'], [type='button']),
+  select,
+  textarea {
+    font-size: var(--fs-input, 16px) !important;
+  }
+}
+
+/* ---------- forms (columns: styles.css ≤1000px); inputs in a row share one bottom line */
+label.field {
+  min-width: 0;
+  justify-content: flex-end;
+}
+label.field > span {
+  /* Labels may wrap; the input below always sits at the bottom of its cell. */
+  overflow-wrap: anywhere;
+}
+label.field > input,
+label.field > select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.grid2,
+.grid3 {
+  align-items: end;
+}
+.grid2 > *,
+.grid3 > * {
+  min-width: 0;
+}
+/* Native date / time controls: same box as every other input (iOS sizes them itself). */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+input[type='date']::-webkit-date-and-time-value,
+input[type='time']::-webkit-date-and-time-value,
+input[type='datetime-local']::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+
+/* ---------- saved sessions: cards on phones instead of a wide table */
+@media (max-width: 639px) {
+  #session-table,
+  #session-table tbody {
+    display: block;
+    width: 100%;
+  }
+  #session-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px var(--sp2, 8px);
+    padding: var(--sp2, 8px) 0;
+    border-bottom: 1px solid var(--border);
+  }
+  #session-table td {
+    display: block;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  /* Name + details on the left, actions stacked on the right. */
+  #session-table td:last-child {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: stretch;
+  }
+}
+
+/* ---------- header on phones: one row, nothing past the right edge */
+@media (max-width: 639px) {
+  header.app {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+  header.app .brand small {
+    display: none;
+  }
+  #lang-picker {
+    max-width: 96px;
+    flex: 0 1 auto;
+    min-width: 0;
+    text-overflow: ellipsis;
+  }
+  header.app nav.tabs {
+    flex: 0 0 auto;
+  }
+}
+
+/* ---------- practice: no horizontal scrollers on phones */
+@media (max-width: 899px), (max-height: 520px) {
+  /* Toolbar shows clock, P&L and Panel only; nothing to scroll. */
+  .toolbar {
+    overflow: hidden;
+    flex-wrap: nowrap;
+  }
+  /* Bottom tabs wrap into two rows instead of a sideways strip. */
+  .bottom .tabbar {
+    flex-wrap: wrap;
+    overflow: visible;
+    height: auto;
+    row-gap: var(--sp1, 4px);
+    padding: var(--sp1, 4px) var(--sp2, 8px);
+    mask-image: none;
+  }
+  .bottom:not(.expanded):not(.macro-open) {
+    height: auto;
+  }
+  .bottom .tabbar .bottom-toggle {
+    position: static;
+    margin-left: auto;
+    box-shadow: none;
+  }
+  /* Open bottom panel: at most half the screen, chart keeps the rest. */
+  .bottom.expanded,
+  .bottom.macro-open {
+    height: min(50dvh, 420px);
+  }
+  /* The chart canvas handles its own drags; stop them from becoming page gestures. */
+  .chart-body {
+    touch-action: none;
+    overscroll-behavior: contain;
+  }
+}
+
+/* ---------- full visible height; last row above Safari's floating toolbar */
+@media (max-width: 899px) {
+  .practice-root {
+    height: calc(100dvh - 40px);
+  }
+  .bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ---------- drawer: explicit close button, dim the page behind it */
+.sheet-close {
+  display: none;
+}
+@media (max-width: 899px), (max-height: 520px) {
+  .sheet-close {
+    display: inline-flex;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    align-self: flex-end;
+    width: var(--h-md, 40px);
+    padding: 0;
+    font-size: 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+  }
+  .side {
+    overscroll-behavior: contain;
+  }
+}
+
+/* ---------- play button state and Draw button in use */
+.trade-bar [data-testid='tb-play'].playing {
+  background: var(--panel-2);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.drawing-palette-toggle.active-tool {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- toasts never block controls: taps pass through, and they sit above the bars */
+.toast {
+  pointer-events: none;
+}
+.toast.error {
+  pointer-events: auto;
+}
+
+/* ---------- header on phones: Settings / About fold into one compact row */
+@media (max-width: 639px) {
+  header.app {
+    gap: var(--sp1, 4px);
+  }
+  header.app .brand {
+    font-size: 14px;
+  }
+  header.app button,
+  header.app select {
+    padding: 0 8px;
+  }
+  /* The brand shrinks to its mark so Language, Settings and About (with the disclosure)
+     all stay reachable on one row. */
+  header.app .brand {
+    font-size: 0;
+    gap: 0;
+  }
+  header.app .brand .mark {
+    margin: 0;
+  }
+  #lang-picker {
+    width: 76px;
+    max-width: 76px;
+    flex: 0 0 auto;
+  }
+}
+
+/* ---------- narrow phones: Settings and About as icons (text stays for screen readers) */
+@media (max-width: 479px) {
+  #settings-open,
+  #about-open {
+    font-size: 0;
+    width: var(--h-md, 40px);
+    padding: 0;
+    flex: 0 0 auto;
+  }
+  #settings-open::before,
+  #about-open::before {
+    font-size: 18px;
+    line-height: 1;
+  }
+  #settings-open::before {
+    content: '⚙';
+  }
+  #about-open::before {
+    content: 'ⓘ';
+  }
+}
+
+/* ---------- phone landscape: one row of tabs; the less-used ones wait in the open panel */
+@media (max-height: 520px) {
+  .bottom .tabbar {
+    flex-wrap: nowrap;
+    overflow: hidden;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  /* Folded: Trades, Orders, Journal and the toggle; the rest appear once the panel is open. */
+  .bottom:not(.expanded):not(.macro-open)
+    .tabbar
+    button[role='tab']:not(
+      [data-testid='tab-trades'],
+      [data-testid='tab-orders'],
+      [data-testid='tab-journal'],
+      [data-testid='tab-review']
+    ) {
+    display: none;
+  }
+  .bottom.expanded .tabbar,
+  .bottom.macro-open .tabbar {
+    flex-wrap: wrap;
+  }
+}
+
+/* ---------- phone landscape height budget: compact rows so the chart keeps ≥ 150px */
+@media (max-height: 520px) {
+  .toolbar {
+    min-height: 32px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .toolbar button,
+  .toolbar select,
+  .toolbar .pnl-chip {
+    height: 28px;
+  }
+  .chart-cell .chart-head {
+    min-height: 30px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .chart-cell .chart-head button,
+  .chart-cell .chart-head select {
+    height: 26px;
+  }
+}
+
+/* ---------- Draw palette on phones: tools in a bottom sheet (like Indicators), so the
+   chart stays clear and an outside tap really lands outside. The Draw button stays put. */
+@media (max-width: 899px), (max-height: 520px) {
+  .drawing-palette:not(.collapsed) {
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+  }
+  .drawing-palette .drawing-palette-tools:not([hidden]) {
+    position: fixed;
+    left: var(--sp2, 8px);
+    right: var(--sp2, 8px);
+    bottom: calc(var(--sp2, 8px) + env(safe-area-inset-bottom));
+    z-index: 45;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sp1, 4px);
+    max-height: 50dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--sp2, 8px);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r, 6px);
+    box-shadow: 0 -6px 24px rgb(0 0 0 / 25%);
+  }
+  .drawing-palette .drawing-palette-tools button {
+    height: var(--h-md, 40px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* ---------- saved sessions (every width): the table never grows past its column, long names
+   wrap, and the action buttons keep their own column so nothing lands under the form. */
+#session-table {
+  table-layout: fixed;
+  width: 100%;
+}
+#session-table td {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+#session-table td:last-child {
+  width: 112px;
+}
+.library .left {
+  min-width: 0;
+}
+
+/* ---------- open bottom panel on phones: reviewing, not trading. The trade bar steps aside
+   (it returns when the panel folds), and the panel leaves the chart ≥ 40% of the screen. */
+@media (max-width: 899px) {
+  .practice-root:has(.bottom.expanded, .bottom.macro-open) .trade-bar {
+    display: none;
+  }
+  .bottom.expanded,
+  .bottom.macro-open {
+    height: min(42dvh, 380px);
+  }
+}
+/* ---------- narrow toolbar: one row (clock shrinks before anything wraps) */
+@media (max-width: 899px) {
+  .toolbar {
+    flex-wrap: nowrap;
+  }
+  .toolbar .clock {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1 1 auto;
+  }
+  .toolbar .pnl-chip,
+  .toolbar .sheet-toggle,
+  .toolbar [data-testid='blind-badge'],
+  .toolbar [data-testid='btn-reveal'] {
+    flex: 0 0 auto;
+  }
+}

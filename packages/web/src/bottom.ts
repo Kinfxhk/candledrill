@@ -383,7 +383,7 @@ export class BottomPanel {
         t(tab.key),
       );
       b.addEventListener('click', () => {
-        // A tab click always opens the panel; the ▾ toggle folds it back to the strip.
+        // A tab click always opens the panel; the toggle folds it back to the strip.
         this.active = tab.id;
         this.setExpanded(true);
         this.refresh();
@@ -397,9 +397,10 @@ export class BottomPanel {
         type: 'button',
         class: 'small ghost bottom-toggle',
         'data-testid': 'bottom-toggle',
-        'aria-label': 'toggle',
+        'aria-label': 'Show or hide the panel',
+        title: 'Show or hide the panel',
       },
-      '▴',
+      '',
     );
     this.toggle.addEventListener('click', () => this.setExpanded(!this.expanded));
     this.bar.append(this.toggle);
@@ -410,18 +411,36 @@ export class BottomPanel {
   private readonly root: HTMLElement;
   private readonly toggle: HTMLButtonElement;
   private expanded = false;
+  /** Told when the panel opens or folds (phones treat the open panel as an overlay). */
+  onExpandedChange: ((on: boolean) => void) | undefined;
   setExpanded(on: boolean): void {
+    const changed = this.expanded !== on;
     this.expanded = on;
+    if (changed) this.onExpandedChange?.(on);
     // Plain attribute API: the unit tests use a minimal DOM without classList.
     const cls = (this.root.className || '').split(/\s+/).filter((c) => c && c !== 'expanded');
     if (on) cls.push('expanded');
     this.root.className = cls.join(' ');
-    this.toggle.textContent = on ? '▾' : '▴';
+    // Arrow drawn in CSS (crisp in every font); the class flips it.
+    this.toggle.classList?.toggle('open', on);
+    this.toggle.setAttribute('aria-expanded', String(on));
   }
 
   render(s: SessionSettings, st: SessionStateDto, id: number): void {
     this.last = { s, st, id };
     this.refresh();
+  }
+
+  /** Hide a tab (and leave it if it is active), e.g. semi-auto during a hidden blind session. */
+  setTabHidden(id: string, hidden: boolean): void {
+    const i = this.tabs.findIndex((tab) => tab.id === id);
+    const b = this.bar.children[i] as HTMLElement | undefined;
+    if (!b) return;
+    b.hidden = hidden;
+    if (hidden && this.active === id) {
+      this.active = this.tabs[0]!.id;
+      this.refresh();
+    }
   }
 
   select(id: string): void {

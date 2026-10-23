@@ -63,7 +63,7 @@ export class LibraryView {
     // 10s source → default 1m pane shows a real forming candle (fills still at 1m close).
     const { dataset } = await api.createSynthetic(seed, start, 7, { timeframeSeconds: 10 });
     const bars = `${dataset.symbol}: ${dataset.barCount} ${t('lib.bars')}`;
-    toast(this.getBlindPref() ? `${bars} ${t('macro.blindStart')}` : bars);
+    toast(bars);
     await this.reload(dataset.id);
   }
 

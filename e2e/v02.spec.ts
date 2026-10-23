@@ -83,9 +83,14 @@ test('a delayed step from the previous session cannot change the newly opened se
     await expect(page.getByTestId('clock')).toHaveText(clock!);
     // The next live step must use B's state, and only advance B once.
     await page.getByTestId('btn-step').click();
+    // One press = finish the forming 1m bar and reveal one more (≤ 11 source bars of 10s
+    // data). A double-applied step would go past that.
     await expect
       .poll(async () => (await sessionByName(page, 'Race B')).state.cursor)
-      .toBe(b.state.cursor + 1);
+      .toBeGreaterThan(b.state.cursor);
+    expect((await sessionByName(page, 'Race B')).state.cursor).toBeLessThanOrEqual(
+      b.state.cursor + 11,
+    );
     await expect(page.getByTestId('position')).toContainText('Flat');
     await expect(page.getByTestId('clock')).not.toHaveText(clock!);
     expect(errors).toEqual([]);
@@ -356,7 +361,8 @@ test('session file import, full backup and restore, reminder', async ({ page }) 
   page.once('dialog', (d) => void d.accept());
   await page.locator('#restore-file').setInputFiles(backup);
   const restored = await restoreResp;
-  expect(restored.ok(), await restored.text()).toBe(true);
+  // Status only: the body can be evicted from the inspector cache once the app reloads.
+  expect(restored.ok(), `restore HTTP ${restored.status()}`).toBe(true);
   await expect(page.locator('.toast')).toContainText(
     new RegExp(`Restored \\d+ datasets and ${atBackup} sessions`),
     { timeout: 30_000 },

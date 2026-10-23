@@ -6,16 +6,33 @@ import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
 const base = process.argv[2] ?? 'http://127.0.0.1:4870';
+// README screenshots use the light theme (THEME=dark to compare).
+const THEME = process.env.THEME === 'dark' ? 'dark' : 'light';
+/** Pin the app theme as well as the media query (a stored preference would win). */
+async function pinTheme(target) {
+  await target.addInitScript((t) => {
+    const p = JSON.parse(localStorage.getItem('candledrill.prefs') ?? '{}');
+    localStorage.setItem(
+      'candledrill.prefs',
+      JSON.stringify({ lang: 'en', blind: true, ...p, theme: t }),
+    );
+  }, THEME);
+}
 const executablePath = process.env.PW_CHROMIUM_PATH;
 const browser = await chromium.launch(executablePath ? { executablePath } : {});
 mkdirSync('docs', { recursive: true });
 
+/** Remove transient toasts so a screenshot shows the whole UI (runs in the page). */
+const clearToasts = (page) =>
+  page.evaluate(() => globalThis.document.querySelectorAll('.toast').forEach((t) => t.remove()));
+
 async function freshPage() {
   const page = await browser.newPage({
     viewport: { width: 1440, height: 900 },
-    colorScheme: 'dark',
+    colorScheme: THEME,
     locale: 'en-US',
   });
+  await pinTheme(page);
   await page.goto(base, { waitUntil: 'networkidle' });
   return page;
 }
@@ -72,6 +89,7 @@ async function step(page, n = 1) {
   await page.waitForTimeout(4500);
   await page.mouse.move(body.x + body.width * 0.55, body.y + body.height * 0.5);
   await page.waitForTimeout(300);
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/screenshot.png' });
   await page.close();
   console.info('wrote docs/screenshot.png');
@@ -84,6 +102,7 @@ async function step(page, n = 1) {
   await step(page, 3);
   await page.getByTestId('blind-badge').waitFor({ timeout: 5000 });
   await page.waitForTimeout(500);
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-blind.png' });
   await page.close();
   console.info('wrote docs/shot-blind.png');
@@ -109,6 +128,7 @@ async function step(page, n = 1) {
     await hline.waitFor({ state: 'visible' });
   }
   await page.waitForTimeout(300);
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-drawings.png' });
   await page.close();
   console.info('wrote docs/shot-drawings.png');
@@ -132,6 +152,7 @@ async function step(page, n = 1) {
   const body = await page.locator('.chart-body').first().boundingBox();
   await page.mouse.move(body.x + body.width * 0.6, body.y + body.height * 0.45);
   await page.waitForTimeout(400);
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-multitf.png' });
   await page.close();
   console.info('wrote docs/shot-multitf.png');
@@ -157,6 +178,7 @@ async function step(page, n = 1) {
   }
   await page.waitForTimeout(800);
   // Keep panel open for the screenshot
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-indicators.png' });
   await page.close();
   console.info('wrote docs/shot-indicators.png');
@@ -185,6 +207,7 @@ async function step(page, n = 1) {
   await page.getByTestId('macro-run').waitFor({ state: 'visible' });
   await page.getByTestId('macro-arm').waitFor({ state: 'visible' });
   await page.waitForTimeout(300);
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-semi-run.png' });
   console.info('wrote docs/shot-semi-run.png');
   await page.getByTestId('macro-run').click();
@@ -194,6 +217,7 @@ async function step(page, n = 1) {
     .waitFor({ state: 'hidden', timeout: 6000 })
     .catch(() => undefined);
   await page.waitForTimeout(300);
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-semi-result.png' });
   await page.close();
   console.info('wrote docs/shot-semi-result.png');
@@ -227,12 +251,13 @@ async function v1Page(viewport, mobile) {
     deviceScaleFactor: mobile ? 2 : 1,
     isMobile: mobile,
     hasTouch: mobile,
-    colorScheme: 'dark',
+    colorScheme: THEME,
     locale: 'en-US',
   });
   await ctx.addInitScript((p) => {
     localStorage.setItem('candledrill.profiles.v1', JSON.stringify([p]));
   }, PROFILE);
+  await pinTheme(ctx);
   const page = await ctx.newPage();
   await page.goto(base, { waitUntil: 'networkidle' });
   const demoBtn = page.locator('#btn-demo');
@@ -258,11 +283,13 @@ async function v1Page(viewport, mobile) {
   await step(page, 6);
   await page.waitForTimeout(4500);
   await page.getByTestId('rule-check').scrollIntoViewIfNeeded();
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-rules.png' });
   console.info('wrote docs/shot-rules.png');
   await page.getByTestId('tab-review').click();
   await page.getByTestId('mc-run').click();
   await page.waitForTimeout(400);
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-review.png' });
   console.info('wrote docs/shot-review.png');
   await ctx.close();
@@ -273,6 +300,7 @@ async function v1Page(viewport, mobile) {
   await page.getByTestId('tb-buy').click();
   for (let i = 0; i < 2; i++) await page.getByTestId('tb-step10').click();
   await page.waitForTimeout(4500);
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-phone.png' });
   console.info('wrote docs/shot-phone.png');
   await ctx.close();
@@ -283,6 +311,7 @@ async function v1Page(viewport, mobile) {
   await page.getByTestId('btn-buy').click();
   await step(page, 2);
   await page.waitForTimeout(4500);
+  await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-tablet.png' });
   console.info('wrote docs/shot-tablet.png');
   await ctx.close();
