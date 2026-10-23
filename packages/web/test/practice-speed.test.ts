@@ -226,6 +226,60 @@ describe('forming paint budget', () => {
     expect(painted).toHaveLength(4);
     view.close();
   });
+
+  it('1D Next paints three 8h steps instead of snapping the day', async () => {
+    vi.useFakeTimers();
+    const day = Date.UTC(2026, 9, 5) / 1000;
+    const eightHours = 28800;
+    const closedDay = [0, eightHours, eightHours * 2].map((off) => bar(day + off));
+    const nextDay = [0, eightHours, eightHours * 2].map((off) => bar(day + 86400 + off));
+    const dailySettings = { ...settings, practiceTimeframeSeconds: 86400 };
+    const opened = {
+      ...a,
+      bars: closedDay,
+      cursorTime: closedDay[2]!.time,
+      session: { ...a.session, settings: dailySettings },
+      state: createSession(closedDay, dailySettings, closedDay[2]!.time),
+    };
+    vi.mocked(sessionsApi.open).mockResolvedValue(structuredClone(opened));
+    const step = vi.spyOn(sessionsApi, 'step').mockImplementation(async () => ({
+      ...opened,
+      state: { ...opened.state, cursor: opened.state.cursor + 3 },
+      cursorTime: nextDay[2]!.time,
+      revealed: nextDay,
+    }));
+    const view = new PracticeView();
+    await view.open(1);
+    const steps = (view as unknown as { practiceSteps(n: number): number }).practiceSteps(1);
+    expect(steps).toBe(3);
+
+    const painted: number[] = [];
+    (
+      view as unknown as {
+        panes: {
+          chart: { updateBar(b: { time: number }): void; destroy(): void };
+          agg: { push(b: unknown): { bar: unknown } };
+        }[];
+      }
+    ).panes.push({
+      chart: {
+        updateBar: (b) => painted.push(b.time),
+        destroy: () => {},
+      },
+      agg: { push: (b) => ({ bar: b }) },
+    });
+    await (view as unknown as { stepBars(n: number): Promise<void> }).stepBars(1);
+    expect(step).toHaveBeenCalledTimes(1);
+    expect(step).toHaveBeenLastCalledWith(1, 3);
+    // The first 8h print is on screen; the day is not finished in that paint.
+    expect(painted).toEqual([nextDay[0]!.time]);
+
+    await vi.advanceTimersByTimeAsync(210);
+    expect(painted).toEqual([nextDay[0]!.time, nextDay[1]!.time]);
+    await vi.advanceTimersByTimeAsync(210);
+    expect(painted).toEqual(nextDay.map((b) => b.time));
+    view.close();
+  });
 });
 
 describe('drag-to-modify rejection', () => {

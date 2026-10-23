@@ -2,14 +2,20 @@
 import { describe, expect, it } from 'vitest';
 import {
   aggregateBars,
+  bucketStart,
   checkSessionState,
   createSession,
+  DEFAULT_DEMO_SESSION_SECONDS,
+  DEFAULT_SYNTHETIC_CALENDAR,
   defaultPracticeTimeframe,
+  demoSessionSeconds,
+  expandSessions,
   FORMING_PARTS,
   formingSourceSeconds,
   generateSyntheticBars,
   practiceChartTimeframes,
   sessionPlaceOrder,
+  STANDARD_TIMEFRAMES,
   stepSession,
   type SessionSettings,
 } from '../src/index.js';
@@ -259,6 +265,116 @@ describe('dual-cursor forming (10s source / 1m fill)', () => {
       expect(list).not.toContain(100);
       expect(list).not.toContain(150);
     }
+  });
+
+  it('keeps the ÷3 divisor and stretches only the 1D demo session', () => {
+    expect(FORMING_PARTS).toBe(3);
+    expect(formingSourceSeconds(86400)).toBe(28800);
+    expect(demoSessionSeconds(60)).toBe(DEFAULT_DEMO_SESSION_SECONDS);
+    expect(demoSessionSeconds(300)).toBe(DEFAULT_DEMO_SESSION_SECONDS);
+    expect(demoSessionSeconds(900)).toBe(DEFAULT_DEMO_SESSION_SECONDS);
+    expect(demoSessionSeconds(3600)).toBe(DEFAULT_DEMO_SESSION_SECONDS);
+    expect(demoSessionSeconds(86400)).toBe(86400);
+    const span = expandSessions(DEFAULT_SYNTHETIC_CALENDAR, '2026-10-05', 1)[0]!;
+    expect(span.minutes * 60).toBe(DEFAULT_DEMO_SESSION_SECONDS);
+  });
+
+  it.each(STANDARD_TIMEFRAMES)(
+    'a %is demo holds FORMING_PARTS source prints in the first practice bar',
+    (practice) => {
+      const sourceTf = formingSourceSeconds(practice);
+      const fine = generateSyntheticBars({
+        seed: 11,
+        startDate: '2026-10-05',
+        days: 1,
+        timeframeSeconds: sourceTf,
+      });
+      const bucket = bucketStart(fine.bars[0]!.time, practice, {
+        utcOffsetMinutes: 0,
+        dayStartMinutes: 0,
+      });
+      const inBucket = fine.bars.filter(
+        (b) =>
+          bucketStart(b.time, practice, { utcOffsetMinutes: 0, dayStartMinutes: 0 }) === bucket,
+      );
+      // The first practice bar is built from real source bars, not one snap.
+      expect(inBucket).toHaveLength(FORMING_PARTS);
+      for (let i = 1; i < inBucket.length; i++) {
+        expect(inBucket[i]!.time - inBucket[i - 1]!.time).toBe(sourceTf);
+      }
+    },
+  );
+
+  it('1D Next/Play forms across three 8h prints and still fills on the daily close', () => {
+    const practice = 86400;
+    const sourceTf = formingSourceSeconds(practice);
+    const fine = generateSyntheticBars({
+      seed: 7,
+      startDate: '2026-10-05',
+      days: 12,
+      timeframeSeconds: sourceTf,
+    });
+    const source = fine.bars;
+    // One weekday, no explicit calendar: midnight, 08:00, 16:00. Not the 08:30 session.
+    expect(source[0]!.time % practice).toBe(0);
+    expect(source[1]!.time - source[0]!.time).toBe(sourceTf);
+    expect(source[2]!.time - source[1]!.time).toBe(sourceTf);
+    const practiceBars = aggregateBars(source, practice);
+    // Tuesday, so the fill check stays inside the same week.
+    const start = practiceBars[1]!.time;
+    const startIdx = source.findIndex((b) => b.time === start);
+    const settings: SessionSettings = { ...SETTINGS, practiceTimeframeSeconds: practice };
+
+    let s = createSession(source, settings, start);
+    expect(s.cursor).toBe(startIdx - 1);
+
+    const seen: number[] = [];
+    for (let n = 0; n < FORMING_PARTS - 1; n++) {
+      s = stepSession(source, settings, s, 1).state;
+      expect(s.trading.fills).toHaveLength(0);
+      const slice = source.slice(startIdx, s.cursor + 1);
+      const visible = aggregateBars(slice, practice);
+      expect(visible).toHaveLength(1);
+      expect(visible[0]!.time).toBe(start);
+      expect(visible[0]!.close).toBe(slice[slice.length - 1]!.close);
+      seen.push(visible[0]!.close);
+    }
+    // Two forming updates before the day closes. A single 8h print would have
+    // closed the day on the first step.
+    expect(new Set(seen).size).toBeGreaterThan(1);
+    expect(s.cursor - startIdx + 1).toBe(FORMING_PARTS - 1);
+
+    s = sessionPlaceOrder(source, settings, s, { side: 'buy', type: 'market', qty: 1 });
+    s = stepSession(source, settings, s, 1).state;
+    expect(s.trading.fills).toHaveLength(0);
+    expect(s.cursor - startIdx + 1).toBe(FORMING_PARTS);
+
+    const filled = stepSession(source, settings, s, FORMING_PARTS).state;
+    expect(filled.trading.fills.length).toBeGreaterThan(0);
+    expect(filled.trading.fills[0]!.time).toBe(start + practice);
+
+    const run = (bars: typeof source, tfSettings: SessionSettings, steps: number) => {
+      let state = createSession(bars, tfSettings, start);
+      state = sessionPlaceOrder(bars, tfSettings, state, {
+        side: 'buy',
+        type: 'market',
+        qty: 1,
+        stopLoss: practiceBars[1]!.open - 10,
+        takeProfit: practiceBars[1]!.open + 20,
+      });
+      return stepSession(bars, tfSettings, state, steps).state;
+    };
+    const dual = run(source, settings, 4 * FORMING_PARTS);
+    const legacy = run(practiceBars, SETTINGS, 4);
+    const slim = (f: (typeof dual.trading.fills)[number]) => ({
+      time: f.time,
+      side: f.side,
+      qty: f.qty,
+      price: f.price,
+      role: f.role,
+    });
+    expect(dual.trading.fills.map(slim)).toEqual(legacy.trading.fills.map(slim));
+    expect(dual.trading.realizedPnl).toBe(legacy.trading.realizedPnl);
   });
 
   it('without practiceTimeframeSeconds, each 10s bar still fills (path 1 — not V0 default)', () => {

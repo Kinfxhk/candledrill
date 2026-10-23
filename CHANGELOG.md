@@ -6,6 +6,12 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-10-23
+
+### Fixed
+
+- **1D demos form in three steps.** Timeframe ÷ 3 still emits 8h bars for 1D (`FORMING_PARTS` stays 3). The 08:00–16:30 session held only one of those bars, so the daily candle closed on the first print. A 1D demo with no explicit calendar now uses a midnight-aligned full day (00:00–24:00): three 8h prints, then the daily close. 1m, 5m, 15m and 1h stay on the 8.5h session. Passing a calendar leaves that session unchanged. Fills still run on the practice-timeframe close (fill model v4).
+
 ## [1.0.6] - 2026-10-23
 
 Forming candles use **timeframe ÷ 3** and paint across the whole play budget. The fill model is unchanged (v4): fills and rules still run on the practice-timeframe close.
