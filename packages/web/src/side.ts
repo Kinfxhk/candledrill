@@ -20,10 +20,13 @@ import {
 import { previewRisk, ticketOrder, type TicketInputs } from './risk.js';
 import type { SessionSettings, SessionStateDto } from './api.js';
 import { t, type MessageKey } from './i18n.js';
+import { getSettings } from './settings.js';
 import { orderRoleText, orderTypeText } from './labels.js';
 import { el, fmtMoney, fmtNum, signClass } from './format.js';
 
 export interface SideActions {
+  /** Called when ticket fields change (chart bracket preview). */
+  ticketChanged?: () => void;
   place(req: OrderRequest): Promise<void>;
   cancel(orderId: number): Promise<void>;
   modify(orderId: number, change: OrderChange): Promise<void>;
@@ -44,7 +47,7 @@ export class SidePanel {
   readonly ordersSection: HTMLElement;
   private readonly riskBox: HTMLElement;
   private readonly riskExpanded = new Map<string, boolean>();
-  private riskOpen = localStorage.getItem('candledrill.riskPreviewOpen') === '1';
+  private riskOpen = localStorage.getItem('candledrill.riskPreviewOpen') !== '0';
   private readonly positionBox: HTMLElement;
   private readonly rulesBox: HTMLElement;
   readonly extra: HTMLElement;
@@ -62,6 +65,7 @@ export class SidePanel {
   private readonly dialogTp: HTMLInputElement;
   private readonly dialogTpRow: HTMLElement;
   private dialogCurrentOrderId: number | null = null;
+  private readonly presets = el('div', { class: 'qty-presets row' });
 
   constructor(
     private readonly root: HTMLElement,
@@ -90,14 +94,21 @@ export class SidePanel {
       max: '10000',
       step: '1',
       value: '1',
+      inputmode: 'numeric',
       'data-testid': 'qty',
     });
-    this.price = el('input', { type: 'number', step: 'any', 'data-testid': 'price' });
+    this.price = el('input', {
+      type: 'number',
+      step: 'any',
+      inputmode: 'decimal',
+      'data-testid': 'price',
+    });
     this.sl = el('input', {
       type: 'number',
       min: '1',
       step: '1',
       placeholder: '–',
+      inputmode: 'numeric',
       'data-testid': 'sl-ticks',
     });
     this.tp = el('input', {
@@ -105,6 +116,7 @@ export class SidePanel {
       min: '1',
       step: '1',
       placeholder: '–',
+      inputmode: 'numeric',
       'data-testid': 'tp-ticks',
     });
     this.priceRow = label('pr.price', this.price);
@@ -133,7 +145,10 @@ export class SidePanel {
       'aria-atomic': 'true',
     });
     for (const input of [this.qty, this.price, this.sl, this.tp])
-      input.addEventListener('input', () => this.renderRisk());
+      input.addEventListener('input', () => {
+        this.renderRisk();
+        this.actions.ticketChanged?.();
+      });
 
     const ticket = el(
       'section',
@@ -146,6 +161,7 @@ export class SidePanel {
         label('pr.qty', this.qty),
         this.priceRow,
       ),
+      this.presets,
       el(
         'div',
         { class: 'grid2', style: 'margin-top:6px' },
@@ -226,7 +242,8 @@ export class SidePanel {
       this.dialogCurrentOrderId = null;
     });
 
-    this.root.replaceChildren(this.extra, ticket, position);
+    // Ticket and position first: trading must not need a scroll; rules and tools follow.
+    this.root.replaceChildren(ticket, position, this.extra);
     document.body.append(this.dialog);
     this.setType('market');
   }
@@ -245,6 +262,41 @@ export class SidePanel {
     if (this.type === 'market') this.setType('limit');
     this.price.value = String(roundToTick(p, this.settings.tickSize));
     this.renderRisk();
+  }
+
+  /** Ticket defaults and quantity preset chips from Settings. */
+  applyDefaults(): void {
+    const st = getSettings();
+    if (!this.sl.value && st.defaultSl) this.sl.value = String(st.defaultSl);
+    if (!this.tp.value && st.defaultTp) this.tp.value = String(st.defaultTp);
+    this.presets.replaceChildren(
+      ...st.qtyPresets.map((q) => {
+        const b = el(
+          'button',
+          { type: 'button', class: 'small', 'data-testid': `qty-${q}` },
+          String(q),
+        );
+        b.addEventListener('click', () => {
+          this.qty.value = String(q);
+          this.renderRisk();
+        });
+        return b;
+      }),
+    );
+    this.renderRisk();
+  }
+
+  /** Stop / target the ticket would place for a buy now (for the chart preview). */
+  previewBracket(): { stopLoss: number | null; takeProfit: number | null } | null {
+    if (!this.settings || !this.state) return null;
+    const o = ticketOrder(this.settings, this.state.trading.lastClose, this.ticketInputs(), 'buy');
+    return { stopLoss: o.stopLoss ?? null, takeProfit: o.takeProfit ?? null };
+  }
+
+  /** Market-style submit from the compact trade bar with its own quantity. */
+  async submitWith(side: Side, qty: number): Promise<void> {
+    this.qty.value = String(qty);
+    await this.submit(side);
   }
 
   async submit(side: Side): Promise<void> {

@@ -2,10 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { en, zhHant, setLang, t, type MessageKey } from '../src/i18n.js';
-import { zhHans } from '../src/i18n/zhHans.js';
-import { ja } from '../src/i18n/ja.js';
-import { ko } from '../src/i18n/ko.js';
+import { en, ja, ko, zhHans, zhHant, setLang, t, type MessageKey } from '../src/i18n.js';
 
 const dicts = { en, 'zh-Hant': zhHant, 'zh-Hans': zhHans, ja, ko };
 
@@ -35,6 +32,10 @@ describe('i18n', () => {
       'src/macro-panel.ts',
       'src/chart.ts',
       'src/summary.ts',
+      'src/v1.ts',
+      'src/rules-view.ts',
+      'src/settings.ts',
+      'src/review-tab.ts',
     ];
     const used = new Set<string>();
     for (const f of files) {

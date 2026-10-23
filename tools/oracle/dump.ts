@@ -7,8 +7,10 @@ import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  blankProfile,
   createSession,
   disguiseBars,
+  evaluateProfile,
   generateSyntheticBars,
   pickBlindParams,
   sessionFlatten,
@@ -18,6 +20,7 @@ import {
   tradeExcursions,
   workingOrders,
   type Bar,
+  type RuleProfile,
   type SessionSettings,
   type SessionState,
 } from '@candledrill/core';
@@ -137,6 +140,22 @@ function randomSteps(): number[][] {
   });
 }
 
+function randomProfile(): RuleProfile {
+  return {
+    ...blankProfile('oracle'),
+    consistencyPct: pick([null, 30, 50]),
+    minTradingDays: pick([null, 1, 2]),
+    maxTradingDays: pick([null, 2]),
+    minProfitDays: pick([null, 1, 2]),
+    minProfitDayAmount: pick([null, 50]),
+    maxContracts: pick([null, 1, 2]),
+    flatBy: pick([null, '15:55', '11:00']),
+    noOvernight: pick([false, true]),
+    maxTradesPerDay: pick([null, 1, 3]),
+    maxConsecutiveLosses: pick([null, 1, 2]),
+  };
+}
+
 const sessions: unknown[] = [];
 for (let i = 0; i < N; i++) {
   const tick = pick([0.25, 0.1, 1, 0.01]);
@@ -159,7 +178,13 @@ for (let i = 0; i < N; i++) {
     const bs = play(d, st, start, steps);
     blind = { params: p, bars: d, trades: bs.trading.trades, fills: bs.trading.fills };
   }
+  const profile = randomProfile();
+  const clock = { utcOffsetMinutes: st.utcOffsetMinutes, dayStartMinutes: st.dayStartMinutes };
+  const report = evaluateProfile(profile, st, state, clock, bars[state.cursor]!.time);
   sessions.push({
+    profile,
+    profileReport: report,
+    cursorTime: bars[state.cursor]!.time,
     settings: st,
     bars: bars.slice(0, state.cursor + 2),
     cursor: state.cursor,

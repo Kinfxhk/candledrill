@@ -1,7 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import './styles.css';
-import { api, ApiError, sessionsApi, type DatasetRow } from './api.js';
+import './v1.css';
+import {
+  api,
+  ApiError,
+  BROWSER_BACKEND,
+  downloadApi,
+  sessionsApi,
+  type DatasetRow,
+} from './api.js';
 import { applyI18n, setLang, t, type Lang } from './i18n.js';
+import { initSettings, setSessionProfile } from './settings.js';
+import {
+  mountBrowserNotice,
+  mountFooterLink,
+  mountProfiles,
+  mountRecommendations,
+  mountSettings,
+} from './v1.js';
 import { sessionStatusText } from './labels.js';
 import { LibraryView } from './library.js';
 import { PracticeView } from './practice.js';
@@ -57,6 +73,7 @@ const savePrefs = () => localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 
 document.documentElement.dataset.theme = prefs.theme;
 setLang(prefs.lang);
+initSettings();
 applyI18n();
 
 const practice = new PracticeView(() => {});
@@ -106,6 +123,7 @@ async function createSession(ds: DatasetRow, form: HTMLFormElement): Promise<voi
         })(),
       },
     });
+    setSessionProfile(view.session.id, pickedProfile());
     noteChange();
     await openSession(view.session.id);
   } catch (err) {
@@ -130,7 +148,17 @@ function markBackedUp(): void {
   saveBackup();
   renderReminder();
 }
-document.getElementById('btn-backup')!.addEventListener('click', markBackedUp);
+document.getElementById('btn-backup')!.addEventListener('click', (e) => {
+  if (BROWSER_BACKEND) {
+    // Browser build: the backup is a JSON file built in the page (no SQLite file).
+    e.preventDefault();
+    void downloadApi('/api/backup').then(markBackedUp, (err: Error) => toast(err.message, 'error'));
+    return;
+  }
+  markBackedUp();
+});
+if (BROWSER_BACKEND)
+  (document.getElementById('restore-file') as HTMLInputElement).accept = '.json,application/json';
 document.getElementById('remind-backup')!.addEventListener('click', () => {
   (document.getElementById('btn-backup') as HTMLAnchorElement).click();
 });
@@ -252,6 +280,16 @@ const library = new LibraryView(
   },
   () => prefs.blind,
 );
+
+const sessionForm = document.getElementById('new-session-form') as HTMLFormElement;
+const pickedProfile = mountProfiles(document.querySelector('#view-library .left')!, sessionForm);
+mountSettings(document.getElementById('settings-open')!);
+mountRecommendations(document.getElementById('about-dialog')!);
+mountFooterLink(
+  document.querySelector('footer.app')!,
+  document.getElementById('about-dialog') as HTMLDialogElement,
+);
+mountBrowserNotice(document.querySelector('#view-library .left')!);
 
 function showView(name: 'library' | 'practice'): void {
   if (name === 'library') void renderSessions();

@@ -354,4 +354,47 @@ describe('drawings API', () => {
     });
     expect(bad.statusCode).toBe(400);
   });
+
+  it('stores v1 drawing tools and round-trips them through a session file', async () => {
+    const { a, ds } = await setup();
+    const id = (
+      await a.inject({
+        method: 'POST',
+        url: '/api/sessions',
+        payload: {
+          datasetId: ds.id,
+          name: 'tools',
+          startTime: ds.firstTime + 600,
+          settings: SETTINGS,
+        },
+      })
+    ).json().session.id;
+    const t1 = ds.firstTime;
+    const t2 = ds.firstTime + 300;
+    const drawings = [
+      { kind: 'ray', id: 'r1', t1, p1: 4000, t2, p2: 4005 },
+      { kind: 'vline', id: 'v1', t1, p1: 4000, t2: t1, p2: 4000 },
+      { kind: 'fib', id: 'f1', t1, p1: 4010, t2, p2: 3990 },
+      { kind: 'measure', id: 'm1', t1, p1: 4000, t2, p2: 4002.5, color: '#ff8800' },
+      { kind: 'channel', id: 'c1', t1, p1: 4000, t2, p2: 4004, w: -3.5 },
+      { kind: 'text', id: 't1', t: t1, price: 4001, text: 'note', fontSize: 18 },
+    ];
+    const put = await a.inject({
+      method: 'PUT',
+      url: `/api/sessions/${id}/drawings`,
+      payload: { drawings },
+    });
+    expect(put.statusCode).toBe(200);
+    const file = (await a.inject({ method: 'GET', url: `/api/sessions/${id}/export/session.json` }))
+      .body;
+    const imp = await a.inject({ method: 'POST', url: '/api/sessions/import', payload: { file } });
+    expect(imp.statusCode).toBe(201);
+    expect(imp.json().session.drawings).toEqual(drawings);
+    const bad = await a.inject({
+      method: 'PUT',
+      url: `/api/sessions/${id}/drawings`,
+      payload: { drawings: [{ kind: 'channel', id: 'c2', t1, p1: 4000, t2, p2: 4004 }] },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
 });

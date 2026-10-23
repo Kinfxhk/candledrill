@@ -45,6 +45,8 @@ import {
   type PaneIndicatorConfig,
 } from './indicator-prefs.js';
 import { t } from './i18n.js';
+import { getSettings } from './settings.js';
+import { el } from './format.js';
 
 /** A bounded window within loaded, revealed bars; both trade endpoints must exist. */
 export function tradeWindow(
@@ -83,13 +85,14 @@ export interface ChartTheme {
 export function readTheme(): ChartTheme {
   const cs = getComputedStyle(document.documentElement);
   const v = (n: string) => cs.getPropertyValue(n).trim();
+  const user = getSettings();
   return {
-    background: v('--bg'),
+    background: v('--chart-bg') || v('--bg'),
     text: v('--muted'),
-    grid: v('--panel-2'),
+    grid: user.grid ? v('--grid') || v('--panel-2') : 'rgba(0,0,0,0)',
     border: v('--border'),
-    up: v('--up'),
-    down: v('--down'),
+    up: user.upColor || v('--up'),
+    down: user.downColor || v('--down'),
     accent: v('--accent'),
   };
 }
@@ -119,6 +122,21 @@ export interface MarkerSpec {
 export type Drawing =
   | { kind: 'hline'; id: string; price: number; color?: string }
   | { kind: 'tline'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | { kind: 'ray'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | { kind: 'vline'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | { kind: 'fib'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | { kind: 'measure'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
+  | {
+      kind: 'channel';
+      id: string;
+      t1: number;
+      p1: number;
+      t2: number;
+      p2: number;
+      /** Price offset of the parallel line from the base line. */
+      w: number;
+      color?: string;
+    }
   | { kind: 'rect'; id: string; t1: number; p1: number; t2: number; p2: number; color?: string }
   | {
       kind: 'position';
@@ -182,7 +200,25 @@ export function arrowHeadPath(x: number, y: number, angle: number, size = 12): s
   return `M${x} ${y} L${x + size * Math.cos(a1)} ${y + size * Math.sin(a1)} L${x + size * Math.cos(a2)} ${y + size * Math.sin(a2)} Z`;
 }
 
-type DragPart = 'p1' | 'p2' | 'body' | 'price' | 'entry' | 'stop' | 'target' | 't2';
+type DragPart = 'p1' | 'p2' | 'body' | 'price' | 'entry' | 'stop' | 'target' | 't2' | 'w';
+
+/** Fibonacci retracement levels drawn between the two anchors. */
+export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1] as const;
+
+/** Price, tick, bar and percent distance between two anchors (measure tool label). */
+export function measureText(
+  d: { t1: number; p1: number; t2: number; p2: number },
+  tick: number,
+  barSeconds: number,
+  decimals: number,
+): string {
+  const dp = d.p2 - d.p1;
+  const ticks = Math.round(dp / tick);
+  const bars = Math.round((d.t2 - d.t1) / barSeconds);
+  const pct = d.p1 > 0 ? (dp / d.p1) * 100 : 0;
+  const sign = dp > 0 ? '+' : '';
+  return `${sign}${dp.toFixed(decimals)} (${sign}${ticks}t, ${sign}${pct.toFixed(2)}%) · ${bars} bars`;
+}
 
 export interface ChartClick {
   time: number | null; // real Unix seconds of the bar under the cursor
@@ -259,8 +295,30 @@ export class PriceChart {
         horzLines: { color: this.theme.grid },
       },
       crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor: this.theme.border },
-      timeScale: { borderColor: this.theme.border, timeVisible: true, secondsVisible: false },
+      rightPriceScale: {
+        borderColor: this.theme.border,
+        scaleMargins: { top: 0.08, bottom: 0.22 },
+      },
+      timeScale: {
+        borderColor: this.theme.border,
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 8,
+        shiftVisibleRangeOnNewBar: true,
+      },
+      kineticScroll: { touch: true, mouse: false },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        mouseWheel: true,
+        pinch: true,
+        axisPressedMouseMove: true,
+        axisDoubleClickReset: true,
+      },
     });
     this.candles = this.chart.addSeries(CandlestickSeries, {
       upColor: this.theme.up,
@@ -275,12 +333,42 @@ export class PriceChart {
       lastValueVisible: false,
       priceLineVisible: false,
     });
-    this.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    this.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
+    this.volume.applyOptions({ visible: getSettings().volume });
     this.markers = createSeriesMarkers(this.candles, []);
+    // OHLC legend (top-left): last bar, or the bar under the crosshair.
+    this.legend = el('div', { class: 'ohlc-legend num', 'data-testid': 'ohlc-legend' });
+    this.chart.subscribeCrosshairMove((param) => {
+      const d = param.time === undefined ? undefined : param.seriesData.get(this.candles);
+      this.renderLegend(
+        d && 'open' in d
+          ? (d as unknown as { open: number; high: number; low: number; close: number })
+          : null,
+      );
+    });
     this.overlay = svg('svg', { class: 'draw-overlay', 'data-testid': 'draw-overlay' });
     this.styleBar = elStyleBar();
-    container.append(this.overlay, this.styleBar);
+    container.append(this.overlay, this.styleBar, this.legend);
   }
+
+  private readonly legend: HTMLElement;
+  private renderLegend(b: { open: number; high: number; low: number; close: number } | null): void {
+    const bar = b ?? this.lastOhlc;
+    if (!bar) {
+      this.legend.textContent = '';
+      return;
+    }
+    const dp = tickDecimals(this.tick);
+    const chg = bar.close - bar.open;
+    this.legend.textContent = t('v1.ohlc', {
+      o: bar.open.toFixed(dp),
+      h: bar.high.toFixed(dp),
+      l: bar.low.toFixed(dp),
+      c: bar.close.toFixed(dp),
+    });
+    this.legend.dataset.dir = chg > 0 ? 'up' : chg < 0 ? 'down' : '';
+  }
+  private lastOhlc: { open: number; high: number; low: number; close: number } | null = null;
 
   setTickSize(tickSize: number): void {
     this.tick = tickSize;
@@ -422,6 +510,8 @@ export class PriceChart {
       bars.map((b) => ({ time: this.ts(b.time), value: b.volume, color: this.volColor(b) })),
     );
     this.lastBarTime = bars.at(-1)?.time;
+    this.lastOhlc = bars.at(-1) ?? null;
+    this.renderLegend(null);
     this.indicatorBars = [...bars];
     this.renderIndicators();
   }
@@ -437,6 +527,8 @@ export class PriceChart {
     });
     this.volume.update({ time: this.ts(b.time), value: b.volume, color: this.volColor(b) });
     this.lastBarTime = b.time;
+    this.lastOhlc = b;
+    this.renderLegend(null);
     if (this.indicatorBars.length && b.time < this.indicatorBars.at(-1)!.time) return;
     if (this.indicatorBars.length && b.time === this.indicatorBars.at(-1)!.time) {
       this.indicatorBars[this.indicatorBars.length - 1] = b;
@@ -493,7 +585,8 @@ export class PriceChart {
 
   /** Render user drawings. `snap` maps a real time to a bar time of this chart's timeframe. */
   setDrawings(drawings: readonly Drawing[], snap: (t: number) => number): void {
-    this.drawings = [...drawings];
+    // Hidden drawings stay saved but are not drawn; locked ones are drawn without handles.
+    this.drawings = drawings.filter((d) => !this.hiddenIds.has(d.id));
     this.snapFn = snap;
     if (this.selected && !drawings.some((d) => d.id === this.selected)) this.selected = null;
     this.renderPriceLines();
@@ -501,6 +594,13 @@ export class PriceChart {
     this.renderOverlay();
     this.syncStyleBar();
     if (!this.raf) this.loop();
+  }
+
+  private hiddenIds = new Set<string>();
+  private lockedIds = new Set<string>();
+  setDrawingFlags(hidden: ReadonlySet<string>, locked: ReadonlySet<string>): void {
+    this.hiddenIds = new Set(hidden);
+    this.lockedIds = new Set(locked);
   }
 
   onDrawingEdit(handler: (d: Drawing) => void): void {
@@ -577,10 +677,32 @@ export class PriceChart {
     return this.candles.priceToCoordinate(price);
   }
 
-  private priceAt(y: number): number | null {
+  private priceAt(y: number, x?: number): number | null {
     const p = this.candles.coordinateToPrice(y);
     if (p === null) return null;
+    if (x !== undefined && getSettings().magnet) {
+      const snapped = this.magnetPrice(x, y);
+      if (snapped !== null) return snapped;
+    }
     return roundToTick(Number(p), this.tick);
+  }
+
+  /** Magnet: the open/high/low/close of the bar under x if within 8px of y. */
+  private magnetPrice(x: number, y: number): number | null {
+    const logical = this.timeScale().coordinateToLogical(x);
+    if (logical === null) return null;
+    const bar = this.candles.dataByIndex(Math.round(logical));
+    if (!bar || !('open' in bar)) return null;
+    let best: number | null = null;
+    let dist = 8;
+    for (const v of [bar.open, bar.high, bar.low, bar.close]) {
+      const vy = this.yOf(v);
+      if (vy !== null && Math.abs(vy - y) <= dist) {
+        dist = Math.abs(vy - y);
+        best = v;
+      }
+    }
+    return best;
   }
 
   private timeScale() {
@@ -619,7 +741,7 @@ export class PriceChart {
       y: number | null,
       body = false,
     ) => {
-      if (x === null || y === null) return;
+      if (x === null || y === null || this.lockedIds.has(d.id)) return;
       const size = body ? 10 : 6;
       const h = svg('rect', {
         x: x - size / 2,
@@ -711,6 +833,114 @@ export class PriceChart {
           }),
         );
         handle(d, 'body', coords[0]!, coords[1]!, true);
+      } else if (
+        d.kind === 'ray' ||
+        d.kind === 'vline' ||
+        d.kind === 'fib' ||
+        d.kind === 'measure' ||
+        d.kind === 'channel'
+      ) {
+        const [x1, y1, x2, y2] = p;
+        if (x1 == null || y1 == null || x2 == null || y2 == null) return;
+        const color = d.color ?? accent;
+        if (d.kind === 'vline') {
+          nodes.push(
+            svg('line', {
+              x1,
+              y1: 0,
+              x2: x1,
+              y2: this.overlay.clientHeight,
+              stroke: color,
+              'stroke-width': 1.5,
+            }),
+          );
+          handle(d, 'p1', x1, y1);
+        } else if (d.kind === 'ray') {
+          // Extend from p1 through p2 to the plot edge.
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          const k = dx === 0 ? 0 : Math.max(1, (plotW - x1) / dx);
+          const ex = dx === 0 ? x2 : dx > 0 ? x1 + dx * k : 0;
+          const ey =
+            dx === 0
+              ? dy > 0
+                ? this.overlay.clientHeight
+                : 0
+              : dx > 0
+                ? y1 + dy * k
+                : y1 - (dy / dx) * x1;
+          nodes.push(svg('line', { x1, y1, x2: ex, y2: ey, stroke: color, 'stroke-width': 2 }));
+          handle(d, 'p1', x1, y1);
+          handle(d, 'p2', x2, y2);
+        } else if (d.kind === 'fib') {
+          const left = Math.min(x1, x2);
+          const dpv = tickDecimals(this.tick);
+          for (const lv of FIB_LEVELS) {
+            const price = d.p2 + (d.p1 - d.p2) * lv;
+            const y = this.yOf(price);
+            if (y === null) continue;
+            nodes.push(
+              svg('line', {
+                x1: left,
+                y1: y,
+                x2: plotW,
+                y2: y,
+                stroke: color,
+                'stroke-width': lv === 0 || lv === 1 ? 1.5 : 1,
+                'stroke-dasharray': lv === 0 || lv === 1 ? '' : '4 3',
+              }),
+            );
+            const label = svg('text', { x: left + 4, y: y - 3, 'data-kind': 'fib-level' });
+            label.textContent = `${(lv * 100).toFixed(1)}%  ${price.toFixed(dpv)}`;
+            nodes.push(label);
+          }
+          handle(d, 'p1', x1, y1);
+          handle(d, 'p2', x2, y2);
+        } else if (d.kind === 'measure') {
+          const up = d.p2 >= d.p1;
+          const fill = withAlpha(up ? this.theme.up : this.theme.down, 0.16);
+          nodes.push(
+            svg('rect', {
+              x: Math.min(x1, x2),
+              y: Math.min(y1, y2),
+              width: Math.abs(x2 - x1),
+              height: Math.abs(y2 - y1),
+              fill,
+              stroke: up ? this.theme.up : this.theme.down,
+              'stroke-width': 1,
+              'data-kind': 'measure',
+            }),
+          );
+          const label = svg('text', {
+            x: Math.min(x1, x2) + 4,
+            y: Math.min(y1, y2) - 4,
+            'data-testid': `measure-${d.id}`,
+          });
+          label.textContent = measureText(d, this.tick, this.barSeconds, tickDecimals(this.tick));
+          nodes.push(label);
+          handle(d, 'p1', x1, y1);
+          handle(d, 'p2', x2, y2);
+        } else {
+          // channel: base line p1-p2 and a parallel line offset by w in price.
+          const ya = this.yOf(d.p1 + d.w);
+          const yb = this.yOf(d.p2 + d.w);
+          nodes.push(svg('line', { x1, y1, x2, y2, stroke: color, 'stroke-width': 2 }));
+          if (ya !== null && yb !== null) {
+            nodes.push(
+              svg('line', { x1, y1: ya, x2, y2: yb, stroke: color, 'stroke-width': 2 }),
+              svg('path', {
+                d: `M${x1} ${y1} L${x2} ${y2} L${x2} ${yb} L${x1} ${ya} Z`,
+                fill: withAlpha(color, 0.08),
+                stroke: 'none',
+              }),
+            );
+            handle(d, 'w', (x1 + x2) / 2, (ya + yb) / 2);
+          }
+          handle(d, 'p1', x1, y1);
+          handle(d, 'p2', x2, y2);
+        }
+        if (d.kind !== 'vline') handle(d, 'body', (x1 + x2) / 2, (y1 + y2) / 2, true);
+        else handle(d, 'body', x1, 24, true);
       } else if (d.kind === 'tline' || d.kind === 'rect') {
         const [x1, y1, x2, y2] = p;
         if (x1 == null || y1 == null || x2 == null || y2 == null) return;
@@ -903,7 +1133,7 @@ export class PriceChart {
     let moved = false;
     const move = (e: PointerEvent) => {
       const t = this.timeAt(e.clientX - rect.left);
-      const p = this.priceAt(e.clientY - rect.top);
+      const p = this.priceAt(e.clientY - rect.top, e.clientX - rect.left);
       if (t === null || p === null || !this.drag) return;
       moved = true;
       const next = this.dragged(
@@ -1016,7 +1246,22 @@ export class PriceChart {
         p2: shiftP(d.p2),
       };
     }
-    if (d.kind === 'tline' || d.kind === 'rect') {
+    if (d.kind === 'channel' && part === 'w') {
+      // Offset follows the pointer: price under the cursor minus the base line at that time.
+      const span = d.t2 - d.t1 || 1;
+      const base = d.p1 + ((d.p2 - d.p1) * (t - d.t1)) / span;
+      return { ...d, w: Number((p - base).toFixed(10)) };
+    }
+    if (
+      d.kind === 'tline' ||
+      d.kind === 'rect' ||
+      d.kind === 'ray' ||
+      d.kind === 'vline' ||
+      d.kind === 'fib' ||
+      d.kind === 'measure' ||
+      d.kind === 'channel'
+    ) {
+      if (part === 'p1' && d.kind === 'vline') return { ...d, t1: t, t2: t };
       if (part === 'p1') return { ...d, t1: t, p1: p };
       if (part === 'p2') return { ...d, t2: t, p2: p };
       return { ...d, t1: d.t1 + dt, t2: d.t2 + dt, p1: shiftP(d.p1), p2: shiftP(d.p2) };
@@ -1091,7 +1336,7 @@ export class PriceChart {
         const y = e.clientY - rect.top;
         const plotW = rect.width - this.chart.priceScale('right').width();
         if (x > plotW) return;
-        const price = this.candles.coordinateToPrice(y);
+        const price = getSettings().magnet ? this.priceAt(y, x) : this.candles.coordinateToPrice(y);
         const time = this.timeAt(x);
         handler({ time, price: price === null ? null : Number(price) });
       },
@@ -1116,6 +1361,7 @@ export class PriceChart {
       wickUpColor: this.theme.up,
       wickDownColor: this.theme.down,
     });
+    this.volume.applyOptions({ visible: getSettings().volume });
   }
 
   // ---------------------------------------------------------------- freehand
