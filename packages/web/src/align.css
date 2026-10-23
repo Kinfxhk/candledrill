@@ -285,18 +285,29 @@ body.in-practice header.app select {
   border-radius: var(--r);
 }
 
-/* ---------- trade bar (phone / tablet portrait): equal columns */
+/* ---------- trade bar (phone / tablet portrait): speed on the play row, order row equal */
 .trade-bar {
   gap: var(--sp2);
   padding: var(--sp2) var(--sp2) calc(var(--sp2) + env(safe-area-inset-bottom));
 }
 .trade-bar .tb-replay,
 .trade-bar .tb-order {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: grid;
   gap: var(--sp2);
 }
+/* Five tracks: back, play, next, +10, speed. Speed stays on this row so phone
+   landscape does not grow a third trade-bar row and lose the chart. */
+.trade-bar .tb-replay {
+  grid-template-columns:
+    minmax(44px, 0.65fr) minmax(52px, 1.15fr) minmax(44px, 0.65fr) minmax(48px, 0.75fr)
+    minmax(6.5rem, 1.35fr);
+}
+.trade-bar .tb-order {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 .trade-bar button,
-.trade-bar input {
+.trade-bar input,
+.trade-bar select {
   height: var(--h-lg);
   font-size: var(--fs-lg);
   font-weight: 600;
@@ -304,6 +315,12 @@ body.in-practice header.app select {
 }
 .trade-bar .tb-replay button {
   font-size: var(--fs-md);
+}
+.trade-bar select.tb-speed {
+  width: 100%;
+  min-width: 0;
+  padding: 0 2px 0 6px;
+  background: var(--panel-2);
 }
 .trade-bar input {
   text-align: center;
@@ -401,7 +418,8 @@ body.in-practice header.app select {
       calc(var(--sp2) + env(safe-area-inset-left));
   }
   .trade-bar button,
-  .trade-bar input {
+  .trade-bar input,
+  .trade-bar select {
     height: var(--h-md);
     font-size: var(--fs-md);
   }

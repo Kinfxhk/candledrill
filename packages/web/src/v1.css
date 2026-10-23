@@ -419,13 +419,16 @@ footer.app {
     gap: 6px;
   }
   .trade-bar .tb-replay {
-    grid-template-columns: 1fr 1.4fr 1fr 1fr;
+    grid-template-columns:
+      minmax(44px, 0.65fr) minmax(52px, 1.15fr) minmax(44px, 0.65fr) minmax(48px, 0.75fr)
+      minmax(6.5rem, 1.35fr);
   }
   .trade-bar .tb-order {
     grid-template-columns: 1.3fr 0.8fr 1.3fr 0.9fr;
   }
   .trade-bar button,
-  .trade-bar input {
+  .trade-bar input,
+  .trade-bar select {
     min-height: 44px;
     font-size: 15px;
     font-weight: 600;

@@ -99,6 +99,35 @@ afterEach(() => {
 });
 
 describe('playback speed', () => {
+  it('starts a new session at 1 bar per second', () => {
+    const view = new PracticeView();
+    expect(internals(view).speed).toBe(1);
+    view.close();
+  });
+
+  it('restores a saved speed and ignores values outside the list', () => {
+    const store = new Map<string, string>([['candledrill.playbackSpeed', '2']]);
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        store.set(k, v);
+      },
+    });
+    const restored = new PracticeView();
+    expect(internals(restored).speed).toBe(2);
+    (restored as unknown as { setSpeed(n: number): void }).setSpeed(0.5);
+    expect(store.get('candledrill.playbackSpeed')).toBe('0.5');
+    expect(internals(restored).speed).toBe(0.5);
+    (restored as unknown as { setSpeed(n: number): void }).setSpeed(7);
+    expect(internals(restored).speed).toBe(0.5);
+    restored.close();
+
+    store.set('candledrill.playbackSpeed', '9');
+    const fresh = new PracticeView();
+    expect(internals(fresh).speed).toBe(1);
+    fresh.close();
+  });
+
   it('0.5 bars/s accumulates carry and steps one bar every two seconds', async () => {
     vi.useFakeTimers();
     const step = vi.spyOn(sessionsApi, 'step').mockResolvedValue(stepped(a));
