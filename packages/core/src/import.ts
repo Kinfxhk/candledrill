@@ -153,7 +153,10 @@ function settingsIssues(s: unknown): string[] {
   return validateSettings(s as unknown as SessionSettings).map((e) => `settings: ${e}`);
 }
 
-function drawingIssues(d: unknown): string[] {
+/** Drawings defined by two anchor points (t1, p1) – (t2, p2), plus an optional colour. */
+const TWO_POINT_KINDS = new Set(['tline', 'rect', 'arrow', 'ray', 'vline', 'fib', 'measure']);
+
+export function drawingIssues(d: unknown): string[] {
   if (!Array.isArray(d)) return ['drawings: not a list'];
   if (d.length > 200) return ['drawings: too many'];
   const out: string[] = [];
@@ -179,7 +182,7 @@ function drawingIssues(d: unknown): string[] {
         dir * (x.target - x.entry) <= 0
       )
         out.push(`drawings[${i}]: invalid`);
-    } else if (x.kind === 'tline' || x.kind === 'rect' || x.kind === 'arrow') {
+    } else if (TWO_POINT_KINDS.has(x.kind as string)) {
       const keys = Object.keys(x).filter((k) => k !== 'color');
       if (
         keys.length !== 6 ||
@@ -191,10 +194,26 @@ function drawingIssues(d: unknown): string[] {
         (x.color !== undefined && typeof x.color !== 'string')
       )
         out.push(`drawings[${i}]: invalid`);
-    } else if (x.kind === 'text') {
+    } else if (x.kind === 'channel') {
       const keys = Object.keys(x).filter((k) => k !== 'color');
       if (
+        keys.length !== 7 ||
+        !id(x.id) ||
+        !isInt(x.t1) ||
+        !isInt(x.t2) ||
+        !isPos(x.p1) ||
+        !isPos(x.p2) ||
+        typeof x.w !== 'number' ||
+        !Number.isFinite(x.w) ||
+        (x.color !== undefined && typeof x.color !== 'string')
+      )
+        out.push(`drawings[${i}]: invalid`);
+    } else if (x.kind === 'text') {
+      // color and fontSize are optional (the server accepts both).
+      const keys = Object.keys(x).filter((k) => k !== 'color' && k !== 'fontSize');
+      if (
         keys.length !== 5 ||
+        (x.fontSize !== undefined && (!isInt(x.fontSize) || x.fontSize < 8 || x.fontSize > 48)) ||
         !id(x.id) ||
         !isInt(x.t) ||
         !isPos(x.price) ||

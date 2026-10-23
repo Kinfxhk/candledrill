@@ -1,24 +1,32 @@
 # CandleDrill（K線操練場）
 
-**CandleDrill**（中文：**K線操練場**）是免費、開源的 **K 線回放練習工具**。在**同一台電腦**上自架服務，用**桌面瀏覽器**開啟介面：匯入 K 線 → 逐根前進（看不到未來）→ 模擬下單 → 檢討結果。無需帳戶、無訂閱、無遙測。**不構成投資建議。**
+**CandleDrill**（中文：**K線操練場**）是免費、開源的 **K 線回放練習工具**：匯入 K 線 → 逐根前進（看不到未來）→ 模擬下單 → 檢討結果。電腦、平板、手機都可以用。無需帳戶、無訂閱、無遙測。**不構成投資建議。**
 
-> **優勢：** Web 介面、本機自架——服務預設只聽 `127.0.0.1`，請在**執行 CandleDrill 的那台電腦**上，用桌面瀏覽器開啟。同一台電腦的其他瀏覽器視窗／分頁亦可。產品**不會**改聽區網位址；若要在家裡其他裝置使用，見下方「其他裝置（安全隧道）」。**請勿**把服務直接發佈到區網或公網（無登入機制）。
+> **v1.0.0** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
-> **v0.5.0** · 僅供本機練習。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+![CandleDrill 練習畫面：雙時框、好倉 R、括號單、下單票與成交紀錄](docs/screenshot.png)
 
-![CandleDrill 練習畫面：雙時框、Long R 繪圖、括號單、下單票與成交紀錄](docs/screenshot.png)
+<sub>所有截圖使用產生的 `SYNTH-` 示範資料，並非真實市價。</sub>
 
-<sub>截圖使用產生的 `SYNTH-` 示範資料，並非真實市價。</sub>
-
-完整教學：[docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
+完整教學（v0.2 實測稿）：[docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
 ## 風險聲明
 
 CandleDrill 是**教育與練習工具**。**不構成投資建議**，不提供交易訊號，**模擬或練習成績不能預示真實交易結果**。期貨、外匯等槓桿商品可能損失超過本金。以 K 棒為單位的模擬，無法還原一根棒內真實的價格先後順序。若資料源比練習時框更細（例如 10 秒），圖表可用其更新 forming 1 分鐘 K；**成交仍只在練習時框收棒時發生**（見 [docs/FILL-MODEL.md](docs/FILL-MODEL.md)）。
 
-## 安裝（約 5 分鐘）
+## 開始使用
 
-需要一台桌面電腦與 [Node.js 22+](https://nodejs.org/)（LTS 即可）。
+### 瀏覽器版（手機、平板、電腦）
+
+打開 **<https://kinfxhk.github.io/candledrill/>** → **產生示範數據** → 填寫練習表單 → **開始練習**。
+
+- 不用安裝。所有運算在頁面內進行，資料存於**這個瀏覽器**（IndexedDB），不會上傳。
+- 清除網站資料會一併刪除練習。請定期用 **全部備份**（一個 JSON 檔），換機時用 **從備份還原**。
+- 盲練在瀏覽器版可保持練習公正，但資料在你的瀏覽器內，懂得用開發者工具仍可看到，**並非防偷看的鎖**。需要嚴格盲練請用本機版。
+
+### 本機版（約 5 分鐘）
+
+需要 [Node.js 22+](https://nodejs.org/)（LTS 即可）。
 
 ```bash
 git clone https://github.com/Kinfxhk/candledrill.git
@@ -27,41 +35,33 @@ npm ci
 npm start
 ```
 
-在**本機**開啟 <http://127.0.0.1:4870/> → **Generate demo data** → 填寫練習表單 → **Start practising**。
+在本機開啟 <http://127.0.0.1:4870/>。資料存於 `~/.candledrill/`。服務**只聽** `127.0.0.1`，不會改聽區網位址；要在其他裝置連回本機版，請自行用 **Tailscale** 或 **SSH 本地埠轉發**。**請勿**把埠直接發佈到區網或公網（無登入機制），見 [SECURITY.md](SECURITY.md)。只想在手機或平板練習，用瀏覽器版即可。
 
-資料留在本機（`~/.candledrill/`）。若要使用 Docker，見下方「補充說明」。
+## 三種版面
 
-## 其他裝置（安全隧道）
+| 裝置                      | 版面                                                                                                                 |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 桌面（≥ 1200px）          | 圖表佔大部分畫面；右欄由上至下：落單、持倉、規則檢查、練習規則、存檔點、繪圖物件；底部面板平時收成一條分頁列。       |
+| 平板橫放（900–1199px）    | 右欄收窄，仍與圖表並排。                                                                                             |
+| 平板直放、手機（< 900px） | 圖表優先；右欄變側邊抽屜（按「面板」）；底部固定交易列：退後／播放／下一根／+10，沽出／數量／買入／平倉，按鈕 44px。 |
 
-CandleDrill **預設只聽** `127.0.0.1`，程式不會改成區網 listen。若你要在家裡用平板或其他電腦練習，請自行架設安全隧道，例如 **Tailscale**，或 **SSH 本地埠轉發**（把遠端本機的 `127.0.0.1:4870` 轉到你手邊裝置），再以瀏覽器連線。
+![手機版：大圖表與底部交易列](docs/shot-phone.png)
 
-**請勿**把埠直接 publish／對映到區網或公網——沒有登入機制。細節見 [SECURITY.md](SECURITY.md)。
+<sub>**手機（390×844）** — 合成 `SYNTH-` 示範資料。</sub>
 
-## 練習資料
+![平板橫放：右欄與圖表並排](docs/shot-tablet.png)
 
-- **一鍵示範：** **Generate demo data** 會產生合成 **10 秒** K 線（`SYNTH-…`）；練習畫面預設 1 分鐘圖，forming 會隨 10 秒更新，成交仍跟 1 分鐘收棒。相同種子 → 相同 K 線。
-- **較長的 Globex 風格樣本（僅合成）：**  
-  [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)  
-  匯入 `SYNTH-NQ-GLOBEX_1min.csv`，代號 **`PRACTICE-NQ-GLOBEX`**，tick 大小 **`0.25`**，UTC 偏移 **`-300`**。
-- 或 **Import CSV** 匯入你有權使用的資料。CandleDrill **不附帶**真實市場資料。
+<sub>**平板橫放（1024×768）** — 合成 `SYNTH-` 示範資料。</sub>
 
 ## 功能
 
-### 盲練（Blind practice）
+### 回放手感
 
-隱藏真實代號，並偏移日期與價格，避免一眼認出圖表。結束後再揭曉。
-
-![盲練：代號顯示為 Blind、Reveal 控制、偽裝後的圖表](docs/shot-blind.png)
-
-<sub>**盲練** — 隨機起點、偽裝代號／日期／價格；Reveal 還原真相。底層為產生的 `SYNTH-` 示範資料。</sub>
-
-### 繪圖工具
-
-浮動 **Draw** 工具列：水平線／趨勢線／矩形、文字、箭頭、自由繪、Long R／Short R。再按一次 **Draw** 可收合；Clear 會要求確認。
-
-![浮動 Draw 工具列開啟，圖上有趨勢線](docs/shot-drawings.png)
-
-<sub>**繪圖工具列** — 圖上可收合的工具（不重複放在頂部列）。合成 `SYNTH-` 示範資料。</sub>
+- **逐根前進**、+10、播放（0.5×–120×／秒），**退後**一步（左方向鍵）撤銷上一個動作，連同其成交。
+- **存檔點**：保存當下一刻，之後一鍵回到該處重練同一段。
+- **跳到**指定時間（非盲練）。
+- 圖表：滾輪／雙指縮放、拖曳平移、雙擊價格軸重設；左上角顯示開高低收。
+- 退後與存檔點只能回到這個練習已發生過的狀態，伺服器（或瀏覽器版引擎）會按 K 線重新驗證，不能偽造成交；盲練揭曉前不能退後。
 
 ### 雙時框
 
@@ -71,65 +71,125 @@ CandleDrill **預設只聽** `127.0.0.1`，程式不會改成區網 listen。若
 
 <sub>**多時框** — 同一時刻在兩張圖練習，不偷看未來。合成 `SYNTH-` 示範資料。</sub>
 
+### 下單
+
+- 市價／限價／觸價單，括號單（止蝕／止賺以跳計），數量快捷，一鍵平倉。
+- **落單前預覽**：圖上以虛線顯示按目前設定會落的止蝕與止賺（`SL?`／`TP?`）。
+- 圖上拖曳價格手柄改單；風險預覽預設展開（止蝕損失、佔權益百分比、淨回報 R）。
+- **止蝕管理**（設定內開啟）：浮盈達指定跳數後移至保本（可加跳數）、移動止蝕。每根 K 線收市後經正常「改單」移動止蝕單，只會收緊，不會放寬；成交規則不變。
+
+### 繪圖工具
+
+浮動 **畫圖** 工具列：水平線、趨勢線、**射線**、**垂直線**、**平行通道**、**斐波那契回調**、**量度**（價差、跳數、百分比、K 線數）、矩形、文字、箭頭、自由繪、好倉 R／淡倉 R。
+
+- **磁吸**（設定內開啟）：點擊及拖曳時貼近該根 K 線的開／高／低／收。
+- **繪圖物件**卡：逐個顯示／隱藏、鎖定／解鎖、刪除。
+
+![繪圖工具列開啟，圖上有趨勢線](docs/shot-drawings.png)
+
+<sub>**繪圖工具列** — 合成 `SYNTH-` 示範資料。</sub>
+
+### 自訂 Prop 規則檔
+
+在資料庫頁 **規則檔** 卡建立你自己的規則。CandleDrill **不附任何公司的範本**，請以該公司現行官方文件核對。可匯出／匯入 JSON 分享。
+
+| 規則                                   | 說明                                                 |
+| -------------------------------------- | ---------------------------------------------------- |
+| 帳戶金額、盈利目標                     | 填入練習表單的起始資金與目標                         |
+| 每日虧損上限                           | 由成交引擎執行（觸發即平倉並停止落單）               |
+| 最大虧損＋回撤計算方式                 | `eod`／`intraday`／`close`／`static`，由成交引擎執行 |
+| 一致性                                 | 單日最高盈利不可超過總盈利的某個百分比               |
+| 最少／最多交易日、盈利日數（每日至少） | 按成交與已平倉交易計算                               |
+| 最多合約數、須於某時間前平倉、不可隔夜 | 按持倉期間計算，記錄違反時間                         |
+| 每日最多交易、最多連續虧損             | 按已平倉交易計算                                     |
+
+開新練習時選擇規則檔，表單會自動填入；練習時右欄 **規則檢查** 即時顯示每條規則「已達成／未觸及／未達成／已違反」及違反時間。評估規則只讀已揭示的成交與交易，**不改變成交**；獨立的 Python 驗證程式會重新計算每條規則。
+
+![規則檢查卡：每條規則的狀態與進度](docs/shot-rules.png)
+
+<sub>**規則檢查** — 合成 `SYNTH-` 示範資料。</sub>
+
+### 檢討
+
+- 交易、成交、交易日誌（標籤與筆記）、統計、CSV／HTML／練習檔匯出。
+- **檢討**分頁：按已平倉交易的權益曲線、R 分佈、**Monte Carlo**（同一批交易打亂次序，顯示最大回撤百分位及觸及回撤上限的比例；屬模擬，並非預測）。
+
+![檢討分頁：權益曲線、R 分佈、Monte Carlo](docs/shot-review.png)
+
+<sub>**檢討** — 合成 `SYNTH-` 示範資料。</sub>
+
+### 盲練
+
+隱藏真實代號，並偏移日期與價格，避免一眼認出圖表。結束後再揭曉。
+
+![盲練：代號顯示為 Blind、揭曉控制、偽裝後的圖表](docs/shot-blind.png)
+
+<sub>**盲練** — 隨機起點、偽裝代號／日期／價格。合成 `SYNTH-` 示範資料。</sub>
+
 ### 技術指標
 
-可搜尋目錄：SMA／EMA（任意週期）、布林通道、盤中 VWAP、開盤區間（ORB）、唐奇安、RSI、MACD、ATR、隨機指標、ADX——只根據**已揭示**的 K 棒計算。設定留在本瀏覽器（`candledrill.indicators.v2`）。
+可搜尋目錄：SMA／EMA（任意週期）、布林通道、盤中 VWAP、開盤區間（ORB）、唐奇安、RSI、MACD、ATR、隨機指標、ADX——只根據**已揭示**的 K 棒計算。設定留在本瀏覽器。
 
 ![指標面板：已啟用 SMA 9/20/50 與 RSI](docs/shot-indicators.png)
 
-<sub>**指標** — 疊加線與下方視窗；設定只留在本機。合成 `SYNTH-` 示範資料。</sub>
+<sub>**指標** — 疊加線與下方視窗。合成 `SYNTH-` 示範資料。</sub>
 
-### 半自動交易（Semi-auto）
+### 半自動交易
 
-從圖上的 **Semi-auto**／**半自動**，或底部分頁 **半自動交易** 開啟；須為**非盲練**場次。四步：**條件 → 進出場 → 執行 → 結果**。
+從圖上的 **半自動**，或底部分頁 **半自動交易** 開啟；須為**非盲練**場次。四步：**條件 → 進出場 → 執行 → 結果**。
 
-1. 選擇指標與反應，再按 **Add**／**新增**。快速套用為選用。
-2. 設定數量、方向、停損與目標。
-3. 出現綠色就緒列後，可 **Backtest**（**From start**｜**From here**，書面語：由開始／由目前位置）或 **Follow while playing**（播放時跟隨）。介面標籤可能與書面語略有不同。按鈕呈灰色表示尚缺欄位。
+1. 選擇指標與反應，再按 **新增**。快速套用為選用。
+2. 設定數量、方向、止蝕與目標。
+3. 出現綠色就緒列後，可 **回測**（由開始｜由目前位置）或 **播放時跟隨**。按鈕呈灰色表示尚缺欄位。
 4. 結果卡一律顯示：統計、0 筆成交及原因，或尚未執行。
 
-僅本機模擬，不連接券商；右側手動下單票仍可使用。條件語法與 API 見 [docs/MACRO.md](docs/MACRO.md)。
+只在本機模擬，不連接券商；右側手動下單票仍可使用。條件語法與 API 見 [docs/MACRO.md](docs/MACRO.md)。
 
 ![半自動第 3 步：綠色就緒列，可回測或播放時跟隨](docs/shot-semi-run.png)
 
-<sub>**半自動 — 執行** — 合成 `SYNTH-` 資料，非真實市價。綠色表示可回測或播放時跟隨。</sub>
+<sub>**半自動 — 執行** — 合成 `SYNTH-` 資料。</sub>
 
 ![半自動第 4 步：模擬跑完後的結果卡](docs/shot-semi-result.png)
 
-<sub>**半自動 — 結果** — 合成 `SYNTH-` 資料，非真實市價。此例為 0 筆成交，卡片會說明原因。</sub>
+<sub>**半自動 — 結果** — 合成 `SYNTH-` 資料。此例為 0 筆成交，卡片會說明原因。</sub>
 
-### 下單與檢討
+### 設定
 
-市價／限價／停損、括號單（SL／TP）、風險預覽、一鍵平倉。成交、日誌、統計，以及 CSV／HTML／場次匯出。可選練習規則（每日虧損、追蹤回撤、獲利目標）。某條規則留空即表示關閉。
+K 線顏色、格線、成交量、數量快捷、預設止蝕／止賺、「全部平倉」前確認、止蝕管理、落單前預覽、磁吸，以及**全部快捷鍵可自訂**（按該格再按新鍵；撞鍵會自動對調）。可匯出／匯入。
 
-#### 練習規則
+預設快捷鍵：`→` 下一根 · `Shift+→` +10 · `←` 退後 · `空白鍵` 播放／暫停 · `B` 買入 · `S` 沽出 · `F` 平倉 · `[` `]` 速度 · `P` 存檔點 · `Esc` 取消工具 · `Delete` 刪除選取繪圖。
 
-新建場次表單有兩種「時鐘」，用途不同：
+#### 練習規則的兩個時鐘
 
-- **開市錨點**（`anchorMinutes`）：開盤區間（ORB）、盤中 VWAP，以及半自動 `orb_break` 視窗所用的開市時鐘。選擇資料集時，會依第一根棒的交易所本地時間填入。
-- **交易日開始**（`dayStartMinutes`）：僅作為每日虧損限制的日界——每日虧損何時重置。
+- **開市錨點**（`anchorMinutes`）：開盤區間（ORB）、盤中 VWAP 與半自動 `orb_break` 所用的開市時鐘。選擇資料集時，會依第一根棒的交易所本地時間填入。
+- **交易日開始**（`dayStartMinutes`）：每日虧損何時重置，亦是規則檔「交易日」的分界。
 
-**追蹤回撤模式**（`trailingDrawdownMode`）預設為 `close`。它只影響追蹤回撤規則；每日虧損仍以該棒收盤權益為準。
+**回撤計算方式**（`trailingDrawdownMode`）預設為 `close`，只影響最大虧損規則；每日虧損仍以該棒收盤權益為準。
 
-- `close` — 峰值隨每根棒收盤權益更新。棒內波動不計入。
+- `close` — 峰值隨每根棒收盤權益更新，棒內波動不計入。
 - `eod` — 峰值僅在交易日界（日終）更新。
 - `intraday` — 峰值採有利高低點；觸發則以不利高低點計，並於該價平倉。
 - `static` — 底線固定為起始資金減去設定金額，不跟隨峰值。
 
-舊場次檔仍可匯入：`anchorMinutes` 會複製自 `dayStartMinutes`，模式為 `close`。於 [0.4.0](CHANGELOG.md) 新增。成交規則見 [docs/FILL-MODEL.md](docs/FILL-MODEL.md)。
+舊練習檔仍可匯入：`anchorMinutes` 會複製自 `dayStartMinutes`，模式為 `close`。成交規則見 [docs/FILL-MODEL.md](docs/FILL-MODEL.md)。
+
+## 練習資料
+
+- **一鍵示範：** **產生示範數據** 會產生合成 **10 秒** K 線（`SYNTH-…`）；練習畫面預設 1 分鐘圖，forming 會隨 10 秒更新，成交跟 1 分鐘收棒。相同種子 → 相同 K 線。
+- **較長的 Globex 風格樣本（僅合成）：** [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)，匯入 `SYNTH-NQ-GLOBEX_1min.csv`，代號 **`PRACTICE-NQ-GLOBEX`**，跳動 **`0.25`**，UTC 偏移 **`-300`**。
+- 或 **匯入 CSV**：只匯入你有權使用的資料。CandleDrill **不附帶**真實市場資料。
 
 ## 為何選擇 CandleDrill
 
 - **永久免費** — 無付費層級、無廣告、無追蹤、無需帳戶。
-- **僅本機 loopback** — 伺服器只綁定 `127.0.0.1`；單一 SQLite 檔可自行備份。**請勿**直接暴露到區網或公網（無登入）；其他裝置請用安全隧道（見上）。
-- **成交規則公開** — 規則與限制有文件說明（[docs/FILL-MODEL.md](docs/FILL-MODEL.md)）。
-- **桌面瀏覽器** — 介面以桌面瀏覽器為主；不為手機視窗設計。家中其他裝置請用 Tailscale／SSH 轉發，勿直接開區網埠。
-- 獨立專案；**與** FX Replay、Forex Tester、TradeZella、TradingView 或任何券商／交易所**無關**。
+- **資料在你手上** — 瀏覽器版存於本機瀏覽器；本機版只綁定 `127.0.0.1`，一個 SQLite 檔可自行備份。
+- **成交規則公開** — 規則與限制有文件說明（[docs/FILL-MODEL.md](docs/FILL-MODEL.md)），並由獨立的 Python 程式交叉驗證。
+- 獨立專案；與 FX Replay、Forex Tester、TradeZella、TradingView 或任何券商／交易所／prop firm **沒有股權、代理或官方關係**。
 
 ## 補充說明
 
 <details>
-<summary>Docker</summary>
+<summary>Docker（本機版）</summary>
 
 ```bash
 docker compose up --build    # http://127.0.0.1:4870/
@@ -140,18 +200,19 @@ docker compose up --build    # http://127.0.0.1:4870/
 </details>
 
 <details>
-<summary>CSV 匯入提示</summary>
+<summary>資料備份／還原</summary>
 
-每列一根棒：時間戳、開、高、低、收，可選成交量。匯入對話框會嘗試猜測欄位。無時區的時間會套用你選擇的 UTC 偏移。可匯入 10 秒等細週期；練習畫面時框選單仍從 1 分鐘起，forming 1 分鐘由細源更新，成交跟練習時框收棒。只匯入你有權使用的資料。
+- 本機版資料庫：`~/.candledrill/candledrill.db`（Windows：`%USERPROFILE%\.candledrill\`），備份是 SQLite 檔。
+- 瀏覽器版：備份是一個 JSON 檔，包含數據集、K 線與練習。兩種備份格式不能互換。
+- 規則檔、設定、存檔點存於瀏覽器 localStorage；規則檔與設定可各自匯出。
+- 環境變數（本機版）：`CANDLEDRILL_PORT`（4870）、`CANDLEDRILL_DATA_DIR`、`CANDLEDRILL_DB`。主機位址必須維持 `127.0.0.1`。
 
 </details>
 
 <details>
-<summary>資料備份／還原</summary>
+<summary>CSV 匯入提示</summary>
 
-- 預設資料庫：`~/.candledrill/candledrill.db`（Windows：`%USERPROFILE%\.candledrill\`）。
-- 在資料庫（Library）使用 **Back up everything**／**Restore from backup**。
-- 環境變數：`CANDLEDRILL_PORT`（4870）、`CANDLEDRILL_DATA_DIR`、`CANDLEDRILL_DB`。主機位址必須維持 `127.0.0.1`。
+每列一根棒：時間戳、開、高、低、收，可選成交量。匯入對話框會嘗試猜測欄位。無時區的時間會套用你選擇的 UTC 偏移。可匯入 10 秒等細週期；練習畫面時框選單仍從 1 分鐘起，forming 1 分鐘由細源更新，成交跟練習時框收棒。
 
 </details>
 
@@ -166,16 +227,23 @@ docker compose up --build    # http://127.0.0.1:4870/
 <summary>開發</summary>
 
 ```bash
-npm run check          # lint、測試、授權／無市價資料檢查
-npm run test:e2e       # Playwright 煙測（需先裝一次 Chromium）
-npm run screenshot     # 重新產生 docs/screenshot.png（伺服器須在執行）
-node scripts/screenshot-gallery.mjs   # 重新產生 README 各功能截圖
+npm run check          # lint、格式、型別、測試、授權／無市價資料／密鑰檢查
+npm run oracle         # 獨立 Python 驗證（1,000 個隨機練習、盲練、備份、規則檔）
+npm run test:e2e       # Playwright（需先裝一次 Chromium）
+sh scripts/build-pages.sh dist-pages   # 建置瀏覽器版
+node scripts/screenshot-gallery.mjs    # 重新產生 README 截圖（本機版須在執行）
 ```
 
-結構：`packages/core`（引擎）、`packages/server`（Fastify + SQLite）、`packages/web`（介面）。  
+結構：`packages/core`（純引擎，無 I/O）、`packages/server`（Fastify + SQLite）、`packages/web`（介面；`local-backend.ts` 是瀏覽器版的引擎＋IndexedDB，與伺服器的 API 相同，並有 parity 測試）。  
 更多：[docs/PERFORMANCE.md](docs/PERFORMANCE.md)、[SECURITY.md](SECURITY.md)、[CONTRIBUTING.md](CONTRIBUTING.md)。
 
 </details>
+
+## 推薦連結與披露
+
+作者的推薦連結頁：<https://linktr.ee/kinfx>（在 App 的「關於」內亦有，預設收起）。
+
+**推薦連結（含聯盟佣金）：** 我可能因你註冊而獲得佣金。評估帳戶多為模擬，練習成績不代表真實交易結果。非香港證監會持牌人，非投資建議。期貨及槓桿產品可引致重大虧損。完整披露見 App「關於 → 推薦連結（含聯盟佣金）」及 [NOTICE](NOTICE)。此商業關係不影響程式碼、示範數據及規則判定。
 
 ## 授權
 
@@ -190,17 +258,15 @@ CandleDrill 免費，也會持續免費。若這個工具對你有幫助：https
 
 # CandleDrill (English)
 
-**CandleDrill** (Chinese: **K線操練場**) is a free, open-source **candlestick replay practice** tool. Self-host on **one computer** and open the **desktop browser UI on that same machine**: load bars → step without seeing the future → place simulated orders → review. No account, no subscription, no telemetry. **Not investment advice.**
+**CandleDrill** (Chinese: **K線操練場**) is a free, open-source **candlestick replay practice** tool: load bars → step without seeing the future → place simulated orders → review. Works on desktop, tablet and phone. No account, no subscription, no telemetry. **Not investment advice.**
 
-> **Web UI:** local service + desktop browser on the machine that runs CandleDrill. Other tabs/windows on **that** computer are fine. The server listens on **`127.0.0.1` by default** and does **not** bind to your LAN. For another device at home, use a secure tunnel (see **Other devices** below). **Do not** publish the port to your LAN or the public internet (no login).
-
-> **v0.5.0** · Local practice only. Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v1.0.0** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 
-<sub>Screenshot uses generated `SYNTH-` demo data, not real market prices.</sub>
+<sub>All screenshots use generated `SYNTH-` demo data, not real market prices.</sub>
 
-Traditional Chinese guide: [docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
+Traditional Chinese guide (v0.2 field notes): [docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
 ## Risk notice
 
@@ -210,9 +276,19 @@ real trading results**. Trading futures, forex and other leveraged products can
 lose more than your deposit. Bar-based simulation cannot know the true order of
 prices inside a bar. If the data source is finer than the practice timeframe (for example 10s bars while you watch 1m), the chart may use those bars to update a forming 1m candle; **fills still occur only on practice-timeframe closes** (see [docs/FILL-MODEL.md](docs/FILL-MODEL.md)).
 
-## Install (about 5 minutes)
+## Getting started
 
-You need a desktop computer and [Node.js 22+](https://nodejs.org/) (LTS is fine).
+### Browser version (phone, tablet, desktop)
+
+Open **<https://kinfxhk.github.io/candledrill/>** → **Generate demo data** → fill the session form → **Start practising**.
+
+- Nothing to install. Everything runs in the page; data is stored in **this browser** (IndexedDB) and never uploaded.
+- Clearing site data deletes it. Use **Back up everything** (one JSON file) and **Restore from backup** to move devices.
+- Blind mode here keeps practice honest, but the data is in your browser, so devtools can reveal it: **it is not a lock against looking**. Use the local version for strict blind practice.
+
+### Local version (about 5 minutes)
+
+You need [Node.js 22+](https://nodejs.org/) (LTS is fine).
 
 ```bash
 git clone https://github.com/Kinfxhk/candledrill.git
@@ -221,57 +297,68 @@ npm ci
 npm start
 ```
 
-Open <http://127.0.0.1:4870/> on **this machine** → **Generate demo data** → fill the session form → **Start practising**.
+Open <http://127.0.0.1:4870/> on this machine. Data stays in `~/.candledrill/`. The server listens on **`127.0.0.1` only** and will not bind to your LAN; to reach the local version from another device, use your own **Tailscale** or **SSH local port forward**. **Do not** publish the port to your LAN or the public internet (no login) — see [SECURITY.md](SECURITY.md). To practise on a phone or tablet, the browser version is simpler.
 
-Data stays on your machine (`~/.candledrill/`). Prefer Docker? See [Quick extras](#quick-extras) below.
+## Three layouts
 
-## Other devices (secure tunnel)
-
-CandleDrill listens on **`127.0.0.1` only** by design. It will not switch to a LAN listen address. To practise from a tablet or another computer at home, set up your own secure tunnel — for example **Tailscale**, or **SSH local port forwarding** (forward the host’s `127.0.0.1:4870` to the device in your hand) — then open the UI in a browser.
-
-**Do not** publish / map the port onto your LAN or the public internet — there is no login. See [SECURITY.md](SECURITY.md).
-
-## Practice data
-
-- **One-click demo:** **Generate demo data** creates synthetic **10s** bars (`SYNTH-…`); the practice UI defaults to a 1m pane so forming updates from 10s, while fills still follow 1m closes. Same seed → same bars.
-- **Longer Globex-like sample (synthetic only):**  
-  [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)  
-  Import `SYNTH-NQ-GLOBEX_1min.csv` as symbol **`PRACTICE-NQ-GLOBEX`**, tick size **`0.25`**, UTC offset **`-300`**.
-- Or **Import CSV** of data you are entitled to use. CandleDrill ships **no real market data**.
+| Device                           | Layout                                                                                                                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Desktop (≥ 1200px)               | Chart takes most of the screen; the rail holds, top to bottom: order ticket, position, rule check, practice rules, save points, drawings; the bottom panel folds to a tab strip. |
+| Tablet landscape (900–1199px)    | Narrower rail, still beside the chart.                                                                                                                                           |
+| Tablet portrait, phone (< 900px) | Chart first; the rail is a drawer (**Panel**); a sticky trade bar: back / play / next / +10, sell / qty / buy / close, 44px buttons.                                             |
 
 ## What you can do
+
+### Replay feel
+
+- **Step**, +10, play (0.5–120 bars/s), and **Back** (Left arrow) undoes the last action, fills included.
+- **Save points** keep a moment so you can return and drill the same stretch again.
+- **Jump to** a time (non-blind); **two charts** with linked crosshair and scroll, each with its own timeframe (1m → daily).
+- Chart: wheel / pinch zoom, drag to pan, double-click the price scale to reset; OHLC legend top-left.
+- Back and save points only restore states this session has already been in. The server (or the browser engine) re-validates them against the bars, so fills cannot be invented; Back is off in a blind session until you reveal.
+
+### Orders
+
+- Market / limit / stop, brackets (SL / TP in ticks), quantity presets, flatten.
+- **Bracket preview**: dashed `SL?` / `TP?` lines show where the ticket's stop and target would go before you order.
+- Drag order handles on the chart to modify; risk preview open by default (stop loss, share of equity, net reward in R).
+- **Stop management** (Settings): break-even after N ticks in profit (optional offset) and a trailing stop. After each bar close the stop-loss order is moved through the normal modify path; it only ever tightens and the fill model is unchanged.
+
+### Drawing tools
+
+Floating **Draw** palette: horizontal, trend, **ray**, **vertical line**, **parallel channel**, **Fibonacci retracement**, **measure** (price, ticks, %, bars), rectangle, text, arrow, freehand, Long R / Short R.
+
+- **Magnet** (Settings): clicks and drags snap to the bar's open / high / low / close.
+- **Drawings** card: show / hide, lock / unlock and delete each drawing.
+
+### Your own prop rule profiles
+
+Create rules on the Library's **Rule profiles** card. CandleDrill **ships no firm presets**; check your rules against the firm's current official documents. Export / import as JSON.
+
+| Rule                                                    | Notes                                                                |
+| ------------------------------------------------------- | -------------------------------------------------------------------- |
+| Account size, profit target                             | Fill the session's starting balance and target                       |
+| Daily loss limit                                        | Enforced by the fill engine (flatten and stop trading on breach)     |
+| Max loss + drawdown mode                                | `eod` / `intraday` / `close` / `static`, enforced by the fill engine |
+| Consistency                                             | Best day may not exceed a share of total profit                      |
+| Min / max trading days, profitable days (each at least) | From fills and closed trades                                         |
+| Max contracts, flat by a time, no overnight             | From the open position over time, with the time of a break           |
+| Max trades per day, max losing streak                   | From closed trades                                                   |
+
+Pick a profile when you start a session and the form fills in; the **Rule check** on the rail shows each rule as met / within limit / not yet / broken, with when. Evaluation rules read revealed fills and trades only and **never change fills**; an independent Python oracle recomputes every rule.
+
+### Review
+
+- Trades, fills, journal (tags and notes), statistics, CSV / HTML / session-file export.
+- **Review** tab: equity by closed trade, R distribution, and a **Monte Carlo** that reorders the same trades (max-drawdown percentiles and the share of runs that hit the drawdown limit; a simulation, not a forecast).
 
 ### Blind practice
 
 Hide the real symbol, shift dates and prices so you cannot recognise the chart. Reveal when finished.
 
-![Blind practice: symbol shown as Blind, Reveal control, disguised chart](docs/shot-blind.png)
-
-<sub>**Blind practice** — random start, disguised symbol/dates/prices; Reveal restores the truth. Underlying bars are generated `SYNTH-` demo data.</sub>
-
-### Drawing tools
-
-Floating **Draw** palette: horizontal / trend / rectangle, text, arrow, freehand, Long R / Short R. Click **Draw** again to collapse; Clear asks for confirmation.
-
-![Floating Draw palette open with trend line on the chart](docs/shot-drawings.png)
-
-<sub>**Drawing palette** — collapsible tools on the chart. Synthetic `SYNTH-` demo data.</sub>
-
-### Two timeframes
-
-Split view with linked crosshair and scroll. Change each pane’s timeframe (1m → daily).
-
-![Two charts: 1m and 15m linked](docs/shot-multitf.png)
-
-<sub>**Multi-timeframe** — practise the same moment on two charts without look-ahead. Synthetic `SYNTH-` demo data.</sub>
-
 ### Indicators
 
-Searchable catalog: SMA / EMA (any periods), Bollinger, session VWAP, opening range (ORB), Donchian, RSI, MACD, ATR, Stochastic, ADX — computed only on bars already revealed. Settings stay in this browser (`candledrill.indicators.v2`).
-
-![Indicators panel with SMA 9/20/50 and RSI enabled](docs/shot-indicators.png)
-
-<sub>**Indicators** — overlays and lower panes; settings stay on this computer only. Synthetic `SYNTH-` demo data.</sub>
+Searchable catalog: SMA / EMA (any periods), Bollinger, session VWAP, opening range (ORB), Donchian, RSI, MACD, ATR, Stochastic, ADX — computed only on bars already revealed. Settings stay in this browser.
 
 ### Semi-auto
 
@@ -284,46 +371,43 @@ Open the chart chip **Semi-auto**, or the bottom tab. Needs a **non-blind** sess
 
 Simulated only — no broker. The manual ticket stays on the right. DSL and API: [docs/MACRO.md](docs/MACRO.md).
 
-![Semi-auto step 3: green ready line, then Backtest or Follow while playing](docs/shot-semi-run.png)
+### Settings
 
-<sub>**Semi-auto — Run** — synthetic `SYNTH-` data. Green means Backtest or Follow while playing is available.</sub>
+Candle colours, grid, volume, quantity presets, default SL / TP, confirm before Flatten all, stop management, bracket preview, magnet, and **every hotkey can be rebound** (click the cell, press a key; a clash swaps). Export / import.
 
-![Semi-auto step 4: result card after a simulated run](docs/shot-semi-result.png)
+Default keys: `→` next bar · `Shift+→` +10 · `←` back · `Space` play / pause · `B` buy · `S` sell · `F` flatten · `[` `]` speed · `P` save point · `Esc` cancel tool · `Delete` delete selected drawing.
 
-<sub>**Semi-auto — Result** — synthetic `SYNTH-` data. This run is 0 trades; the card says why.</sub>
-
-### Orders & review
-
-Market / limit / stop, brackets (SL/TP), risk preview, flatten. Trades, journal, statistics, CSV / HTML / session export. Optional practice rules (daily loss, trailing drawdown, profit target). Leave a rule blank to turn it off.
-
-#### Practice rules
-
-The new-session form has two clocks. They are not the same setting:
+#### The two practice clocks
 
 - **Market open anchor** (`anchorMinutes`) is the market-open clock for the opening range (ORB), session VWAP, and the semi-auto `orb_break` window. Picking a dataset fills it from the first bar's exchange-local time.
-- **Trading day start** (`dayStartMinutes`) is only the daily-loss day boundary: when the daily loss limit resets.
+- **Trading day start** (`dayStartMinutes`) is when the daily loss limit resets; it is also the day boundary for rule profiles.
 
-**Trailing drawdown mode** (`trailingDrawdownMode`) defaults to `close`. It only changes the trailing rule. Daily loss still uses equity at the bar close.
+**Drawdown mode** (`trailingDrawdownMode`) defaults to `close`. It only changes the max-loss rule. Daily loss still uses equity at the bar close.
 
 - `close` — the peak follows equity at each bar close. A move inside the bar does not count.
 - `eod` — the peak updates only at the trading-day boundary (end of day).
 - `intraday` — the peak uses the favourable high or low. A breach uses the adverse high or low, and the position closes at that price.
 - `static` — the floor stays at starting balance minus the amount. It does not follow a peak.
 
-Older session files still import: `anchorMinutes` copies `dayStartMinutes`, and the mode is `close`. Added in [0.4.0](CHANGELOG.md). Order fills: [docs/FILL-MODEL.md](docs/FILL-MODEL.md).
+Older session files still import: `anchorMinutes` copies `dayStartMinutes`, and the mode is `close`. Order fills: [docs/FILL-MODEL.md](docs/FILL-MODEL.md).
+
+## Practice data
+
+- **One-click demo:** **Generate demo data** creates synthetic **10s** bars (`SYNTH-…`); the practice UI defaults to a 1m pane so forming updates from 10s, while fills still follow 1m closes. Same seed → same bars.
+- **Longer Globex-like sample (synthetic only):** [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples) — import `SYNTH-NQ-GLOBEX_1min.csv` as symbol **`PRACTICE-NQ-GLOBEX`**, tick size **`0.25`**, UTC offset **`-300`**.
+- Or **Import CSV** of data you are entitled to use. CandleDrill ships **no real market data**.
 
 ## Why CandleDrill
 
 - **Free forever** — no paid tiers, ads, tracking, or accounts.
-- **Local loopback only** — server binds to `127.0.0.1`; one SQLite file you can back up. Do not publish to LAN/public internet (no login); use a secure tunnel for other devices (see above).
-- **Honest fills** — rules and limits are documented ([docs/FILL-MODEL.md](docs/FILL-MODEL.md)).
-- **Desktop browsers** — designed for desktop windows. Other home devices: Tailscale / SSH forward — never open a raw LAN port.
-- Independent project; **not affiliated with** FX Replay, Forex Tester, TradeZella, TradingView, or any broker/exchange.
+- **Your data stays with you** — browser version in your browser; local version binds to `127.0.0.1` with one SQLite file you can back up.
+- **Honest fills** — rules and limits are documented ([docs/FILL-MODEL.md](docs/FILL-MODEL.md)) and cross-checked by an independent Python oracle.
+- Independent project; **no equity, agency or official relationship** with FX Replay, Forex Tester, TradeZella, TradingView, or any broker / exchange / prop firm.
 
 ## Quick extras
 
 <details>
-<summary>Docker</summary>
+<summary>Docker (local version)</summary>
 
 ```bash
 docker compose up --build    # http://127.0.0.1:4870/
@@ -343,9 +427,10 @@ One row per bar: timestamp, open, high, low, close, optional volume. The import 
 <details>
 <summary>Your data (backup / restore)</summary>
 
-- Default DB: `~/.candledrill/candledrill.db` (Windows: `%USERPROFILE%\.candledrill\`).
-- **Back up everything** / **Restore from backup** in the Library.
-- Env: `CANDLEDRILL_PORT` (4870), `CANDLEDRILL_DATA_DIR`, `CANDLEDRILL_DB`. Host must stay `127.0.0.1`.
+- Local version DB: `~/.candledrill/candledrill.db` (Windows: `%USERPROFILE%\.candledrill\`); backups are SQLite files.
+- Browser version: the backup is one JSON file with datasets, bars and sessions. The two backup formats are not interchangeable.
+- Rule profiles, settings and save points live in browser localStorage; profiles and settings can be exported.
+- Env (local version): `CANDLEDRILL_PORT` (4870), `CANDLEDRILL_DATA_DIR`, `CANDLEDRILL_DB`. Host must stay `127.0.0.1`.
 
 </details>
 
@@ -360,16 +445,23 @@ Orders fill only on bars revealed **after** placement. Market → next open ± s
 <summary>Development</summary>
 
 ```bash
-npm run check          # lint, tests, licence / no-market-data guards
-npm run test:e2e       # Playwright smoke (needs Chromium once)
-npm run screenshot     # regenerate docs/screenshot.png (server must be running)
-node scripts/screenshot-gallery.mjs   # regenerate all README feature shots
+npm run check          # lint, format, types, tests, licence / no-market-data / secret guards
+npm run oracle         # independent Python oracle (1,000 random sessions, blind, backup, profiles)
+npm run test:e2e       # Playwright (needs Chromium once)
+sh scripts/build-pages.sh dist-pages   # build the browser version
+node scripts/screenshot-gallery.mjs    # regenerate README shots (local version running)
 ```
 
-Layout: `packages/core` (engine), `packages/server` (Fastify + SQLite), `packages/web` (UI).  
+Layout: `packages/core` (pure engine, no I/O), `packages/server` (Fastify + SQLite), `packages/web` (UI; `local-backend.ts` is the browser version's engine + IndexedDB, same API as the server, covered by a parity test).  
 More: [docs/PERFORMANCE.md](docs/PERFORMANCE.md), [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md).
 
 </details>
+
+## Recommendations and disclosure
+
+The author's link page: <https://linktr.ee/kinfx> (also in the app under About, folded by default).
+
+**Affiliate links:** I may earn a commission if you sign up. Evaluations are mostly simulated; practice results do not reflect live trading. Not licensed by the Hong Kong SFC; not investment advice. Futures and leveraged products can cause substantial losses. Full disclosure: in the app under **About → Recommendations (affiliate links)** and in [NOTICE](NOTICE). That relationship does not affect the code, demo data or rule evaluation.
 
 ## Licence
 

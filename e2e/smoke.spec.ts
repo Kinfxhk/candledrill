@@ -68,7 +68,16 @@ test('replay and bracket order flow', async ({ page }) => {
   await page.locator('#lang-picker').selectOption('zh-Hant');
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
 
-  await expect(page.getByTestId('side').locator('h3')).toHaveText(['練習規則', '落單', '持倉']);
+  // v1: ticket and position first so trading never needs a scroll; rule check, practice
+  // rules, save points and drawings follow.
+  await expect(page.getByTestId('side').locator('h3')).toHaveText([
+    '落單',
+    '持倉',
+    '規則檢查',
+    '練習規則',
+    '存檔點',
+    '繪圖物件',
+  ]);
   await expect(page.getByTestId('macro-open')).toHaveText('半自動');
   await page.getByTestId('macro-open').click();
   await expect(page.getByTestId('tab-macro')).toHaveAttribute('aria-selected', 'true');

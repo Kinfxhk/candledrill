@@ -13,7 +13,9 @@ Re-checks the JSON written by dump.ts without sharing any code with the TypeScri
 * blind mode: disguised bars are the real bars shifted by whole weeks and whole ticks, the
   blind twin trades identically, and no server response leaks the real symbol or times;
 * backup: the backup file passes SQLite's integrity check and both the backup and the
-  restored library hold exactly the original rows.
+  restored library hold exactly the original rows;
+* rule profiles: the evaluation-only rules (consistency, trading / profit days, contract cap,
+  flat-by time, overnight, trades per day, losing streak) recomputed from fills and trades.
 
 Usage: python3 tools/oracle/check.py oracle-cases.json
 """
@@ -27,7 +29,7 @@ import os
 
 TOL = 1e-6
 problems = []
-checked = {"modifications": 0, "fills": 0, "trades": 0, "sessions": 0, "excursions": 0, "blind": 0, "bodies": 0}
+checked = {"profileRules": 0, "modifications": 0, "fills": 0, "trades": 0, "sessions": 0, "excursions": 0, "blind": 0, "bodies": 0}
 
 
 def close(a, b, tol=TOL):
@@ -316,6 +318,110 @@ def check_server(srv):
             fail("backup", f"table {t} after restore differs from the original")
 
 
+def check_profile(ci, c):
+    """Recompute the evaluation-only rules of a rule profile from fills and trades."""
+    p = c.get("profile")
+    rep = c.get("profileReport")
+    if not p or not rep:
+        return
+    st = c["settings"]
+    off, ds = st["utcOffsetMinutes"], st["dayStartMinutes"]
+    now = c["cursorTime"]
+
+    def day(t):
+        return (t + off * 60 - ds * 60) // 86400
+
+    def since_start(t):
+        local = ((t + off * 60) // 60) % 1440
+        return (local - ds) % 1440
+
+    got = {r["id"]: r for r in rep["results"]}
+    exp = {}
+    fills, trades = c["fills"], c["trades"]
+    traded = {day(f["time"]) for f in fills}
+    by_day = {}
+    for t in trades:
+        by_day[day(t["closeTime"])] = by_day.get(day(t["closeTime"]), 0) + t["netPnl"]
+    total = sum(t["netPnl"] for t in trades)
+    if p["consistencyPct"] is not None:
+        best = max([0] + list(by_day.values()))
+        share = best / total * 100 if total > 0 else None
+        state = "pending" if share is None else ("pass" if share <= p["consistencyPct"] + 1e-9 else "pending")
+        exp["consistency"] = (state, None if share is None else round(share * 10) / 10)
+    if p["minTradingDays"] is not None:
+        exp["minTradingDays"] = ("pass" if len(traded) >= p["minTradingDays"] else "pending", len(traded))
+    if p["maxTradingDays"] is not None:
+        exp["maxTradingDays"] = ("fail" if len(traded) > p["maxTradingDays"] else "pass", len(traded))
+    if p["minProfitDays"] is not None:
+        mn = p["minProfitDayAmount"] or 0
+        n = sum(1 for v in by_day.values() if round(v * 100) / 100 > 0 and round(v * 100) / 100 >= mn)
+        exp["minProfitDays"] = ("pass" if n >= p["minProfitDays"] else "pending", n)
+    # Position intervals.
+    cut = None
+    if p["flatBy"]:
+        hh, mm = p["flatBy"].split(":")
+        cut = (int(hh) * 60 + int(mm) - ds) % 1440
+    pos, maxpos, maxbreak, flatbreak, overbreak = 0, 0, False, False, False
+    for i, f in enumerate(fills):
+        pos += f["qty"] if f["side"] == "buy" else -f["qty"]
+        if abs(pos) > maxpos:
+            maxpos = abs(pos)
+            if p["maxContracts"] is not None and maxpos > p["maxContracts"]:
+                maxbreak = True
+        if pos == 0:
+            continue
+        a = f["time"]
+        b = fills[i + 1]["time"] if i + 1 < len(fills) else now
+        b = max(a, b)
+        if b == a and i + 1 < len(fills):
+            continue
+        if cut is not None:
+            if since_start(a) >= cut:
+                flatbreak = True
+            else:
+                cut_at = day(a) * 86400 + (ds - off + cut) * 60
+                if cut_at < b:
+                    flatbreak = True
+        if p["noOvernight"] and day(b) > day(a):
+            overbreak = True
+    if p["maxContracts"] is not None:
+        exp["maxContracts"] = ("fail" if maxbreak else "pass", maxpos)
+    if p["flatBy"] is not None:
+        exp["flatBy"] = ("fail" if flatbreak else "pass", None)
+    if p["noOvernight"]:
+        exp["noOvernight"] = ("fail" if overbreak else "pass", None)
+    if p["maxTradesPerDay"] is not None:
+        per, worst, broke = {}, 0, False
+        opens = [t["openTime"] for t in trades]
+        if c.get("openTrade"):
+            opens.append(c["openTrade"]["openTime"])
+        for ot in opens:
+            d = day(ot)
+            per[d] = per.get(d, 0) + 1
+            worst = max(worst, per[d])
+            broke = broke or per[d] > p["maxTradesPerDay"]
+        exp["maxTradesPerDay"] = ("fail" if broke else "pass", worst)
+    if p["maxConsecutiveLosses"] is not None:
+        run, worst, broke = 0, 0, False
+        for t in trades:
+            run = run + 1 if t["netPnl"] < 0 else 0
+            worst = max(worst, run)
+            broke = broke or run > p["maxConsecutiveLosses"]
+        exp["maxConsecutiveLosses"] = ("fail" if broke else "pass", worst)
+    for rid, (state, value) in exp.items():
+        checked["profileRules"] += 1
+        g = got.get(rid)
+        if g is None:
+            fail(ci, f"profile rule {rid} missing")
+            continue
+        if g["state"] != state:
+            fail(ci, f"profile rule {rid}: state {g['state']} != oracle {state}")
+        if value is not None and not close(g["value"], value, 1e-9):
+            fail(ci, f"profile rule {rid}: value {g['value']} != oracle {value}")
+    if rep["tradingDays"] != len(traded):
+        fail(ci, f"profile tradingDays {rep['tradingDays']} != oracle {len(traded)}")
+
+
 def main():
     data = json.load(open(sys.argv[1] if len(sys.argv) > 1 else "oracle-cases.json", encoding="utf-8"))
     for ci, c in enumerate(data["sessions"]):
@@ -326,6 +432,7 @@ def main():
         check_trailing(ci, c)
         check_excursions(ci, c)
         check_blind(ci, c)
+        check_profile(ci, c)
     check_server(data["server"])
     print("checked:", json.dumps(checked))
     if problems:

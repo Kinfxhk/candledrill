@@ -13,10 +13,22 @@ PARTICULAR PURPOSE.
 CandleDrill is an educational practice tool. It is not investment advice.
 Simulated or practice results do not predict real trading results.
 
-CandleDrill is an independent project. It is not affiliated with, endorsed by,
-or sponsored by FX Replay, Forex Tester, TradeZella, TradingView, NinjaTrader,
-or any broker, exchange, data vendor, or proprietary trading firm. All product
-names are trademarks of their respective owners and are used only for plain
-factual reference.
+CandleDrill is an independent open-source project. It has no equity, agency,
+employment or official-authorisation relationship with FX Replay, Forex Tester,
+TradeZella, TradingView, NinjaTrader, or any broker, exchange, data vendor or
+proprietary trading firm, and is not endorsed or sponsored by any of them. All
+product names are trademarks of their respective owners and are used only for
+plain factual reference; their use does not imply endorsement.
+
+Third-party links and affiliate disclosure
+------------------------------------------
+The app shows one recommendations link (https://linktr.ee/kinfx). Some links on
+that page are affiliate or referral links: the maintainer may receive a
+commission if you sign up or buy. That relationship does not affect the code, the
+synthetic demo data or rule evaluation. CandleDrill ships no firm rules, presets
+or templates; rule profiles are entered by users. Evaluation and most "funded"
+accounts offered by prop firms are simulated. The maintainer is not licensed by
+the Hong Kong SFC; nothing in CandleDrill is investment advice, an offer or a
+solicitation. Futures and leveraged products can lose more than your deposit.
 
 Third-party components and their notices are listed in THIRD_PARTY_NOTICES.md.

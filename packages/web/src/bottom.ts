@@ -2,7 +2,13 @@
 // Bottom panel: tabs for trades, fills and (later) statistics and export.
 
 import { sessionStats, type Trade } from '@candledrill/core';
-import { sessionsApi, type SessionSettings, type SessionStateDto } from './api.js';
+import {
+  BROWSER_BACKEND,
+  downloadApi,
+  sessionsApi,
+  type SessionSettings,
+  type SessionStateDto,
+} from './api.js';
 import { t, type MessageKey } from './i18n.js';
 import { el, fmtMoney, fmtNum, fmtPct, fmtTime, signClass, toast } from './format.js';
 import { exitReasonText, orderRoleText, weekdayKeyText } from './labels.js';
@@ -199,17 +205,21 @@ export const exportTab: BottomTab = {
     // The session file must carry the disguise (symbol and offsets) to be re-importable,
     // so offering it before the reveal would hand over the answer.
     const blindHidden = s.blind?.revealed === false;
-    const link = (key: MessageKey, file: string) =>
-      el(
+    const link = (key: MessageKey, file: string) => {
+      const url = `/api/sessions/${id}/export/${file}`;
+      const a = el(
         'a',
-        {
-          href: `/api/sessions/${id}/export/${file}`,
-          download: '',
-          class: 'badge',
-          'data-testid': `export-${file}`,
-        },
+        { href: url, download: '', class: 'badge', 'data-testid': `export-${file}` },
         t(key),
       );
+      // Browser build: there is no server to answer the link, so build the file here.
+      if (BROWSER_BACKEND)
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          void downloadApi(url);
+        });
+      return a;
+    };
     panel.replaceChildren(
       el(
         'div',
@@ -373,12 +383,40 @@ export class BottomPanel {
         t(tab.key),
       );
       b.addEventListener('click', () => {
+        // A tab click always opens the panel; the ▾ toggle folds it back to the strip.
         this.active = tab.id;
+        this.setExpanded(true);
         this.refresh();
       });
       this.bar.append(b);
     }
+    // The panel starts as a tab strip; a tab click (or the toggle) opens it.
+    this.toggle = el(
+      'button',
+      {
+        type: 'button',
+        class: 'small ghost bottom-toggle',
+        'data-testid': 'bottom-toggle',
+        'aria-label': 'toggle',
+      },
+      '▴',
+    );
+    this.toggle.addEventListener('click', () => this.setExpanded(!this.expanded));
+    this.bar.append(this.toggle);
+    this.root = root;
     root.replaceChildren(this.bar, this.panel);
+  }
+
+  private readonly root: HTMLElement;
+  private readonly toggle: HTMLButtonElement;
+  private expanded = false;
+  setExpanded(on: boolean): void {
+    this.expanded = on;
+    // Plain attribute API: the unit tests use a minimal DOM without classList.
+    const cls = (this.root.className || '').split(/\s+/).filter((c) => c && c !== 'expanded');
+    if (on) cls.push('expanded');
+    this.root.className = cls.join(' ');
+    this.toggle.textContent = on ? '▾' : '▴';
   }
 
   render(s: SessionSettings, st: SessionStateDto, id: number): void {
@@ -389,6 +427,7 @@ export class BottomPanel {
   select(id: string): void {
     if (!this.tabs.some((tab) => tab.id === id)) return;
     this.active = id;
+    this.setExpanded(true);
     this.refresh();
   }
 
@@ -396,6 +435,18 @@ export class BottomPanel {
     this.tabs.forEach((tab, i) =>
       this.bar.children[i]!.setAttribute('aria-selected', String(tab.id === this.active)),
     );
+    // Badge counts: closed trades and working orders, so a folded panel still informs.
+    if (this.last) {
+      const counts: Record<string, number> = {
+        trades: this.last.st.trading.trades.length,
+        orders: this.last.st.trading.orders.filter((o) => o.status === 'working').length,
+        fills: this.last.st.trading.fills.length,
+      };
+      this.tabs.forEach((tab, i) => {
+        const n = counts[tab.id];
+        (this.bar.children[i] as HTMLElement).setAttribute('data-count', n ? String(n) : '');
+      });
+    }
     const tab = this.tabs.find((x) => x.id === this.active)!;
     if (tab.persistent) {
       this.refreshPersistent(tab);
