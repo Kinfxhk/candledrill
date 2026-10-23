@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest';
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 const styles = readFileSync(`${root}/packages/web/src/styles.css`, 'utf8');
 const v1 = readFileSync(`${root}/packages/web/src/v1.css`, 'utf8');
+const align = readFileSync(`${root}/packages/web/src/align.css`, 'utf8');
 const chart = readFileSync(`${root}/packages/web/src/chart.ts`, 'utf8');
+const practice = readFileSync(`${root}/packages/web/src/practice.ts`, 'utf8');
 
 describe('narrow viewport layout', () => {
   it('stacks .grid3 to one column at the 1000px breakpoint', () => {
@@ -22,6 +24,20 @@ describe('narrow viewport layout', () => {
       /@media \(max-width: 520px\) \{[\s\S]*\.bottom \.tabbar \{\s*flex-wrap:\s*wrap;/,
     );
     expect(styles).toMatch(/\.chart-cell \{\s*min-height:\s*0;/);
+  });
+
+  it('keeps playback speed on the compact trade bar without a new row', () => {
+    const bar = align.slice(
+      align.indexOf('/* ---------- trade bar'),
+      align.indexOf('/* ---------- toast'),
+    );
+    expect(bar).toMatch(/\.trade-bar \.tb-replay \{[^}]*minmax\(6\.5rem, 1\.35fr\)/);
+    expect(bar).toMatch(/\.trade-bar \.tb-order \{[^}]*repeat\(4, minmax\(0, 1fr\)\)/);
+    expect(bar).toMatch(/\.trade-bar select\.tb-speed/);
+    expect(v1).toMatch(/@media \(max-width: 899px\) \{[\s\S]*\.toolbar \.replay,/);
+    expect(practice).toContain("bindSpeedSelect('tb-speed')");
+    expect(practice).toMatch(/'tb-replay' \}, back, playBtn, next, ten, speed\)/);
+    expect(practice).not.toMatch(/private speed = 5/);
   });
 
   it('does not let a global border-box rule stretch chart axis canvases', () => {

@@ -83,6 +83,70 @@ test('panels close on a tap outside and the tap does nothing else', async ({ bro
   await ctx.close();
 });
 
+const PRACTICE_WIDTHS: [number, number][] = [
+  [375, 812],
+  [390, 844],
+  [768, 1024],
+];
+
+for (const [width, height] of PRACTICE_WIDTHS) {
+  test(`playback speed is on the first screen at ${width}×${height}`, async ({ browser }) => {
+    const ctx = await browser.newContext({
+      viewport: { width, height },
+      hasTouch: true,
+      isMobile: width < 768,
+    });
+    const page = await ctx.newPage();
+    await page.goto('/');
+    await generateDemo(page);
+    await page.locator('#new-session-form button[type=submit]').click();
+    await expect(page.locator('#practice-root')).toBeVisible();
+
+    const speed = page.getByTestId('tb-speed');
+    const play = page.getByTestId('tb-play');
+    await expect(page.locator('.toolbar .replay')).toBeHidden();
+    await expect(speed).toBeVisible();
+    await expect(speed).toHaveValue('1');
+    const speedBox = (await speed.boundingBox())!;
+    const playBox = (await play.boundingBox())!;
+    expect(Math.abs(speedBox.y - playBox.y), 'speed sits on the play row').toBeLessThan(4);
+    expect(speedBox.x).toBeGreaterThanOrEqual(-0.5);
+    expect(speedBox.x + speedBox.width).toBeLessThanOrEqual(width + 0.5);
+    expect(speedBox.y + speedBox.height).toBeLessThanOrEqual(height + 0.5);
+    expect(speedBox.height).toBeGreaterThanOrEqual(44);
+    expect(speedBox.width).toBeGreaterThanOrEqual(88);
+
+    for (const id of ['tb-buy', 'tb-sell', 'tb-flatten'] as const) {
+      const box = (await page.getByTestId(id).boundingBox())!;
+      expect(box.width, id).toBeGreaterThanOrEqual(44);
+      expect(box.height, id).toBeGreaterThanOrEqual(44);
+      expect(box.y + box.height, id).toBeLessThanOrEqual(height + 0.5);
+    }
+
+    await speed.selectOption('2');
+    await expect(speed).toHaveValue('2');
+    await expect(page.getByTestId('speed')).toHaveValue('2');
+    const scrollX = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+    expect(scrollX, 'no sideways scroll').toBeLessThanOrEqual(0);
+    await ctx.close();
+  });
+}
+
+test('desktop speed dropdown still defaults to 1×/s', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await generateDemo(page);
+  await page.locator('#new-session-form button[type=submit]').click();
+  await expect(page.locator('#practice-root')).toBeVisible();
+  await expect(page.locator('.toolbar .replay')).toBeVisible();
+  const speed = page.getByTestId('speed');
+  await expect(speed).toBeVisible();
+  await expect(speed).toHaveValue('1');
+  await expect(page.getByTestId('trade-bar')).toBeHidden();
+  await speed.selectOption('0.5');
+  await expect(speed).toHaveValue('0.5');
+});
+
 test('play turns into pause while playing', async ({ browser }) => {
   const { ctx, page } = await phone(browser);
   const play = page.getByTestId('tb-play');

@@ -98,6 +98,26 @@ function saveCheckpoints(id: number, list: Checkpoint[]): void {
 const TIMEFRAMES = [60, 300, 900, 3600, 86400];
 const SPEEDS = [0.5, 1, 2, 5, 10, 30, 60, 120];
 const TICK_MS = 100;
+/** Last playback speed on this device. Missing or unknown values fall back to 1 bar/s. */
+const SPEED_KEY = 'candledrill.playbackSpeed';
+
+function readPlaybackSpeed(): number {
+  try {
+    const n = Number(localStorage.getItem(SPEED_KEY));
+    if (SPEEDS.includes(n)) return n;
+  } catch {
+    /* private mode, or a test DOM with no storage */
+  }
+  return 1;
+}
+
+function rememberPlaybackSpeed(speed: number): void {
+  try {
+    localStorage.setItem(SPEED_KEY, String(speed));
+  } catch {
+    /* quota or private mode */
+  }
+}
 
 type DrawMode = PaletteTool;
 
@@ -124,7 +144,9 @@ export class PracticeView {
   private inFlight = false;
   /** Invalidates pending requests whenever this view is opened or closed. */
   private generation = 0;
-  private speed = 5;
+  private speed = readPlaybackSpeed();
+  /** Toolbar dropdown and the compact trade-bar dropdown, kept on the same value. */
+  private speedSelects: HTMLSelectElement[] = [];
   private carry = 0;
   private root = document.getElementById('practice-root')!;
   private els: Record<string, HTMLElement> = {};
@@ -226,6 +248,7 @@ export class PracticeView {
     this.pendingPoint = null;
     this.drawMode = null;
     this.els = {};
+    this.speedSelects = [];
     this.side = undefined;
     this.bottom = undefined;
     this.reviewingTradeId = undefined;
@@ -248,6 +271,7 @@ export class PracticeView {
   private build(): void {
     for (const p of this.panes) p.chart.destroy();
     this.panes = [];
+    this.speedSelects = [];
     const m = this.meta!;
     const btn = (key: MessageKey, cls = '', testid = '') => {
       const b = el(
@@ -288,9 +312,7 @@ export class PracticeView {
     const sheetBtn = btn('v1.panel', 'ghost sheet-toggle', 'btn-sheet');
     sheetBtn.setAttribute('aria-expanded', 'false');
     sheetBtn.addEventListener('click', () => this.setSheet(!this.sheetOpen));
-    const speed = el('select', { 'aria-label': t('pr.speed'), 'data-testid': 'speed' });
-    for (const s of SPEEDS) speed.append(el('option', { value: String(s) }, `${s}×/s`));
-    speed.value = String(this.speed);
+    const speed = this.bindSpeedSelect('speed');
     const jumpInput = el('input', {
       type: 'datetime-local',
       'aria-label': t('pr.jump'),
@@ -525,7 +547,6 @@ export class PracticeView {
     play.addEventListener('click', () => (this.playing ? this.pause() : this.play()));
     step.addEventListener('click', () => void this.stepBars(1));
     step10.addEventListener('click', () => void this.stepBars(10));
-    speed.addEventListener('change', () => (this.speed = Number(speed.value)));
     jumpBtn.addEventListener('click', () => void this.jump());
 
     // Pane menu stays on STANDARD timeframes (≥60s); never offer a sub-minute chart option.
@@ -1317,10 +1338,12 @@ export class PracticeView {
     );
     playBtn.addEventListener('click', () => (this.playing ? this.pause() : this.play()));
     this.els.tbPlay = playBtn;
+    // Same row as Play: a second row steals the chart height the landscape fit depends on.
+    const speed = this.bindSpeedSelect('tb-speed');
     return el(
       'div',
       { class: 'trade-bar', 'data-testid': 'trade-bar' },
-      el('div', { class: 'tb-replay' }, back, playBtn, next, ten),
+      el('div', { class: 'tb-replay' }, back, playBtn, next, ten, speed),
       el('div', { class: 'tb-order' }, sell, qty, buy, flat),
     );
   }
@@ -1609,12 +1632,28 @@ export class PracticeView {
     this.resetCharts();
   }
 
+  private bindSpeedSelect(testid: 'speed' | 'tb-speed'): HTMLSelectElement {
+    const speed = el('select', { 'aria-label': t('pr.speed'), 'data-testid': testid });
+    if (testid === 'tb-speed') speed.className = 'tb-speed';
+    for (const s of SPEEDS) speed.append(el('option', { value: String(s) }, `${s}×/s`));
+    speed.value = String(this.speed);
+    speed.addEventListener('change', () => this.setSpeed(Number(speed.value)));
+    this.speedSelects.push(speed);
+    return speed;
+  }
+
+  private setSpeed(next: number): void {
+    if (!SPEEDS.includes(next)) return;
+    this.speed = next;
+    const value = String(next);
+    for (const sel of this.speedSelects) sel.value = value;
+    rememberPlaybackSpeed(next);
+  }
+
   private setSpeedIndex(delta: number): void {
     const i = SPEEDS.indexOf(this.speed);
-    const next = i < 0 ? 2 : Math.min(Math.max(i + delta, 0), SPEEDS.length - 1);
-    this.speed = SPEEDS[next]!;
-    const sel = this.els.speed as HTMLSelectElement | undefined;
-    if (sel) sel.value = String(this.speed);
+    const base = i < 0 ? SPEEDS.indexOf(1) : i;
+    this.setSpeed(SPEEDS[Math.min(Math.max(base + delta, 0), SPEEDS.length - 1)]!);
   }
 
   private onKey(e: KeyboardEvent): void {
