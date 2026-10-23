@@ -462,9 +462,6 @@ footer.app {
     padding: 8px;
     gap: 8px;
   }
-  .grid3 {
-    grid-template-columns: 1fr 1fr;
-  }
   .library .preview-chart {
     height: 240px;
   }
@@ -813,4 +810,65 @@ body.in-practice header.app select {
   min-height: 0;
   height: 28px;
   box-sizing: border-box;
+}
+
+/* Phone practice: the chart yields space, the order bar stays on screen,
+   and the disclaimer (hidden while practising) cannot sit between them. */
+@media (max-width: 1000px) {
+  #view-practice.view.active,
+  .practice-root {
+    min-height: 0;
+    min-width: 0;
+  }
+  .trade-bar {
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+  }
+}
+
+/* Indicator list is a bottom sheet so chart-cell overflow cannot clip it. */
+@media (max-width: 899px) {
+  .indicator-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    max-height: min(70dvh, calc(100dvh - 48px));
+    z-index: 80;
+    border-radius: 12px 12px 0 0;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .indicator-panel .indicator-row,
+  .indicator-panel .catalog-hit {
+    min-height: 44px;
+    align-items: center;
+  }
+}
+
+/* Tab pills wrap so the last label (交易日誌 / Journal) is not faded off. */
+@media (max-width: 520px) {
+  .bottom .tabbar {
+    flex-wrap: wrap;
+    height: auto;
+    overflow: visible;
+    mask-image: none;
+    -webkit-mask-image: none;
+    row-gap: 2px;
+    padding-bottom: 4px;
+  }
+  .bottom .tabbar button {
+    white-space: nowrap;
+  }
+  .bottom .tabbar .bottom-toggle {
+    position: static;
+  }
+  .bottom:not(.expanded):not(.macro-open) {
+    height: auto;
+  }
 }
