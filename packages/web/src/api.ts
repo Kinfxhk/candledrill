@@ -13,6 +13,7 @@ import type {
   OrderRequest,
   SessionState,
 } from '@candledrill/core';
+import type { LocalBackend } from './local-backend.js';
 
 export interface DatasetRow {
   id: number;
@@ -41,6 +42,35 @@ export class ApiError extends Error {
   }
 }
 
+/** True in the GitHub Pages build: the engine runs in this page and data stays in IndexedDB. */
+export const BROWSER_BACKEND = import.meta.env.VITE_BACKEND === 'local';
+
+let local: LocalBackend | null = null;
+async function localBackend() {
+  if (!local) {
+    const { LocalBackend } = await import('./local-backend.js');
+    local = new LocalBackend(__APP_VERSION__);
+  }
+  return local;
+}
+
+/** Run a download-type API URL (exports, backup) and save the result as a file. */
+export async function downloadApi(url: string): Promise<void> {
+  const r = await (await localBackend()).handle('GET', url, undefined);
+  if (!r.download) {
+    const msg = (r.body as { error?: string } | undefined)?.error ?? `HTTP ${r.status}`;
+    throw new ApiError(msg, r.status, r.body);
+  }
+  const blob = new Blob([r.download.text], { type: r.download.type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = r.download.filename;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+}
+
 let apiToken: string | null = null;
 
 /** Fetch (and cache) the per-launch token the local server requires on writes. */
@@ -58,6 +88,15 @@ export async function request<T>(
   body?: unknown,
   rawType?: string,
 ): Promise<T> {
+  if (BROWSER_BACKEND) {
+    const r = await (await localBackend()).handle(method, url, body);
+    if (r.status >= 400) {
+      const msg = (r.body as { error?: string } | undefined)?.error ?? `HTTP ${r.status}`;
+      throw new ApiError(msg, r.status, r.body);
+    }
+    // Round-trip through JSON so the UI never shares objects with the engine's store.
+    return (r.body === undefined ? undefined : JSON.parse(JSON.stringify(r.body))) as T;
+  }
   const send = async (refresh: boolean) => {
     const headers: Record<string, string> = {};
     if (body !== undefined) headers['content-type'] = rawType ?? 'application/json';
@@ -247,6 +286,9 @@ export const sessionsApi = {
       `/api/sessions/${id}/macro-run`,
       body,
     ),
+  /** Restore an earlier engine state of the same session (rewind / checkpoints). */
+  restoreState: (id: number, state: SessionStateDto) =>
+    request<SessionViewDto & { bars: Bar[] }>('PUT', `/api/sessions/${id}/state`, { state }),
   saveDrawings: (id: number, drawings: unknown[]) =>
     request<{ drawings: unknown[] }>('PUT', `/api/sessions/${id}/drawings`, { drawings }),
 };
