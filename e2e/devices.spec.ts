@@ -93,3 +93,47 @@ for (const [name, width, height] of DEVICES) {
     await ctx.close();
   });
 }
+
+test('phone landscape: a status banner and a toast never push or cover the trade bar', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext({
+    viewport: { width: 874, height: 352 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await generateDemo(page);
+  await page.locator('#new-session-form button[type=submit]').click();
+  await expect(page.locator('#practice-root')).toBeVisible();
+  // Force the end-of-data banner and a toast, then measure.
+  await page.evaluate(() => {
+    const b = document.querySelector('[data-testid=status-banner]') as HTMLElement;
+    b.textContent = 'Session finished: end of data reached. Review your trades below.';
+    b.className = 'status-banner show finished';
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = 'SYNTH-DEMO: 15300 bars';
+    document.body.append(t);
+  });
+  const m = await page.evaluate(() => {
+    const r = (s: string) => document.querySelector(s)!.getBoundingClientRect();
+    const bar = r('[data-testid=trade-bar]');
+    const toast = r('.toast');
+    return {
+      scrollY: document.documentElement.scrollHeight - innerHeight,
+      bannerShown: r('[data-testid=status-banner]').height > 0,
+      barBottom: Math.round(bar.bottom),
+      vh: innerHeight,
+      toastAboveBar: toast.bottom <= bar.top + 0.5,
+      toastClearOfChart: toast.top >= r('.chart-body').top + r('.chart-body').height * 0.5,
+    };
+  });
+  expect(m.bannerShown, 'status stays visible').toBe(true);
+  expect(m.scrollY, 'banner does not push the page').toBeLessThanOrEqual(0);
+  expect(m.barBottom, 'trade bar stays on screen').toBeLessThanOrEqual(m.vh);
+  expect(m.toastAboveBar, 'toast sits above the trade bar').toBe(true);
+  expect(m.toastClearOfChart, 'toast stays in the lower half, not over the chart').toBe(true);
+  await ctx.close();
+});

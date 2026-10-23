@@ -360,9 +360,15 @@ body.in-practice header.app select {
   .toolbar .replay {
     height: calc(var(--h-sm) + 6px);
   }
-  .status-banner,
-  .reveal-banner {
-    display: none;
+  /* Status (breached / passed / finished) stays visible, as one short line. */
+  .status-banner.show,
+  .reveal-banner:not([hidden]) {
+    padding: 2px var(--sp2);
+    font-size: var(--fs-sm);
+    line-height: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 /* Phone landscape uses the trade bar but on one row: replay left, order right. */
@@ -504,6 +510,14 @@ header.app > :last-child {
 @media (max-width: 899px) {
   body.in-practice .toast {
     --toast-lift: 156px;
+  }
+}
+/* Short landscape screens: clear the one-row trade bar (32px controls + 2×4px padding +
+   8px gap → ~56px measured 53) plus the 34px tab strip. Kept after the portrait rule so it
+   wins on narrow + short screens. */
+@media (max-height: 520px) {
+  body.in-practice .toast {
+    --toast-lift: 96px;
   }
 }
 
