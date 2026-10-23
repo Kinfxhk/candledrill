@@ -6,7 +6,7 @@
 >
 > 手機、平板、電腦瀏覽器都可以用，不用安裝、不用登入。資料只存於你自己的瀏覽器，不會上傳。
 
-> **v1.0.3** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> **v1.0.4** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill 練習畫面：雙時框、好倉 R、括號單、下單票與成交紀錄](docs/screenshot.png)
 
@@ -16,7 +16,7 @@
 
 ## 風險聲明
 
-CandleDrill 是**教育與練習工具**。**不構成投資建議**，不提供交易訊號，**模擬或練習成績不能預示真實交易結果**。期貨、外匯等槓桿商品可能損失超過本金。以 K 棒為單位的模擬，無法還原一根棒內真實的價格先後順序。若資料源比練習時框更細（例如 10 秒），圖表可用其更新 forming 1 分鐘 K；**成交仍只在練習時框收棒時發生**（見 [docs/FILL-MODEL.md](docs/FILL-MODEL.md)）。
+CandleDrill 是**教育與練習工具**。**不構成投資建議**，不提供交易訊號，**模擬或練習成績不能預示真實交易結果**。期貨、外匯等槓桿商品可能損失超過本金。以 K 棒為單位的模擬，無法還原一根棒內真實的價格先後順序。若資料源是練習時框的六分之一（1 分鐘←10 秒、5 分鐘←50 秒、15 分鐘←150 秒），圖表會用它更新 forming K；**成交仍只在練習時框收棒時發生**（見 [docs/FILL-MODEL.md](docs/FILL-MODEL.md)）。只有已收市的練習時框、沒有更細來源時，不會在棒內編造路徑。
 
 ## 開始使用
 
@@ -62,7 +62,7 @@ npm start
 ### 回放手感
 
 - **逐根前進**、+10、播放（0.5×–120×／秒），**退後**一步（左方向鍵）撤銷上一個動作，連同其成交。
-- 「下一根」以練習時框計：示範數據是 10 秒 K、練習時框 1 分鐘，按一下就走完一根 1 分鐘 K（6 根 10 秒），市價單即在下一根 1 分鐘開市成交。
+- 「下一根」以練習時框計。來源是練習時框的六分之一時（1 分鐘 6 根 10 秒、5 分鐘 6 根 50 秒、15 分鐘 6 根 150 秒），按一下就走完一根練習 K，市價單在下一根練習 K 開市成交。畫面會先逐段畫出 forming，再收棒。
 - **存檔點**：保存當下一刻，之後一鍵回到該處重練同一段。
 - **跳到**指定時間（非盲練）。
 - 圖表：滾輪／雙指縮放、拖曳平移、雙擊價格軸重設；左上角顯示開高低收。
@@ -180,7 +180,7 @@ K 線顏色、格線、成交量、數量快捷、預設止蝕／止賺、「全
 
 ## 練習資料
 
-- **一鍵示範：** **產生示範數據** 會產生合成 **10 秒** K 線（`SYNTH-…`）；練習畫面預設 1 分鐘圖，forming 會隨 10 秒更新，成交跟 1 分鐘收棒。相同種子 → 相同 K 線。
+- **一鍵示範：** 先選練習時框（預設 1 分鐘），**產生示範數據** 會按該時框的六分之一產生合成 K（1 分鐘←10 秒、5 分鐘←50 秒、15 分鐘←150 秒；1 小時與日線同樣，`SYNTH-…`）。圖表選單不另開秒級時框。forming 隨來源更新，成交跟練習時框收棒。相同種子 → 相同 K 線。
 - **較長的 Globex 風格樣本（僅合成）：** [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)，匯入 `SYNTH-NQ-GLOBEX_1min.csv`，代號 **`PRACTICE-NQ-GLOBEX`**，跳動 **`0.25`**，UTC 偏移 **`-300`**。
 - 或 **匯入 CSV**：只匯入你有權使用的資料。CandleDrill **不附帶**真實市場資料。
 
@@ -217,7 +217,7 @@ docker compose up --build    # http://127.0.0.1:4870/
 <details>
 <summary>CSV 匯入提示</summary>
 
-每列一根棒：時間戳、開、高、低、收，可選成交量。匯入對話框會嘗試猜測欄位。無時區的時間會套用你選擇的 UTC 偏移。可匯入 10 秒等細週期；練習畫面時框選單仍從 1 分鐘起，forming 1 分鐘由細源更新，成交跟練習時框收棒。
+每列一根棒：時間戳、開、高、低、收，可選成交量。匯入對話框會嘗試猜測欄位。無時區的時間會套用你選擇的 UTC 偏移。可匯入練習時框的六分之一（或更細且能整除該時框）的 K，forming 會更新，成交仍跟練習時框收棒。若檔案只有已收市的練習時框（例如只有 5 分鐘 K），不會在棒內 forming。時框選單仍從練習時框起，不另開 10／50／150 秒選項。
 
 </details>
 
@@ -269,7 +269,7 @@ CandleDrill 免費，也會持續免費。若這個工具對你有幫助：https
 >
 > Works in any phone, tablet or desktop browser. No install, no sign-in. Your data stays in your own browser.
 
-> **v1.0.3** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v1.0.4** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 
@@ -283,7 +283,7 @@ CandleDrill is an **educational practice tool**. It is **not investment advice**
 it gives no trading signals, and **simulated or practice results do not predict
 real trading results**. Trading futures, forex and other leveraged products can
 lose more than your deposit. Bar-based simulation cannot know the true order of
-prices inside a bar. If the data source is finer than the practice timeframe (for example 10s bars while you watch 1m), the chart may use those bars to update a forming 1m candle; **fills still occur only on practice-timeframe closes** (see [docs/FILL-MODEL.md](docs/FILL-MODEL.md)).
+prices inside a bar. If the data source is one sixth of the practice timeframe (1m←10s, 5m←50s, 15m←150s), the chart uses those bars to update a forming candle; **fills still occur only on practice-timeframe closes** (see [docs/FILL-MODEL.md](docs/FILL-MODEL.md)). A file that contains only closed practice-timeframe bars does not grow a made-up path inside the bar.
 
 ## Getting started
 
@@ -321,7 +321,7 @@ Open <http://127.0.0.1:4870/> on this machine. Data stays in `~/.candledrill/`. 
 ### Replay feel
 
 - **Step**, +10, play (0.5–120 bars/s), and **Back** (Left arrow) undoes the last action, fills included.
-- **Next bar** counts practice bars: with 10s demo data and a 1m practice timeframe, one press completes a whole 1m bar (six 10s bars), so a market order fills at the next 1m open.
+- **Next bar** counts practice bars. With a source of practice/6 (six 10s bars in a 1m bar, six 50s bars in a 5m bar, six 150s bars in a 15m bar), one press completes a whole practice bar, so a market order fills at the next practice open. The candle paints each source bar before that close.
 - **Save points** keep a moment so you can return and drill the same stretch again.
 - **Jump to** a time (non-blind); **two charts** with linked crosshair and scroll, each with its own timeframe (1m → daily).
 - Chart: wheel / pinch zoom, drag to pan, double-click the price scale to reset; OHLC legend top-left.
@@ -403,7 +403,7 @@ Older session files still import: `anchorMinutes` copies `dayStartMinutes`, and 
 
 ## Practice data
 
-- **One-click demo:** **Generate demo data** creates synthetic **10s** bars (`SYNTH-…`); the practice UI defaults to a 1m pane so forming updates from 10s, while fills still follow 1m closes. Same seed → same bars.
+- **One-click demo:** Pick a practice timeframe (default 1 minute), then **Generate demo data** builds synthetic bars at one sixth of that timeframe (1m←10s, 5m←50s, 15m←150s; 1h and 1D follow the same rule, `SYNTH-…`). The chart menu does not add a seconds timeframe. Forming updates from the source; fills still follow practice-timeframe closes. Same seed → same bars.
 - **Longer Globex-like sample (synthetic only):** [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples) — import `SYNTH-NQ-GLOBEX_1min.csv` as symbol **`PRACTICE-NQ-GLOBEX`**, tick size **`0.25`**, UTC offset **`-300`**.
 - Or **Import CSV** of data you are entitled to use. CandleDrill ships **no real market data**.
 
@@ -430,7 +430,7 @@ Publishes on the host’s **127.0.0.1 only**. Never expose CandleDrill to a netw
 <details>
 <summary>CSV import tips</summary>
 
-One row per bar: timestamp, open, high, low, close, optional volume. The import dialog guesses columns. Times without a zone use the UTC offset you choose. You may import 10s (or other fine) bars; the practice pane menu still starts at 1m, forming 1m updates from the fine source, and fills follow practice-TF closes. Only import data you are entitled to use.
+One row per bar: timestamp, open, high, low, close, optional volume. The import dialog guesses columns. Times without a zone use the UTC offset you choose. You may import bars at practice/6 (or a finer spacing that divides the practice timeframe); the candle forms from those bars and fills still follow practice-timeframe closes. A file of only closed practice bars (5m candles alone, for example) does not form inside the bar. The pane menu still starts at the practice timeframe and does not offer 10s, 50s, or 150s. Only import data you are entitled to use.
 
 </details>
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSession, type Bar } from '@candledrill/core';
+import { createSession, type Bar, type Order } from '@candledrill/core';
 import { sessionsApi, type SessionViewDto } from '../src/api.js';
 import { PracticeView } from '../src/practice.js';
 import type { Drawing } from '../src/chart.js';
@@ -73,9 +73,15 @@ type ViewInternals = {
   cursorTime: number;
   drawings: Drawing[];
   playing: boolean;
+  panes: {
+    chart: { updateBar(bar: Bar): void; destroy(): void };
+    agg: { push(bar: Bar): { bar: Bar } };
+  }[];
   els: Record<string, unknown>;
   jump(): Promise<void>;
   reveal(): Promise<void>;
+  modifyOrderPrice(orderId: number, price: number): Promise<void>;
+  mutate(fn: () => Promise<SessionViewDto>): Promise<void>;
   saveDrawings(drawings: Drawing[]): Promise<void>;
 };
 function internals(view: PracticeView): ViewInternals {
@@ -210,6 +216,148 @@ describe('practice request ownership', () => {
     old.reject(new Error('old session failed'));
     await pending;
     expect(internals(view).playing).toBe(true);
+    view.close();
+  });
+});
+
+const stopOrder = (time: number): Order => ({
+  id: 7,
+  side: 'sell',
+  type: 'stop',
+  qty: 1,
+  price: 90,
+  role: 'stop-loss',
+  status: 'working',
+  placedIndex: 0,
+  placedTime: time,
+  stopLoss: null,
+  takeProfit: null,
+  parentId: null,
+  ocoGroup: null,
+  filledTime: null,
+  fillPrice: null,
+  cancelReason: null,
+});
+
+function withPnl<T extends SessionViewDto>(view: T, realizedPnl: number): T {
+  return {
+    ...view,
+    state: { ...view.state, trading: { ...view.state.trading, realizedPnl } },
+  };
+}
+
+/** A forming step: 2–12 source bars, so the chart paints on a timer instead of all at once. */
+function formingStep(marker: number) {
+  const count = 6;
+  const revealed = Array.from({ length: count }, (_, i) => bar(a.cursorTime + 60 * (i + 1)));
+  const base = structuredClone(a);
+  return {
+    ...base,
+    cursorTime: a.cursorTime + 60 * count,
+    state: {
+      ...base.state,
+      cursor: count,
+      trading: {
+        ...base.state.trading,
+        realizedPnl: marker,
+        orders: [stopOrder(a.cursorTime)],
+      },
+    },
+    revealed,
+  };
+}
+
+describe('forming paint does not overwrite newer session state', () => {
+  it('keeps a cancel that lands while the forming candle is still painting', async () => {
+    vi.useFakeTimers();
+    const stepped = formingStep(0);
+    vi.spyOn(sessionsApi, 'step').mockResolvedValue(structuredClone(stepped));
+    const view = new PracticeView();
+    await view.open(1);
+    const painted: Bar[] = [];
+    internals(view).panes.push({
+      chart: {
+        updateBar: (b) => painted.push(b),
+        destroy: () => {},
+      },
+      agg: { push: (b) => ({ bar: b }) },
+    });
+    await view.step(1);
+    expect(internals(view).bars).toHaveLength(a.bars.length + 6);
+    expect(internals(view).cursorTime).toBe(stepped.cursorTime);
+    expect(painted).toHaveLength(1);
+
+    const cancelled = withPnl(structuredClone(stepped), 77);
+    vi.spyOn(sessionsApi, 'cancelOrder').mockResolvedValue(cancelled);
+    await internals(view).mutate(() => sessionsApi.cancelOrder(1, 7));
+    expect(internals(view).state?.trading.realizedPnl).toBe(77);
+
+    await vi.runAllTimersAsync();
+    expect(painted).toHaveLength(6);
+    expect(internals(view).state?.trading.realizedPnl).toBe(77);
+    expect(internals(view).cursorTime).toBe(stepped.cursorTime);
+    view.close();
+  });
+
+  it('keeps an order edit that lands while the forming candle is still painting', async () => {
+    vi.useFakeTimers();
+    const stepped = formingStep(0);
+    vi.spyOn(sessionsApi, 'step').mockResolvedValue(structuredClone(stepped));
+    const view = new PracticeView();
+    await view.open(1);
+    await view.step(1);
+
+    const edited = withPnl(structuredClone(stepped), 42);
+    vi.spyOn(sessionsApi, 'modifyOrder').mockResolvedValue(edited);
+    await internals(view).modifyOrderPrice(7, 95);
+    expect(sessionsApi.modifyOrder).toHaveBeenCalledWith(1, 7, { price: 95 });
+    expect(internals(view).state?.trading.realizedPnl).toBe(42);
+
+    await vi.runAllTimersAsync();
+    expect(internals(view).state?.trading.realizedPnl).toBe(42);
+
+    view.close();
+  });
+
+  it('accepts an order while the forming candle is still painting', async () => {
+    vi.useFakeTimers();
+    const stepped = formingStep(0);
+    vi.spyOn(sessionsApi, 'step').mockResolvedValue(structuredClone(stepped));
+    const view = new PracticeView();
+    await view.open(1);
+    await view.step(1);
+    const filled = withPnl(structuredClone(stepped), 5);
+    const order = vi.spyOn(sessionsApi, 'placeOrder').mockResolvedValue(filled);
+    await view.placeOrder({ side: 'buy', type: 'market', qty: 1 });
+    expect(order).toHaveBeenCalled();
+    await vi.runAllTimersAsync();
+    expect(internals(view).state?.trading.realizedPnl).toBe(5);
+    expect(internals(view).cursorTime).toBe(stepped.cursorTime);
+    view.close();
+  });
+
+  it('drops a stop edit that resolves after a newer step snapshot', async () => {
+    const pending = deferred<SessionViewDto>();
+    vi.spyOn(sessionsApi, 'modifyOrder').mockReturnValueOnce(pending.promise);
+    const view = new PracticeView();
+    await view.open(1);
+    const openState = internals(view).state!;
+    internals(view).state = {
+      ...openState,
+      trading: { ...openState.trading, orders: [stopOrder(a.cursorTime)] },
+    };
+    const edit = internals(view).modifyOrderPrice(7, 95);
+
+    const stepped = { ...formingStep(3), revealed: [bar(a.cursorTime + 60)] };
+    vi.spyOn(sessionsApi, 'step').mockResolvedValue(stepped);
+    await view.step(1);
+    expect(internals(view).state?.trading.realizedPnl).toBe(3);
+
+    const stale = withPnl(structuredClone(a), 99);
+    pending.resolve({ ...stale, cursorTime: 1 });
+    await edit;
+    expect(internals(view).state?.trading.realizedPnl).toBe(3);
+    expect(internals(view).cursorTime).toBe(stepped.cursorTime);
     view.close();
   });
 });

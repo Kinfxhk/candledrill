@@ -95,6 +95,16 @@
           <div class="card">
             <h2 id="h-datasets" data-i18n="lib.datasets">Datasets</h2>
             <div class="row" style="margin-bottom: 8px">
+              <label class="row" style="gap: 6px">
+                <span class="muted small" data-i18n="lib.practiceTf">Practice timeframe</span>
+                <select id="demo-tf" data-testid="demo-tf">
+                  <option value="60" selected>1m</option>
+                  <option value="300">5m</option>
+                  <option value="900">15m</option>
+                  <option value="3600">1h</option>
+                  <option value="86400">1D</option>
+                </select>
+              </label>
               <button type="button" class="primary" id="btn-demo" data-i18n="lib.demo">
                 Generate demo data
               </button>

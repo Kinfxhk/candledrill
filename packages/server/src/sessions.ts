@@ -42,6 +42,7 @@ import {
   stepSession,
   parseMacro,
   runMacro,
+  resolvePracticeTimeframe,
   validateSettings,
   visibleBars,
   type Bar,
@@ -335,9 +336,13 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     async (req, reply) => {
       const ds = getDataset(db, req.body.datasetId);
       if (!ds) return reply.code(404).send({ error: 'dataset not found' });
-      // Finer-than-1m source → dual-cursor: chart reveals source bars; fills at 1m (or coarser).
-      const practiceTf =
-        req.body.settings.practiceTimeframeSeconds ?? (ds.timeframeSeconds < 60 ? 60 : undefined);
+      // Source = practice / 6 → dual-cursor: chart reveals source bars; fills on practice close.
+      const resolved = resolvePracticeTimeframe(
+        ds.timeframeSeconds,
+        req.body.settings.practiceTimeframeSeconds,
+      );
+      if (!resolved.ok) return reply.code(400).send({ error: resolved.error });
+      const practiceTf = resolved.practiceTf;
       const plain: SessionSettings = normalizeSettings({
         ...req.body.settings,
         symbol: ds.symbol,

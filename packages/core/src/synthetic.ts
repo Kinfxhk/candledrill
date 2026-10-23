@@ -7,10 +7,11 @@
 // replay UI can be developed and demonstrated without bundling any real market
 // data. It is NOT a model of any real instrument and must never be presented as
 // one: every symbol is forced to start with "SYNTH-" and metadata marks it synthetic.
-// Finer bars (e.g. 10s) exist so a 1m chart can show a real forming candle; they
-// are not a model of tick/trade flow.
+// Finer bars (practice timeframe / 6: 10s, 50s, 150s, …) exist so a practice
+// chart can show a real forming candle. They are not a model of tick/trade flow.
 
 import { createRng } from './rng.js';
+import { isSyntheticTimeframe } from './forming.js';
 import { expandSessions } from './calendar.js';
 import { assertTickSize, tickDecimals, ticksToPrice } from './ticks.js';
 import type { Bar, DatasetMeta, SessionCalendar } from './types.js';
@@ -49,8 +50,9 @@ export interface SyntheticOptions {
   /** Typical contracts per minute at mid-session. */
   readonly baseVolume?: number;
   /**
-   * Bar length in seconds. Default 60. Must be a positive integer that divides
-   * 60 (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60) so session spans stay aligned.
+   * Bar length in seconds. Default 60. Either a positive divisor of 60
+   * (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60) or the forming source of a
+   * standard practice timeframe (practice / 6: 50, 150, 600, 14400).
    */
   readonly timeframeSeconds?: number;
 }
@@ -97,9 +99,9 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
   checkRange('sessionGapVolatility', gapVol, 0, 0.2);
   checkRange('missingBarProbability', missingP, 0, 0.5);
   checkRange('baseVolume', baseVolume, 1, 1e9);
-  if (!Number.isInteger(timeframeSeconds) || timeframeSeconds <= 0 || 60 % timeframeSeconds !== 0) {
+  if (!isSyntheticTimeframe(timeframeSeconds)) {
     throw new RangeError(
-      `timeframeSeconds must be a positive divisor of 60, got ${timeframeSeconds}`,
+      `timeframeSeconds must be a positive divisor of 60 or a practice timeframe divided by 6, got ${timeframeSeconds}`,
     );
   }
   if (!/^[A-Z0-9_-]{1,24}$/.test(name)) {
@@ -108,8 +110,12 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
 
   const spans = expandSessions(calendar, options.startDate, options.days);
   const totalMinutes = spans.reduce((n, s) => n + s.minutes, 0);
-  const barsPerMinute = 60 / timeframeSeconds;
-  const totalBars = totalMinutes * barsPerMinute;
+  // Divisors of 60 keep the original per-minute loop (same bars for the same seed).
+  const minuteAligned = 60 % timeframeSeconds === 0;
+  const barsPerMinute = minuteAligned ? 60 / timeframeSeconds : 0;
+  const totalBars = minuteAligned
+    ? totalMinutes * barsPerMinute
+    : spans.reduce((n, s) => n + Math.floor((s.minutes * 60) / timeframeSeconds), 0);
   if (totalBars > MAX_SYNTHETIC_BARS) {
     throw new RangeError(`requested ${totalBars} bars, max is ${MAX_SYNTHETIC_BARS}`);
   }
@@ -118,10 +124,16 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
   const decimals = tickDecimals(tickSize);
   const avgSessionMinutes = spans.length ? totalMinutes / spans.length : 1;
   // Per-bar volatility so that one average session ~ one trading day of annual vol.
-  const barsPerSession = avgSessionMinutes * barsPerMinute;
+  const barsPerSession = minuteAligned
+    ? avgSessionMinutes * barsPerMinute
+    : spans.length
+      ? totalBars / spans.length
+      : 1;
   const barVol = annualVol / Math.sqrt(TRADING_DAYS_PER_YEAR * barsPerSession);
   // Scale "per minute" base volume down to each finer bar.
-  const barBaseVolume = baseVolume / barsPerMinute;
+  const barBaseVolume = minuteAligned
+    ? baseVolume / barsPerMinute
+    : (baseVolume * timeframeSeconds) / 60;
   const minTicks = 1;
 
   let logPrice = Math.log(startPrice);
@@ -132,7 +144,9 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
     if (spanIndex > 0 && gapVol > 0) {
       logPrice += gapVol * rng.normal(); // overnight / between-session gap
     }
-    const nBars = span.minutes * barsPerMinute;
+    const nBars = minuteAligned
+      ? span.minutes * barsPerMinute
+      : Math.floor((span.minutes * 60) / timeframeSeconds);
     for (let i = 0; i < nBars; i++) {
       const x = nBars > 1 ? i / (nBars - 1) : 0.5;
       logVolState = VOL_PERSISTENCE * logVolState + VOL_OF_VOL * rng.normal();

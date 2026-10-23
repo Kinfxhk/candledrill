@@ -4,7 +4,10 @@ import {
   aggregateBars,
   checkSessionState,
   createSession,
+  defaultPracticeTimeframe,
+  formingSourceSeconds,
   generateSyntheticBars,
+  practiceChartTimeframes,
   sessionPlaceOrder,
   stepSession,
   type SessionSettings,
@@ -127,6 +130,111 @@ describe('dual-cursor forming (10s source / 1m fill)', () => {
     // Step a bit further so we are mid-forming again (common e2e/backup shape).
     s = stepSession(source, dualSettings, s, 3).state;
     expect(checkSessionState(source, dualSettings, s)).toEqual([]);
+  });
+
+  it.each([
+    [60, 10],
+    [300, 50],
+    [900, 150],
+  ] as const)(
+    'practice %i forms from %i-second bars and fills on the practice close',
+    (practice, sourceTf) => {
+      expect(formingSourceSeconds(practice)).toBe(sourceTf);
+      expect(defaultPracticeTimeframe(sourceTf)).toBe(practice);
+      const fine = generateSyntheticBars({
+        seed: 7,
+        startDate: '2026-10-05',
+        days: 2,
+        timeframeSeconds: sourceTf,
+      });
+      const source = fine.bars;
+      const practiceBars = aggregateBars(source, practice);
+      const start = practiceBars[8]!.time;
+      const startIdx = source.findIndex((b) => b.time === start);
+      const settings: SessionSettings = { ...SETTINGS, practiceTimeframeSeconds: practice };
+
+      // The cursor is the last bar strictly before `start` (the previous practice bar).
+      let s = createSession(source, settings, start);
+      expect(s.cursor).toBe(startIdx - 1);
+
+      // Five source steps build the practice candle. It has not closed, so nothing fills.
+      let formingChanged = false;
+      const open = source[startIdx]!.open;
+      for (let n = 0; n < 5; n++) {
+        s = stepSession(source, settings, s, 1).state;
+        expect(s.trading.fills).toHaveLength(0);
+        const slice = source.slice(startIdx, s.cursor + 1);
+        const visible = aggregateBars(slice, practice);
+        expect(visible).toHaveLength(1);
+        expect(visible[0]!.time).toBe(start);
+        expect(visible[0]!.open).toBe(open);
+        expect(visible[0]!.close).toBe(slice[slice.length - 1]!.close);
+        expect(visible[0]!.high).toBe(Math.max(...slice.map((b) => b.high)));
+        expect(visible[0]!.low).toBe(Math.min(...slice.map((b) => b.low)));
+        if (visible[0]!.close !== open || visible[0]!.high !== open || visible[0]!.low !== open) {
+          formingChanged = true;
+        }
+      }
+      expect(formingChanged).toBe(true);
+
+      // Placed while that bar is still forming: the close of *this* bar is not a fill.
+      s = sessionPlaceOrder(source, settings, s, { side: 'buy', type: 'market', qty: 1 });
+      s = stepSession(source, settings, s, 1).state;
+      expect(s.trading.fills).toHaveLength(0);
+
+      // The next practice bar (6 source bars) closes, and the market order fills there.
+      const filled = stepSession(source, settings, s, 6).state;
+      expect(filled.trading.fills.length).toBeGreaterThan(0);
+      expect(filled.trading.fills[0]!.time).toBe(start + practice);
+
+      // Same orders on pre-aggregated practice bars match the dual-cursor run.
+      const run = (bars: typeof source, tfSettings: SessionSettings, steps: number) => {
+        let state = createSession(bars, tfSettings, start);
+        state = sessionPlaceOrder(bars, tfSettings, state, {
+          side: 'buy',
+          type: 'market',
+          qty: 1,
+          stopLoss: practiceBars[8]!.open - 10,
+          takeProfit: practiceBars[8]!.open + 20,
+        });
+        return stepSession(bars, tfSettings, state, steps).state;
+      };
+      const dual = run(source, settings, 12 * 6);
+      const legacy = run(practiceBars, SETTINGS, 12);
+      const slim = (f: (typeof dual.trading.fills)[number]) => ({
+        time: f.time,
+        side: f.side,
+        qty: f.qty,
+        price: f.price,
+        role: f.role,
+      });
+      expect(dual.trading.fills.map(slim)).toEqual(legacy.trading.fills.map(slim));
+      expect(dual.trading.realizedPnl).toBe(legacy.trading.realizedPnl);
+    },
+  );
+
+  it('a file of only practice-TF bars does not grow a finer forming source', () => {
+    expect(defaultPracticeTimeframe(60)).toBeUndefined();
+    expect(defaultPracticeTimeframe(300)).toBeUndefined();
+    expect(defaultPracticeTimeframe(900)).toBeUndefined();
+    // Sub-minute data that is not an exact pair still fills on 1m (V0).
+    expect(defaultPracticeTimeframe(5)).toBe(60);
+    expect(formingSourceSeconds(3600)).toBe(600);
+    expect(formingSourceSeconds(86400)).toBe(14400);
+    expect(defaultPracticeTimeframe(600)).toBe(3600);
+    expect(defaultPracticeTimeframe(14400)).toBe(86400);
+    expect(practiceChartTimeframes(10, 60)).toEqual([60, 300, 900, 3600, 86400]);
+    expect(practiceChartTimeframes(50, 300)).toEqual([300, 900, 3600, 86400]);
+    expect(practiceChartTimeframes(150, 900)).toEqual([900, 3600, 86400]);
+    for (const list of [
+      practiceChartTimeframes(10, 60),
+      practiceChartTimeframes(50, 300),
+      practiceChartTimeframes(150, 900),
+    ]) {
+      expect(list).not.toContain(10);
+      expect(list).not.toContain(50);
+      expect(list).not.toContain(150);
+    }
   });
 
   it('without practiceTimeframeSeconds, each 10s bar still fills (path 1 — not V0 default)', () => {

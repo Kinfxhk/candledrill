@@ -44,6 +44,7 @@ import {
   tradeExcursions,
   tradesToCsv,
   upgradeState,
+  resolvePracticeTimeframe,
   validateSettings,
   visibleBars,
   type Bar,
@@ -764,8 +765,8 @@ export class LocalBackend {
     const ds = await this.store.get<DatasetRecord>('datasets', datasetId);
     if (!ds) fail(404, 'dataset not found');
     const input = (b.settings ?? {}) as Omit<SessionSettings, 'symbol'>;
-    const practiceTf =
-      input.practiceTimeframeSeconds ?? (ds!.timeframeSeconds < 60 ? 60 : undefined);
+    const resolved = resolvePracticeTimeframe(ds!.timeframeSeconds, input.practiceTimeframeSeconds);
+    const practiceTf = resolved.ok ? resolved.practiceTf : fail(400, resolved.error);
     const plain = normalizeSettings({
       ...input,
       symbol: ds!.symbol,

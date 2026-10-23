@@ -6,6 +6,21 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-10-23
+
+Forming candles for every practice timeframe use a source of **timeframe ÷ 6**.
+The fill model is unchanged (v4): fills and rules still run on the practice-timeframe close.
+
+### Added
+
+- **5m ← 50s and 15m ← 150s** (1m ← 10s was already there). 1h ← 10m and 1D ← 4h use the same rule.
+- **Demo practice timeframe.** Generate demo data follows the practice timeframe next to the button (default 1 minute). The chart menu does not gain a 10s/50s/150s option.
+- A dataset that is already one practice bar (only 5m candles, for example) still fills on each close. CandleDrill does not invent prices inside that bar.
+
+### Not in this version
+
+- Fill model stays v4. Playback still counts practice bars, so one Next closes a practice bar and a market order can fill.
+
 ## [1.0.3] - 2026-10-23
 
 Phone and tablet touch targets, spacing, and mis-tap guards. The fill model is unchanged (v4).

@@ -115,12 +115,32 @@ point value`. `rMultiple = netPnl / initialRisk`.
 
 ## Forming candles from a finer source
 
-When the dataset timeframe is finer than the practice timeframe (for example 10s
-source with a 1m practice chart), CandleDrill may reveal those finer bars so the
-**chart** can update a forming higher-timeframe candle. **Order fills and practice
-rules still evaluate only on practice-timeframe bar closes** — the same bar-based
-model as above. Finer bars are a display path only; they do not change
-`fillTiming`, `simulationPolicy`, or fill-model version.
+A practice timeframe can form from a source that is **one sixth of that timeframe**
+(it divides evenly):
+
+| Practice    | Forming source |
+| ----------- | -------------- |
+| 1m (60s)    | 10s            |
+| 5m (300s)   | 50s            |
+| 15m (900s)  | 150s           |
+| 1h (3600s)  | 10m (600s)     |
+| 1D (86400s) | 4h (14400s)    |
+
+CandleDrill reveals those source bars so the **chart** updates a forming practice
+candle (six updates, then the bar closes). The chart menu stays on practice
+timeframes (1m and up). There is no 10s, 50s, or 150s chart option.
+
+**Order fills and practice rules still evaluate only on practice-timeframe bar
+closes** — the same bar-based model as above. Finer bars are a display path only;
+they do not change `fillTiming`, `simulationPolicy`, or the fill-model version.
+
+Demo data is generated at that source for the practice timeframe you choose
+(the default is 1m, so the default demo is still 10s bars). If a file contains
+only closed practice-timeframe bars (for example 5m candles and no 50s bars),
+CandleDrill does not invent a path inside the bar — that would use the finished
+high and low. Import or generate a source at practice/6, or any finer spacing
+that divides the practice timeframe, to see forming. A source that is already
+the practice bar fills on each bar close, with no intra-bar forming.
 
 ## Model limitations
 

@@ -45,6 +45,7 @@ export const ja: Record<MessageKey, string> = {
     'データセットがありません。合成デモデータを生成するか、独自の CSV をインポートしてください。',
   'lib.demo': 'デモデータを生成',
   'lib.demoBusy': 'デモデータを生成しています。少々お待ちください。',
+  'lib.practiceTf': '練習時間足',
   'lib.import': 'CSV をインポート',
   'lib.delete': '削除',
   'lib.confirmDelete': 'このデータセットとすべての練習を削除しますか？',

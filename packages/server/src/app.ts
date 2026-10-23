@@ -174,7 +174,7 @@ export function buildApp(opts: AppOptions): FastifyInstance {
       startDate: string;
       days: number;
       name?: string;
-      /** Bar length in seconds; must divide 60 (same rule as generateSyntheticBars). */
+      /** Bar length in seconds; a divisor of 60, or practice timeframe / 6. */
       timeframeSeconds?: number;
     };
   }>(
@@ -190,10 +190,7 @@ export function buildApp(opts: AppOptions): FastifyInstance {
             startDate: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
             days: { type: 'integer', minimum: 1, maximum: MAX_SYNTHETIC_DAYS },
             name: { type: 'string', pattern: '^[A-Z0-9_-]{1,24}$' },
-            timeframeSeconds: {
-              type: 'integer',
-              enum: [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60],
-            },
+            timeframeSeconds: { type: 'integer', minimum: 1, maximum: 86400 },
           },
         },
       },

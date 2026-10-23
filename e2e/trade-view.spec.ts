@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Request } from '@playwright/test';
 import { generateDemo, showWorkingOrders, stepUntil } from './helpers.js';
 
 async function setup(page: Page, name: string, blind = false) {
@@ -38,10 +38,29 @@ test('trade and journal navigation preserves session state across pane/timeframe
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   const read = await setup(page, 'Trade navigation');
-  const cursor = (await read()).state.cursor;
-  await page.getByTestId('btn-step10').click();
-  // +10 = ten practice (1m) bars; the 10s demo source advances 6 source bars per 1m bar.
-  await expect.poll(async () => (await read()).state.cursor).toBeGreaterThanOrEqual(cursor + 60);
+  const start = await read();
+  const cursor = start.state.cursor as number;
+  const cursorTime = start.cursorTime as number;
+  // +10 is ten 1m practice bars. On 10s data the cursor index moves 6 source bars
+  // per bar (60) and the clock moves 60s per bar (600s), not one 10s print.
+  // The fill's forming paint ignores a click until that candle finishes.
+  const landed = async () => (await read()).state.cursor >= cursor + 60;
+  let stepPosts = 0;
+  const onStep = (r: Request) => {
+    if (r.method() === 'POST' && new URL(r.url()).pathname.endsWith('/step')) stepPosts += 1;
+  };
+  page.on('request', onStep);
+  const pressStep10 = async () => {
+    const posts = stepPosts;
+    await page.getByTestId('btn-step10').click();
+    const deadline = Date.now() + 2000;
+    while (stepPosts === posts && Date.now() < deadline) await page.waitForTimeout(50);
+    return stepPosts > posts;
+  };
+  if (!(await pressStep10())) await pressStep10();
+  page.off('request', onStep);
+  await expect.poll(landed).toBe(true);
+  expect((await read()).cursorTime).toBeGreaterThanOrEqual(cursorTime + 10 * 60);
   const before = await read();
   const chart = page.locator('.chart-body').first();
   const liveImage = await chart.screenshot();

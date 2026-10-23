@@ -191,7 +191,23 @@ describe('synthetic finer timeframe', () => {
     expect(validateBars(bars, { timeframeSeconds: 10 })).toEqual([]);
   });
 
-  it('rejects a timeframe that does not divide 60', () => {
+  it('rejects a timeframe that is neither a minute divisor nor TF/6', () => {
     expect(() => generateSyntheticBars({ ...base, timeframeSeconds: 7 })).toThrow(/divisor/);
+  });
+
+  it.each([
+    [50, 612],
+    [150, 204],
+  ] as const)('emits %is bars (%i in the default session) for 5m/15m forming', (tf, count) => {
+    const { meta, bars } = generateSyntheticBars({
+      ...base,
+      days: 1,
+      timeframeSeconds: tf,
+    });
+    expect(meta.timeframeSeconds).toBe(tf);
+    // 08:00–16:30 is 30600s, which divides both 50 and 150.
+    expect(bars.length).toBe(count);
+    expect(bars[1]!.time - bars[0]!.time).toBe(tf);
+    expect(validateBars(bars, { timeframeSeconds: tf })).toEqual([]);
   });
 });

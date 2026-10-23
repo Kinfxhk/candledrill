@@ -56,6 +56,15 @@ export {
   STANDARD_TIMEFRAMES,
   type AggregateOptions,
 } from './aggregate.js';
+export {
+  FORMING_PARTS,
+  formingSourceSeconds,
+  pairedPracticeTimeframe,
+  defaultPracticeTimeframe,
+  resolvePracticeTimeframe,
+  practiceChartTimeframes,
+  isSyntheticTimeframe,
+} from './forming.js';
 
 export { initialCursor, visibleBars, stepsUntil } from './replay.js';
 export {

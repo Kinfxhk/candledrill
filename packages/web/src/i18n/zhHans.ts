@@ -42,6 +42,7 @@ export const zhHans: Record<MessageKey, string> = {
   'lib.empty': '暂时没有数据集。可以生成合成示范数据，或者导入自己的 CSV。',
   'lib.demo': '生成示范数据',
   'lib.demoBusy': '正在生成示范数据，请稍候。',
+  'lib.practiceTf': '练习时框',
   'lib.import': '导入 CSV',
   'lib.delete': '删除',
   'lib.confirmDelete': '确定删除这个数据集及其所有练习？',

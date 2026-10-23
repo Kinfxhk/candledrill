@@ -43,6 +43,7 @@ export const ko: Record<MessageKey, string> = {
   'lib.empty': '아직 데이터셋이 없습니다. 합성 데모 데이터를 생성하거나 직접 CSV를 가져오세요.',
   'lib.demo': '데모 데이터 생성',
   'lib.demoBusy': '데모 데이터를 생성하는 중입니다. 잠시만 기다리세요.',
+  'lib.practiceTf': '연습 시간봉',
   'lib.import': 'CSV 가져오기',
   'lib.delete': '삭제',
   'lib.confirmDelete': '이 데이터셋과 모든 연습을 삭제하시겠습니까?',
