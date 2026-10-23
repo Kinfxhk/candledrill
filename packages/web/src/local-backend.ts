@@ -293,6 +293,11 @@ export class LocalBackend {
   constructor(
     private readonly releaseVersion: string,
     private readonly now: () => Date = () => new Date(),
+    /** Browser-only UI state saved with the backup (rule profile per session id). */
+    private readonly extras: {
+      read: () => Record<string, unknown>;
+      write: (bySession: Record<string, unknown>) => void;
+    } = { read: () => ({}), write: () => {} },
   ) {}
 
   close(): Promise<void> {
@@ -528,6 +533,7 @@ export class LocalBackend {
             datasets,
             bars,
             sessions,
+            sessionProfiles: this.extras.read(),
           }),
         },
       };
@@ -538,6 +544,7 @@ export class LocalBackend {
         datasets?: DatasetRecord[];
         bars?: Record<string, Bar[]>;
         sessions?: SessionRecord[];
+        sessionProfiles?: Record<string, unknown>;
       };
       try {
         parsed = JSON.parse(
@@ -559,14 +566,18 @@ export class LocalBackend {
         idMap.set(id, rec.id);
       }
       let sessions = 0;
+      const profiles: Record<string, unknown> = {};
       for (const s of parsed.sessions ?? []) {
         const datasetId = idMap.get(s.datasetId);
         if (datasetId === undefined) continue;
-        const { id: _id, ...rest } = s;
-        void _id;
-        await this.store.put('sessions', { ...rest, datasetId } as SessionRecord);
+        const { id: oldId, ...rest } = s;
+        const newId = await this.store.put('sessions', { ...rest, datasetId } as SessionRecord);
+        // Session ids change on restore: carry each session's rule profile to its new id.
+        const prof = parsed.sessionProfiles?.[String(oldId)];
+        if (prof) profiles[String(newId)] = prof;
         sessions++;
       }
+      this.extras.write(profiles);
       return ok({ datasets: idMap.size, sessions, previousCopy: null });
     }
 

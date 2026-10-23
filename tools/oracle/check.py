@@ -392,8 +392,11 @@ def check_profile(ci, c):
         exp["noOvernight"] = ("fail" if overbreak else "pass", None)
     if p["maxTradesPerDay"] is not None:
         per, worst, broke = {}, 0, False
-        for t in trades:
-            d = day(t["openTime"])
+        opens = [t["openTime"] for t in trades]
+        if c.get("openTrade"):
+            opens.append(c["openTrade"]["openTime"])
+        for ot in opens:
+            d = day(ot)
             per[d] = per.get(d, 0) + 1
             worst = max(worst, per[d])
             broke = broke or per[d] > p["maxTradesPerDay"]

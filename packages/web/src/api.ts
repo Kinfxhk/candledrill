@@ -49,7 +49,17 @@ let local: LocalBackend | null = null;
 async function localBackend() {
   if (!local) {
     const { LocalBackend } = await import('./local-backend.js');
-    local = new LocalBackend(__APP_VERSION__);
+    const { SESSION_PROFILE_KEY } = await import('./settings.js');
+    local = new LocalBackend(__APP_VERSION__, undefined, {
+      read: () => {
+        try {
+          return JSON.parse(localStorage.getItem(SESSION_PROFILE_KEY) ?? '{}');
+        } catch {
+          return {};
+        }
+      },
+      write: (m) => localStorage.setItem(SESSION_PROFILE_KEY, JSON.stringify(m)),
+    });
   }
   return local;
 }
