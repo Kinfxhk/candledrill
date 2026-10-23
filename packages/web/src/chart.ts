@@ -295,9 +295,15 @@ export class PriceChart {
         horzLines: { color: this.theme.grid },
       },
       crosshair: { mode: CrosshairMode.Normal },
+      leftPriceScale: {
+        visible: false,
+        borderVisible: false,
+      },
       rightPriceScale: {
         borderColor: this.theme.border,
         scaleMargins: { top: 0.08, bottom: 0.22 },
+        // Drop a label that does not fit the scale instead of painting it across the candles.
+        entireTextOnly: true,
       },
       timeScale: {
         borderColor: this.theme.border,
