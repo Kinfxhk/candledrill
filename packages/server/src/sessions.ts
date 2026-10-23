@@ -522,6 +522,43 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     },
   );
 
+  // Rewind / checkpoints: put back an earlier engine state of this same session. The state is
+  // re-validated against the session bars (fills must match), so it cannot invent trades. Blind
+  // sessions cannot rewind until revealed (it would let you replay a period you have now seen).
+  app.put<{ Params: { id: number }; Body: { state: unknown } }>(
+    '/api/sessions/:id/state',
+    {
+      bodyLimit: MAX_SESSION_FILE_BYTES,
+      schema: {
+        params: idParams,
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['state'],
+          properties: { state: { type: 'object' } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const loaded = load(req.params.id, reply);
+      if (!loaded) return reply;
+      const { row, bars } = loaded;
+      if (isBlindHidden(row.settings, row.state))
+        return reply.code(423).send({ error: 'rewind is off in a blind session until you reveal' });
+      const issues = checkSessionState(bars, row.settings, req.body.state);
+      if (issues.length)
+        return reply.code(400).send({ error: 'state does not match this session', issues });
+      const state = upgradeState(
+        bars,
+        normalizeSettings(row.settings),
+        req.body.state as SessionState,
+      );
+      save(row, state);
+      const visible = visibleBars(bars, state.cursor);
+      return { ...sessionView(row, bars, state), bars: visible.slice(-MAX_HISTORY_BARS) };
+    },
+  );
+
   const mutate = async (
     id: number,
     reply: FastifyReply,

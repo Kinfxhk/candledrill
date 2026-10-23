@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import './styles.css';
-import { api, ApiError, sessionsApi, type DatasetRow } from './api.js';
+import {
+  api,
+  ApiError,
+  BROWSER_BACKEND,
+  downloadApi,
+  sessionsApi,
+  type DatasetRow,
+} from './api.js';
 import { applyI18n, setLang, t, type Lang } from './i18n.js';
 import { sessionStatusText } from './labels.js';
 import { LibraryView } from './library.js';
@@ -130,7 +137,17 @@ function markBackedUp(): void {
   saveBackup();
   renderReminder();
 }
-document.getElementById('btn-backup')!.addEventListener('click', markBackedUp);
+document.getElementById('btn-backup')!.addEventListener('click', (e) => {
+  if (BROWSER_BACKEND) {
+    // Browser build: the backup is a JSON file built in the page (no SQLite file).
+    e.preventDefault();
+    void downloadApi('/api/backup').then(markBackedUp, (err: Error) => toast(err.message, 'error'));
+    return;
+  }
+  markBackedUp();
+});
+if (BROWSER_BACKEND)
+  (document.getElementById('restore-file') as HTMLInputElement).accept = '.json,application/json';
 document.getElementById('remind-backup')!.addEventListener('click', () => {
   (document.getElementById('btn-backup') as HTMLAnchorElement).click();
 });

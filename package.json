@@ -2,7 +2,7 @@
   "name": "candledrill-monorepo",
   "private": true,
   "version": "0.5.0",
-  "description": "CandleDrill (K\u7dda\u64cd\u7df4\u5834): free, self-hosted candlestick replay practice tool. Educational only.",
+  "description": "CandleDrill (K線操練場): free, self-hosted candlestick replay practice tool. Educational only.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "workspaces": [
@@ -40,6 +40,7 @@
     "@types/node": "^26.6.4",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
+    "fake-indexeddb": "^6.2.6",
     "fast-check": "^4.10.2",
     "globals": "^17.13.0",
     "prettier": "^3.9.9",

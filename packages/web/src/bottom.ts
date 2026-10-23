@@ -2,7 +2,13 @@
 // Bottom panel: tabs for trades, fills and (later) statistics and export.
 
 import { sessionStats, type Trade } from '@candledrill/core';
-import { sessionsApi, type SessionSettings, type SessionStateDto } from './api.js';
+import {
+  BROWSER_BACKEND,
+  downloadApi,
+  sessionsApi,
+  type SessionSettings,
+  type SessionStateDto,
+} from './api.js';
 import { t, type MessageKey } from './i18n.js';
 import { el, fmtMoney, fmtNum, fmtPct, fmtTime, signClass, toast } from './format.js';
 import { exitReasonText, orderRoleText, weekdayKeyText } from './labels.js';
@@ -199,17 +205,21 @@ export const exportTab: BottomTab = {
     // The session file must carry the disguise (symbol and offsets) to be re-importable,
     // so offering it before the reveal would hand over the answer.
     const blindHidden = s.blind?.revealed === false;
-    const link = (key: MessageKey, file: string) =>
-      el(
+    const link = (key: MessageKey, file: string) => {
+      const url = `/api/sessions/${id}/export/${file}`;
+      const a = el(
         'a',
-        {
-          href: `/api/sessions/${id}/export/${file}`,
-          download: '',
-          class: 'badge',
-          'data-testid': `export-${file}`,
-        },
+        { href: url, download: '', class: 'badge', 'data-testid': `export-${file}` },
         t(key),
       );
+      // Browser build: there is no server to answer the link, so build the file here.
+      if (BROWSER_BACKEND)
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          void downloadApi(url);
+        });
+      return a;
+    };
     panel.replaceChildren(
       el(
         'div',
