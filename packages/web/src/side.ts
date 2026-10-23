@@ -24,6 +24,9 @@ import { getSettings } from './settings.js';
 import { orderRoleText, orderTypeText } from './labels.js';
 import { el, fmtMoney, fmtNum, signClass } from './format.js';
 
+/** Practice, backtest, and the phone sheet open on this. Limit and stop stay on the control. */
+export const DEFAULT_ORDER_TYPE: OrderType = 'market';
+
 export interface SideActions {
   /** Close the phone drawer (its ✕ button). */
   closeSheet?: () => void;
@@ -36,7 +39,7 @@ export interface SideActions {
 }
 
 export class SidePanel {
-  private type: OrderType = 'market';
+  private type: OrderType = DEFAULT_ORDER_TYPE;
   private readonly typeButtons = new Map<OrderType, HTMLButtonElement>();
   private readonly qty: HTMLInputElement;
   private readonly price: HTMLInputElement;
@@ -259,7 +262,7 @@ export class SidePanel {
     // Ticket and position first: trading must not need a scroll; rules and tools follow.
     this.root.replaceChildren(closeBtn, ticket, position, this.extra);
     document.body.append(this.dialog);
-    this.setType('market');
+    this.setType(DEFAULT_ORDER_TYPE);
   }
 
   setType(ty: OrderType): void {
@@ -270,10 +273,12 @@ export class SidePanel {
     this.renderRisk();
   }
 
-  /** Set the ticket price (e.g. from a chart click) and switch to limit if on market. */
+  /**
+   * Set the ticket price (for example from a chart click).
+   * Does not change the order type: a market ticket stays market until the user picks Limit or Stop.
+   */
   setPrice(p: number): void {
     if (!this.settings) return;
-    if (this.type === 'market') this.setType('limit');
     this.price.value = String(roundToTick(p, this.settings.tickSize));
     this.renderRisk();
   }
