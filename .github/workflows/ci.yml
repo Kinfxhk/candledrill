@@ -101,11 +101,13 @@ jobs:
 
       - run: npm ci
 
-      - name: Install Chromium for Playwright
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium and WebKit for Playwright
+        run: npx playwright install --with-deps chromium webkit
 
-      - name: Headless browser tests (smoke + cross-origin)
+      - name: Headless browser tests (Chromium; device fit also in WebKit)
         run: npm run test:e2e
+        env:
+          E2E_WEBKIT: '1'
 
   windows:
     # The project is developed on Linux; this job proves the Windows fixes (LF checkout,
