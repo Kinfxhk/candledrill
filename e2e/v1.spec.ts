@@ -227,13 +227,32 @@ test('Back after Play rewinds the whole run, even with a trailing stop moving', 
   await page.getByTestId('sl-ticks').fill('60');
   await page.getByTestId('btn-buy').click();
   await stepUntil(page, async () => (await sessionState(page)).state.trading.position !== null);
-  const before = (await sessionState(page)).state.cursor as number;
+  const started = await sessionState(page);
+  const before = started.state.cursor as number;
+  const bars = started.bars as { time: number }[];
+  const practiceTf = started.session.settings.practiceTimeframeSeconds as number | undefined;
+  const last = bars.at(-1);
+  const prev = bars.at(-2);
+  const spacing = last && prev ? last.time - prev.time : (practiceTf ?? 60);
+  const perBar =
+    practiceTf && spacing > 0 && practiceTf > spacing ? Math.round(practiceTf / spacing) : 1;
+  // 1× plays one practice bar per second and paints that bar across the second.
+  // More than one bar shows Back undoes the whole run. A fixed source-bar count
+  // (the old +40) no longer fits in 15s: ÷3 is ~3 source bars per second, not ~6.
   await page.getByTestId('btn-play').click();
   await expect
-    .poll(async () => (await sessionState(page)).state.cursor, { timeout: 15000 })
-    .toBeGreaterThan(before + 40);
+    .poll(async () => (await sessionState(page)).state.cursor, { timeout: 20000 })
+    .toBeGreaterThan(before + perBar);
   await page.getByTestId('btn-play').click(); // pause
-  await page.waitForTimeout(300);
+  // Back is ignored while a step request is still in flight. Forming paints do not
+  // move the cursor, so a stable cursor means that request has landed.
+  await expect
+    .poll(async () => {
+      const cursor = (await sessionState(page)).state.cursor as number;
+      await page.waitForTimeout(400);
+      return (await sessionState(page)).state.cursor === cursor;
+    })
+    .toBe(true);
   await page.getByTestId('btn-back').click();
   await expect.poll(async () => (await sessionState(page)).state.cursor).toBe(before);
 });
