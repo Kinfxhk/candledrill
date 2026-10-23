@@ -50,7 +50,8 @@ export async function stepUntil(
     if (await check()) return;
     await page.getByTestId('btn-step').click();
   }
-  expect(await check()).toBe(true);
+  // One Next paints the forming source bars before the practice-bar fill hits the DOM.
+  await expect.poll(check, { timeout: 3000 }).toBe(true);
 }
 
 /**

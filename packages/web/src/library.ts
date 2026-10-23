@@ -1,10 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Library view: datasets, static preview chart, CSV import, new practice session form.
 
+import { formingSourceSeconds, pairedPracticeTimeframe } from '@candledrill/core';
 import { api, ApiError, type DatasetRow } from './api.js';
 import { PriceChart } from './chart.js';
 import { t } from './i18n.js';
 import { el, fmtTime, tfLabel, toast } from './format.js';
+
+/** Practice TF plus its forming source when the dataset is an exact TF÷6 pair. */
+function datasetTfLabel(seconds: number): string {
+  const practice = pairedPracticeTimeframe(seconds);
+  if (practice === undefined) return tfLabel(seconds);
+  return `${tfLabel(practice)} · ${tfLabel(seconds)}`;
+}
 import { setupImporter } from './importer.js';
 
 export interface LibraryHooks {
@@ -69,8 +77,14 @@ export class LibraryView {
     try {
       const seed = (Math.floor(Math.random() * 0xffffffff) >>> 0) % 4294967295;
       const start = new Date(Date.UTC(2026, 0, 5)).toISOString().slice(0, 10);
-      // 10s source → default 1m pane shows a real forming candle (fills still at 1m close).
-      const { dataset } = await api.createSynthetic(seed, start, 7, { timeframeSeconds: 10 });
+      // Practice TF (1m/5m/15m/…) → source = TF/6. No separate sub-TF control.
+      const picked = Number(
+        (document.getElementById('demo-tf') as HTMLSelectElement | null)?.value ?? 60,
+      );
+      const practice = [60, 300, 900, 3600, 86400].includes(picked) ? picked : 60;
+      const { dataset } = await api.createSynthetic(seed, start, 7, {
+        timeframeSeconds: formingSourceSeconds(practice),
+      });
       const bars = `${dataset.symbol}: ${dataset.barCount} ${t('lib.bars')}`;
       toast(bars);
       await this.reload(dataset.id);
@@ -121,7 +135,7 @@ export class LibraryView {
           el(
             'div',
             { class: 'muted' },
-            `${d.symbol} · ${tfLabel(d.timeframeSeconds)} · ${t('lib.tick', { n: d.tickSize })} · ` +
+            `${d.symbol} · ${datasetTfLabel(d.timeframeSeconds)} · ${t('lib.tick', { n: d.tickSize })} · ` +
               `${d.barCount.toLocaleString()} ${t('lib.bars')} · ` +
               `${fmtTime(d.firstTime, d.utcOffsetMinutes)} → ${fmtTime(d.lastTime, d.utcOffsetMinutes)}`,
           ),
