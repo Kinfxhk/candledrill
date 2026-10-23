@@ -6,6 +6,24 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-10-23
+
+Phone and tablet touch targets, spacing, and mis-tap guards. The fill model is unchanged (v4).
+
+### Fixed
+
+- **44px trade controls.** On viewports at or under 899px, and on short landscape, Buy, Sell, Flatten, speed, and the Play row are at least 44×44px, with a visible pressed state.
+- **Flatten is harder to hit by accident.** The compact bar leaves a gap between Buy and Flatten. The first tap arms the button (Sure? / 確定？); a second tap within 3 seconds closes. A tap elsewhere cancels.
+- **In-flight lock.** Generate demo, market Buy, market Sell, and Flatten ignore a second tap while the request is still running and show a short notice.
+- **Larger hit areas.** The blind-practice checkbox row is at least 44px tall (the box itself is 22px). Bottom tabs on portrait phones and tablets are 44×44 and wrap so labels are not clipped. The drawer ✕ and the indicator-sheet ✕ are 44×44.
+- **Closing a panel does not place an order.** The tap that dismisses a sheet is swallowed, including a tap that lands on Buy or Sell underneath.
+- **Update notice.** On a narrow screen the banner uses less padding so it takes less of the first screen. Later and Don't show are unchanged.
+
+### Not in this version
+
+- No new swipe. The chart already pans when you drag it. Swiping between tabs would fight those clicks and the browser’s Back gesture.
+- Fill model stays v4. Playback speed and the 1×/s default from 1.0.2 are unchanged.
+
 ## [1.0.2] - 2026-10-23
 
 Phone and tablet practice can change playback speed. The fill model is unchanged (v4).

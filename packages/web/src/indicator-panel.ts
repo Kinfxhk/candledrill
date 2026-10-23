@@ -142,8 +142,19 @@ export class IndicatorPanel {
       });
       chips.append(b);
     }
+    const close = el(
+      'button',
+      {
+        type: 'button',
+        class: 'ghost panel-close',
+        'data-testid': 'indicator-close',
+        'aria-label': t('v1.closePanel'),
+      },
+      '✕',
+    );
+    close.addEventListener('click', () => this.close());
     this.root.replaceChildren(
-      el('h4', {}, t('pr.indicators')),
+      el('div', { class: 'panel-head' }, el('h4', {}, t('pr.indicators')), close),
       search,
       chips,
       this.renderCatalog(),

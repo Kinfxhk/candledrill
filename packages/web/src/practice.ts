@@ -62,6 +62,8 @@ import { managedStop, protectiveStop } from './stops.js';
 
 /** Steps kept for "Back" (rewind). Each entry is an engine state before one action. */
 const MAX_UNDO = 200;
+/** Compact trade-bar Flatten stays armed this long, then the first tap is forgotten. */
+const FLATTEN_ARM_MS = 3000;
 const CHECKPOINTS_KEY = 'candledrill.checkpoints.v1';
 interface Checkpoint {
   n: number;
@@ -142,6 +144,10 @@ export class PracticeView {
   private playing = false;
   private timer: ReturnType<typeof setInterval> | undefined;
   private inFlight = false;
+  /** Compact-bar Flatten: first tap arms, second tap within this window confirms. */
+  private flattenBtn: HTMLButtonElement | undefined;
+  private flattenArmTimer: ReturnType<typeof setTimeout> | undefined;
+  private flattenWatchInstalled = false;
   /** Invalidates pending requests whenever this view is opened or closed. */
   private generation = 0;
   private speed = readPlaybackSpeed();
@@ -228,6 +234,7 @@ export class PracticeView {
   }
 
   close(): void {
+    this.disarmFlatten();
     this.summary?.destroy();
     this.summary = undefined;
     this.generation++;
@@ -455,7 +462,7 @@ export class PracticeView {
     this.rulesView.setProfile(sessionProfile(m.id));
     this.checkpoints = loadCheckpoints(m.id);
     this.side = new SidePanel(side, {
-      place: (req) => this.mutate(() => sessionsApi.placeOrder(m.id, req)),
+      place: (req) => this.placeOrder(req),
       cancel: (oid) => this.mutate(() => sessionsApi.cancelOrder(m.id, oid)),
       modify: (oid, change) => this.mutate(() => sessionsApi.modifyOrder(m.id, oid, change)),
       flatten: () => this.flattenAll(),
@@ -1091,7 +1098,18 @@ export class PracticeView {
   }
 
   async placeOrder(req: OrderRequest): Promise<void> {
-    if (this.meta) await this.mutate(() => sessionsApi.placeOrder(this.meta!.id, req));
+    if (!this.meta) return;
+    if (this.inFlight) {
+      toast(t('pr.busy'));
+      return;
+    }
+    const generation = this.generation;
+    this.inFlight = true;
+    try {
+      await this.mutate(() => sessionsApi.placeOrder(this.meta!.id, req));
+    } finally {
+      if (generation === this.generation) this.inFlight = false;
+    }
   }
 
   private async modifyOrderPrice(orderId: number, price: number): Promise<void> {
@@ -1237,8 +1255,68 @@ export class PracticeView {
 
   private async flattenAll(): Promise<void> {
     if (!this.meta) return;
+    if (this.inFlight) {
+      toast(t('pr.busy'));
+      return;
+    }
     if (getSettings().confirmFlatten && !confirm(`${t('pr.flatten')}?`)) return;
-    await this.mutate(() => sessionsApi.flatten(this.meta!.id));
+    const generation = this.generation;
+    this.inFlight = true;
+    try {
+      await this.mutate(() => sessionsApi.flatten(this.meta!.id));
+    } finally {
+      if (generation === this.generation) this.inFlight = false;
+    }
+  }
+
+  /** First tap on the compact Flatten control only arms it; a second tap confirms. */
+  private onFlattenTap(): void {
+    const btn = this.flattenBtn;
+    if (!btn) return;
+    if (this.inFlight) {
+      toast(t('pr.busy'));
+      return;
+    }
+    if (btn.classList.contains('armed')) {
+      this.disarmFlatten();
+      void this.flattenAll();
+      return;
+    }
+    btn.classList.add('armed');
+    btn.textContent = t('v1.flattenConfirm');
+    btn.setAttribute('aria-pressed', 'true');
+    btn.setAttribute('aria-label', t('v1.flattenHint'));
+    toast(t('v1.flattenHint'));
+    clearTimeout(this.flattenArmTimer);
+    this.flattenArmTimer = setTimeout(() => this.disarmFlatten(), FLATTEN_ARM_MS);
+  }
+
+  private disarmFlatten(): void {
+    clearTimeout(this.flattenArmTimer);
+    this.flattenArmTimer = undefined;
+    const btn = this.flattenBtn;
+    if (!btn) return;
+    btn.classList.remove('armed');
+    btn.textContent = t('v1.flatten');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.removeAttribute('aria-label');
+  }
+
+  /** A tap anywhere except Flatten itself cancels an armed close. */
+  private watchFlattenArm(): void {
+    if (this.flattenWatchInstalled || typeof window === 'undefined') return;
+    this.flattenWatchInstalled = true;
+    window.addEventListener(
+      'pointerdown',
+      (e) => {
+        const btn = this.flattenBtn;
+        if (!btn?.classList.contains('armed')) return;
+        const target = e.target;
+        if (target instanceof Node && btn.contains(target)) return;
+        this.disarmFlatten();
+      },
+      true,
+    );
   }
 
   /** Active bottom tab, and the tall semi-auto layout only while that panel is open. */
@@ -1307,10 +1385,12 @@ export class PracticeView {
     sell.addEventListener('click', () => order('sell'));
     const flat = el(
       'button',
-      { type: 'button', class: 'flat', 'data-testid': 'tb-flatten' },
+      { type: 'button', class: 'flat', 'data-testid': 'tb-flatten', 'aria-pressed': 'false' },
       t('v1.flatten'),
     );
-    flat.addEventListener('click', () => void this.flattenAll());
+    this.flattenBtn = flat;
+    this.watchFlattenArm();
+    flat.addEventListener('click', () => this.onFlattenTap());
     const back = el(
       'button',
       { type: 'button', 'aria-label': t('v1.rewind'), 'data-testid': 'tb-back' },
@@ -1344,7 +1424,15 @@ export class PracticeView {
       'div',
       { class: 'trade-bar', 'data-testid': 'trade-bar' },
       el('div', { class: 'tb-replay' }, back, playBtn, next, ten, speed),
-      el('div', { class: 'tb-order' }, sell, qty, buy, flat),
+      el(
+        'div',
+        { class: 'tb-order' },
+        sell,
+        qty,
+        buy,
+        el('span', { class: 'tb-sep', 'aria-hidden': 'true' }),
+        flat,
+      ),
     );
   }
 

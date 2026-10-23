@@ -176,8 +176,13 @@ input[type='datetime-local']::-webkit-date-and-time-value {
     top: 0;
     z-index: 1;
     align-self: flex-end;
-    width: var(--h-md, 40px);
+    box-sizing: border-box;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 0;
+    flex: none;
     font-size: 18px;
     background: var(--panel);
     border: 1px solid var(--border);
@@ -392,5 +397,162 @@ input[type='datetime-local']::-webkit-date-and-time-value {
 @media (max-width: 899px), (max-height: 520px) {
   .drawing-palette:not(.collapsed) {
     z-index: 45;
+  }
+}
+
+/* ---------- touch feel (1.0.3)
+   Primary trade controls are 44×44 on every compact layout, including short landscape.
+   Flatten sits past a gutter so it is not the neighbour of Buy.
+   No new swipe: the chart already pans on drag, and a tab swipe would fight both the
+   tab click handlers and the browser Back gesture (see the top of this file). */
+@media (max-width: 899px), (max-height: 520px) and (max-width: 1199px) {
+  .trade-bar {
+    gap: 10px;
+  }
+  .trade-bar .tb-replay,
+  .trade-bar .tb-order {
+    gap: 10px;
+  }
+  .trade-bar .tb-order {
+    grid-template-columns:
+      minmax(44px, 1.25fr) minmax(44px, 0.72fr) minmax(44px, 1.25fr)
+      12px minmax(44px, 0.95fr);
+  }
+  .trade-bar .tb-sep {
+    width: 1px;
+    height: 22px;
+    justify-self: center;
+    align-self: center;
+    background: var(--border);
+  }
+  .trade-bar button,
+  .trade-bar input,
+  .trade-bar select {
+    box-sizing: border-box;
+    height: 44px;
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+  .trade-bar button {
+    transition:
+      transform 80ms ease,
+      filter 80ms ease,
+      background 80ms ease;
+  }
+  .trade-bar button:active:not(:disabled) {
+    transform: translateY(1px) scale(0.98);
+    filter: brightness(0.86);
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / 35%);
+  }
+  .trade-bar button.flat.armed {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 2px var(--down);
+  }
+  .indicator-panel .panel-close {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  label.blind-toggle {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    margin-top: 4px;
+    padding: 10px 8px;
+    border-radius: var(--r, 6px);
+    touch-action: manipulation;
+  }
+  label.blind-toggle:active {
+    background: var(--panel-2);
+  }
+  label.blind-toggle input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    margin: 0;
+    accent-color: var(--accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trade-bar button {
+    transition: none;
+  }
+  .trade-bar button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Portrait and tablet: tab chips and chart-head controls get a full 44px hit area,
+   and chips wrap so the last label stays on screen. Short landscape keeps the compact
+   strip so the chart stays at least 150px. */
+@media (max-width: 899px) and (min-height: 521px) {
+  .toolbar button,
+  .toolbar select {
+    height: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+  .chart-cell .chart-head {
+    min-height: 48px;
+  }
+  .chart-cell .chart-head button,
+  .chart-cell .chart-head select,
+  .drawing-palette-toggle {
+    height: 44px;
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+  .bottom .tabbar {
+    flex-wrap: wrap;
+    height: auto;
+    overflow: visible;
+    mask-image: none;
+    -webkit-mask-image: none;
+    column-gap: 8px;
+    row-gap: 8px;
+    padding-bottom: 6px;
+  }
+  .bottom .tabbar button,
+  .bottom .tabbar button.small {
+    height: 44px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 12px;
+    touch-action: manipulation;
+  }
+  .bottom .tabbar button:active:not(:disabled) {
+    filter: brightness(0.86);
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / 28%);
+  }
+  .bottom:not(.expanded):not(.macro-open) {
+    height: auto;
+  }
+  body:not(.in-practice) header.app nav.tabs button {
+    height: 44px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Update notice: shorter on a phone so it does not take the first screen. */
+@media (max-width: 899px) {
+  #update-banner {
+    margin: 4px 8px 0;
+    padding: 6px 8px;
+    gap: 6px;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  #update-banner .spacer {
+    display: none;
   }
 }
