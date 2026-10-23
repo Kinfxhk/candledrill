@@ -1293,14 +1293,20 @@ export class PriceChart {
     // double-click): every click counts, a click that was really a pan (moved > 4 px) does not.
     let down: { x: number; y: number } | null = null;
     let freehandMoved = false;
+    let stroke: number | null = null;
     // Capture phase: the chart library may stop these events from bubbling.
     this.container.addEventListener(
       'pointerdown',
       (e) => {
         down = { x: e.clientX, y: e.clientY };
         if (!this.freehandMode) return;
+        // The Draw palette lives inside the chart container: its buttons are not canvas.
+        if ((e.target as Element).closest?.('.drawing-palette, .drawing-style-bar')) return;
         e.preventDefault();
         e.stopPropagation();
+        // A stroke is one gesture: start fresh, and only this pointer may extend or end it.
+        this.freehandPoints = [];
+        stroke = e.pointerId;
         this.pushFreehandPoint(e.clientX, e.clientY);
         freehandMoved = false;
       },
@@ -1309,7 +1315,7 @@ export class PriceChart {
     this.container.addEventListener(
       'pointermove',
       (e) => {
-        if (!this.freehandMode) return;
+        if (!this.freehandMode || stroke !== e.pointerId) return;
         e.preventDefault();
         freehandMoved = true;
         this.pushFreehandPoint(e.clientX, e.clientY);
@@ -1319,7 +1325,10 @@ export class PriceChart {
     this.container.addEventListener(
       'pointerup',
       (e) => {
-        if (!this.freehandMode) return;
+        // Ends only a stroke this recorder saw start (a gesture stopped earlier, e.g. the tap
+        // that closed a panel, never reaches pointerdown here and so never draws).
+        if (!this.freehandMode || stroke !== e.pointerId) return;
+        stroke = null;
         e.preventDefault();
         e.stopPropagation();
         if (!freehandMoved) this.pushFreehandPoint(e.clientX, e.clientY);

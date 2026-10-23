@@ -30,8 +30,9 @@
   --border: #dcdad3;
   --grid: #efeee9;
   --text: #16191d;
-  --muted: #646b75;
-  --accent: #b86e08;
+  /* WCAG AA (≥ 4.5:1) on both #fff and --panel-2: muted 5.9–6.7, accent 4.9–5.6. */
+  --muted: #565d67;
+  --accent: #9a5800;
   --up: #12855c;
   --down: #c8343a;
 }

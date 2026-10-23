@@ -4,6 +4,7 @@
 // higher timeframes are aggregated locally from those bars, so a forming bar never
 // contains future data.
 
+import * as overlays from './overlays.js';
 import {
   BarAggregator,
   aggregateBars,
@@ -107,6 +108,8 @@ interface ChartPane {
   agg: BarAggregator;
   select: HTMLSelectElement;
   cell: HTMLElement;
+  /** Semi-auto button in the pane head (hidden while a blind session is hidden). */
+  macroBtn: HTMLButtonElement | undefined;
 }
 
 export class PracticeView {
@@ -197,6 +200,8 @@ export class PracticeView {
     document.getElementById('practice-empty')!.hidden = true;
     this.root.hidden = false;
     document.body?.classList?.add('in-practice');
+    // The open session, readable by tests and tools without guessing from the session list.
+    this.root.setAttribute?.('data-session-id', String(id));
     localStorage.setItem('candledrill.lastSession', String(id));
   }
 
@@ -229,8 +234,12 @@ export class PracticeView {
     this.rulesView = undefined;
     this.unsubscribeSettings?.();
     this.unsubscribeSettings = undefined;
+    overlays.closeAll();
+    this.sheetOpen = false;
     document.body?.classList?.remove('in-practice', 'sheet-open');
     this.root.replaceChildren();
+    // Attribute API: the unit tests use a minimal DOM without `dataset`.
+    this.root.removeAttribute?.('data-session-id');
     this.root.hidden = true;
     document.getElementById('practice-empty')!.hidden = false;
   }
@@ -277,7 +286,8 @@ export class PracticeView {
       this.checkpointList,
     );
     const sheetBtn = btn('v1.panel', 'ghost sheet-toggle', 'btn-sheet');
-    sheetBtn.addEventListener('click', () => document.body.classList.toggle('sheet-open'));
+    sheetBtn.setAttribute('aria-expanded', 'false');
+    sheetBtn.addEventListener('click', () => this.setSheet(!this.sheetOpen));
     const speed = el('select', { 'aria-label': t('pr.speed'), 'data-testid': 'speed' });
     for (const s of SPEEDS) speed.append(el('option', { value: String(s) }, `${s}×/s`));
     speed.value = String(this.speed);
@@ -414,6 +424,9 @@ export class PracticeView {
       link,
       back,
       saveCp,
+      sheetBtn,
+      // Set while building the trade bar above; keep it (this literal replaces this.els).
+      ...(this.els.tbPlay ? { tbPlay: this.els.tbPlay } : {}),
     };
     split.addEventListener('click', () => this.toggleSplit());
     this.rulesView = new RulesView();
@@ -425,6 +438,7 @@ export class PracticeView {
       modify: (oid, change) => this.mutate(() => sessionsApi.modifyOrder(m.id, oid, change)),
       flatten: () => this.flattenAll(),
       ticketChanged: () => this.decorate(),
+      closeSheet: () => this.setSheet(false),
     });
     this.side.extra.prepend(this.rulesView.el);
     this.side.extra.append(
@@ -489,9 +503,16 @@ export class PracticeView {
         },
       },
       (id) => {
-        this.els.bottom?.classList.toggle('macro-open', id === 'macro');
+        this.bottomTab = id;
+        this.syncMacroOpen();
       },
     );
+    // Only an actually open panel is an overlay (onSelect also runs on every render).
+    this.bottom.onExpandedChange = (on) => {
+      if (on) this.bottomOpened();
+      else overlays.closed('bottom');
+      this.syncMacroOpen();
+    };
     returnLive.addEventListener('click', () => this.returnToCurrent());
 
     this.summary = new CompletionSummary(summary, () => {
@@ -502,8 +523,8 @@ export class PracticeView {
     });
 
     play.addEventListener('click', () => (this.playing ? this.pause() : this.play()));
-    step.addEventListener('click', () => void this.step(1));
-    step10.addEventListener('click', () => void this.step(10));
+    step.addEventListener('click', () => void this.stepBars(1));
+    step10.addEventListener('click', () => void this.stepBars(10));
     speed.addEventListener('change', () => (this.speed = Number(speed.value)));
     jumpBtn.addEventListener('click', () => void this.jump());
 
@@ -749,6 +770,8 @@ export class PracticeView {
       e.stopPropagation();
       this.showMacro();
     });
+    // Semi-auto needs real dates; in a hidden blind session the button is not offered at all.
+    macroBtn.hidden = this.blindHidden;
     const head = el(
       'div',
       { class: 'chart-head' },
@@ -777,12 +800,14 @@ export class PracticeView {
       agg: new BarAggregator(tf, this.aggOpts()),
       select,
       cell,
+      macroBtn,
     };
     const panel = new IndicatorPanel(head, (cfg) => {
       this.indicatorConfig = cfg;
       for (const p of this.panes) p.chart.setIndicators(cfg, this.aggOpts());
     });
     this.indicatorPanels.push(panel);
+    panel.onClose = () => indBtn.setAttribute('aria-expanded', 'false');
     indBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       panel.toggle();
@@ -1195,6 +1220,39 @@ export class PracticeView {
     await this.mutate(() => sessionsApi.flatten(this.meta!.id));
   }
 
+  /** Active bottom tab, and the tall semi-auto layout only while that panel is open. */
+  private bottomTab = '';
+  private syncMacroOpen(): void {
+    const on = this.bottomTab === 'macro' && !!this.bottom?.isExpanded;
+    this.els.bottom?.classList.toggle('macro-open', on);
+  }
+
+  // ---------------------------------------------------------------- phone panels
+  private sheetOpen = false;
+  /** Rail drawer (phone / tablet portrait). Closes on a tap outside, Escape or its ✕. */
+  private setSheet(on: boolean): void {
+    this.sheetOpen = on;
+    document.body.classList.toggle('sheet-open', on);
+    this.els.sheetBtn?.setAttribute('aria-expanded', String(on));
+    if (on)
+      overlays.opened({
+        id: 'sheet',
+        contains: (n) => !!this.side?.root.contains(n) || !!this.els.sheetBtn?.contains(n),
+        close: () => this.setSheet(false),
+      });
+    else overlays.closed('sheet');
+  }
+
+  /** Bottom panel opened from a tab: on phones it is an overlay that folds on an outside tap. */
+  private bottomOpened(): void {
+    if (!window.matchMedia?.('(max-width: 899px), (max-height: 520px)').matches) return;
+    overlays.opened({
+      id: 'bottom',
+      contains: (n) => !!this.els.bottom?.contains(n),
+      close: () => this.bottom?.setExpanded(false),
+    });
+  }
+
   // ---------------------------------------------------------------- compact trade bar (phone / tablet)
   private pnlChip: HTMLElement | undefined;
   private tradeQty: HTMLInputElement | undefined;
@@ -1235,21 +1293,27 @@ export class PracticeView {
     const back = el(
       'button',
       { type: 'button', 'aria-label': t('v1.rewind'), 'data-testid': 'tb-back' },
-      '◀',
+      '|◀',
     );
     back.addEventListener('click', () => void this.rewind());
     const next = el(
       'button',
       { type: 'button', 'aria-label': t('pr.step'), 'data-testid': 'tb-step' },
-      '▶',
+      '▶|',
     );
-    next.addEventListener('click', () => void this.step(1));
+    next.addEventListener('click', () => void this.stepBars(1));
     const ten = el('button', { type: 'button', 'data-testid': 'tb-step10' }, '+10');
-    ten.addEventListener('click', () => void this.step(10));
+    ten.addEventListener('click', () => void this.stepBars(10));
     const playBtn = el(
       'button',
-      { type: 'button', class: 'primary', 'data-testid': 'tb-play' },
-      '▶▶',
+      {
+        type: 'button',
+        class: 'primary',
+        'data-testid': 'tb-play',
+        'aria-label': t('pr.play'),
+        'aria-pressed': 'false',
+      },
+      '▶',
     );
     playBtn.addEventListener('click', () => (this.playing ? this.pause() : this.play()));
     this.els.tbPlay = playBtn;
@@ -1287,6 +1351,31 @@ export class PracticeView {
       this.bars.push(b);
       for (const p of this.panes) p.chart.updateBar(p.agg.push(b).bar);
     }
+  }
+
+  /**
+   * Source bars to advance `n` practice bars. With 10s data and a 1m practice timeframe,
+   * "Next bar" must show the next *whole* 1m bar: if the current 1m bar is still forming it
+   * is finished first, then `n` full bars follow. A market order placed now fills at the open
+   * of the next 1m bar, so one press is enough to see the fill.
+   * shortcut: assumes no missing source bars inside a practice bar (gaps make it land a few
+   * bars early or late; the next press realigns), upgrade if real tick data has gaps.
+   */
+  private practiceSteps(n: number): number {
+    const ptf = this.meta?.settings.practiceTimeframeSeconds;
+    const last = this.bars.at(-1);
+    if (!ptf || !last || ptf <= this.baseTf) return n;
+    const perBar = Math.max(1, Math.round(ptf / this.baseTf));
+    const inBar = Math.round(
+      (last.time - bucketStart(last.time, ptf, this.aggOpts())) / this.baseTf,
+    );
+    const toClose = Math.max(0, perBar - 1 - inBar);
+    return toClose + n * perBar;
+  }
+
+  /** Step `n` practice bars (the buttons, keys and play all count in practice bars). */
+  async stepBars(n: number): Promise<void> {
+    await this.step(this.practiceSteps(n));
   }
 
   async step(count: number): Promise<void> {
@@ -1361,10 +1450,12 @@ export class PracticeView {
       this.carry += (this.speed * TICK_MS) / 1000;
       const n = Math.floor(this.carry);
       if (n < 1 || this.inFlight) return;
-      // Armed watch checks every closed bar, so play advances one bar per tick.
-      const count = this.macroArmed ? 1 : Math.min(n, 5000);
-      this.carry -= this.macroArmed ? 1 : n;
-      void this.step(count);
+      // Speed is practice bars per second (one 1m bar on 10s data), like Next and +10.
+      // An armed watch checks every closed practice bar, so it advances one per tick.
+      const bars = this.macroArmed ? 1 : n;
+      this.carry -= bars;
+      // The step route accepts at most 5000 source bars per call.
+      void this.step(Math.min(this.practiceSteps(bars), 5000));
     }, TICK_MS);
     this.renderPlay();
   }
@@ -1376,12 +1467,21 @@ export class PracticeView {
   }
 
   private renderPlay(): void {
+    const label = t(this.playing ? 'pr.pause' : 'pr.play');
     const b = this.els.play;
-    if (!b) return;
-    b.dataset.i18n = this.playing ? 'pr.pause' : 'pr.play';
-    b.textContent = t(this.playing ? 'pr.pause' : 'pr.play');
+    if (b) {
+      b.dataset.i18n = this.playing ? 'pr.pause' : 'pr.play';
+      b.textContent = label;
+      b.setAttribute('aria-pressed', String(this.playing));
+    }
     const tb = this.els.tbPlay;
-    if (tb) tb.textContent = this.playing ? '❚❚' : '▶▶';
+    if (tb) {
+      // Pause bars while playing, play triangle when stopped; the label says the same.
+      tb.textContent = this.playing ? '❚❚' : '▶';
+      tb.setAttribute('aria-label', label);
+      tb.setAttribute('aria-pressed', String(this.playing));
+      tb.classList.toggle('playing', this.playing);
+    }
   }
 
   // ---------------------------------------------------------------- render
@@ -1495,6 +1595,8 @@ export class PracticeView {
     if (cp) cp.hidden = this.blindHidden;
     const macroBlind = this.els.macroBlind;
     if (macroBlind) macroBlind.hidden = !this.blindHidden;
+    for (const p of this.panes) if (p.macroBtn) p.macroBtn.hidden = this.blindHidden;
+    this.bottom?.setTabHidden('macro', this.blindHidden);
     this.macroPanel?.sync(this.blindHidden, getLang());
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);
     this.onChanged();
@@ -1544,7 +1646,7 @@ export class PracticeView {
     if (action === 'play') {
       if (this.playing) this.pause();
       else this.play();
-    } else if (action === 'step') void this.step(e.shiftKey ? 10 : 1);
+    } else if (action === 'step') void this.stepBars(e.shiftKey ? 10 : 1);
     else if (action === 'back') void this.rewind();
     else if (action === 'checkpoint') this.addCheckpoint();
     else if (action === 'buy') void this.side?.submit('buy');

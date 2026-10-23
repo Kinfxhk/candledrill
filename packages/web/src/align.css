@@ -27,6 +27,8 @@
   :root {
     --h-md: 40px;
     --h-lg: 44px;
+    /* iOS Safari zooms the page when a focused field's text is under 16px. */
+    --fs-input: 16px;
   }
 }
 
@@ -77,7 +79,7 @@ label.field > span {
 }
 label.field > input,
 label.field > select {
-  font-size: var(--fs-md);
+  font-size: var(--fs-input, var(--fs-md));
 }
 
 /* ---------- cards */
@@ -592,4 +594,88 @@ header.app > :last-child {
 .rule-head {
   column-gap: var(--sp3);
   font-variant-numeric: tabular-nums;
+}
+
+/* Light theme: tab count badges and the strip toggle need visible contrast. */
+:root[data-theme='light'] .bottom .tabbar button[data-count]:not([data-count=''])::after {
+  background: var(--border);
+  color: var(--text);
+}
+.bottom .tabbar .bottom-toggle {
+  border-color: var(--border);
+  color: var(--text);
+}
+/* The strip toggle sits on its own background so tabs scrolling under it never show through. */
+.bottom .tabbar .bottom-toggle {
+  box-shadow: -8px 0 8px var(--panel);
+}
+/* Floating Draw palette: a visible edge on the white chart. */
+:root[data-theme='light'] .drawing-palette:not(.collapsed) {
+  border-color: var(--border);
+  box-shadow: 0 4px 16px rgb(20 20 20 / 14%);
+}
+/* OHLC legend gets a backing so price lines do not run through the text. */
+.ohlc-legend {
+  background: color-mix(in srgb, var(--chart-bg) 88%, transparent);
+  padding: 0 6px;
+  border-radius: var(--r-sm);
+}
+
+/* On-chart labels (R tool, measure, fib): halo in the chart's own background colour. */
+svg.draw-overlay text {
+  stroke: var(--chart-bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  font-weight: 600;
+}
+
+.bottom .tabbar .bottom-toggle {
+  min-width: var(--h-sm);
+  font-size: 15px;
+  font-weight: 700;
+  background: var(--panel-2);
+}
+/* Tab count badges: solid chip, readable in both themes (≥ 4.5:1). */
+.bottom .tabbar button[data-count]:not([data-count=''])::after,
+:root[data-theme='light'] .bottom .tabbar button[data-count]:not([data-count=''])::after {
+  background: var(--text);
+  color: var(--panel);
+  font-weight: 700;
+  min-width: 16px;
+  text-align: center;
+}
+
+.bottom .tabbar .bottom-toggle {
+  position: sticky;
+  right: 0;
+  width: var(--h-sm);
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+.bottom .tabbar .bottom-toggle::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-left: 2px solid var(--text);
+  border-top: 2px solid var(--text);
+  transform: translateY(2px) rotate(45deg);
+}
+.bottom .tabbar .bottom-toggle.open::before {
+  transform: translateY(-2px) rotate(225deg);
+}
+
+/* The fade hint must stop before the toggle, or it fades the toggle itself. */
+.bottom .tabbar {
+  mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - 72px),
+    transparent calc(100% - 40px),
+    #000 calc(100% - 40px)
+  );
+}
+.bottom .tabbar .bottom-toggle::before {
+  flex: 0 0 8px;
+  display: block;
+  box-sizing: border-box;
 }

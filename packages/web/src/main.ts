@@ -2,6 +2,7 @@
 import './styles.css';
 import './v1.css';
 import './align.css';
+import './phone.css';
 import {
   api,
   ApiError,

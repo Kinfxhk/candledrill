@@ -30,7 +30,7 @@ export default defineConfig({
       ? [
           {
             name: 'webkit',
-            testMatch: /devices\.spec\.ts/,
+            testMatch: /(devices|phone)\.spec\.ts/,
             use: { browserName: 'webkit' as const, launchOptions: {} },
           },
         ]
