@@ -83,13 +83,13 @@ test('a delayed step from the previous session cannot change the newly opened se
     await expect(page.getByTestId('clock')).toHaveText(clock!);
     // The next live step must use B's state, and only advance B once.
     await page.getByTestId('btn-step').click();
-    // One press = finish the forming 1m bar and reveal one more (≤ 11 source bars of 10s
+    // One press = finish the forming 1m bar and reveal one more (≤ 5 source bars of 20s
     // data). A double-applied step would go past that.
     await expect
       .poll(async () => (await sessionByName(page, 'Race B')).state.cursor)
       .toBeGreaterThan(b.state.cursor);
     expect((await sessionByName(page, 'Race B')).state.cursor).toBeLessThanOrEqual(
-      b.state.cursor + 11,
+      b.state.cursor + 5,
     );
     await expect(page.getByTestId('position')).toContainText('Flat');
     await expect(page.getByTestId('clock')).not.toHaveText(clock!);

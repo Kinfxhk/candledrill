@@ -44,7 +44,7 @@ test('replay and bracket order flow', async ({ page }) => {
   await page.getByTestId('sl-ticks').fill('16');
   await page.getByTestId('tp-ticks').fill('16');
   await page.getByTestId('btn-buy').click();
-  // Fills on the next *practice* bar close (1m), not the next 10s source bar.
+  // Fills on the next *practice* bar close (1m), not the next 20s source bar.
   await showWorkingOrders(page);
   await expect(page.getByTestId('orders')).toContainText(/buy/i);
   await page.getByTestId('tab-trades').click();
