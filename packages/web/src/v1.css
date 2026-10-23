@@ -50,22 +50,7 @@ header.app {
 .brand {
   font-size: 15px;
 }
-button,
-a.button {
-  min-height: var(--tap);
-  border-radius: 5px;
-}
-button.small {
-  min-height: calc(var(--tap) - 6px);
-}
-input,
-select {
-  min-height: var(--tap);
-}
-.card {
-  border-radius: 8px;
-  padding: 10px;
-}
+/* Control heights, radii and card padding live in align.css (one scale). */
 .card h2,
 .card h3 {
   font-size: 11px;
@@ -107,7 +92,7 @@ footer.app {
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 .toolbar .replay button {
@@ -286,8 +271,6 @@ footer.app {
   scrollbar-width: none;
 }
 .bottom .tabbar button {
-  border-radius: 5px 5px 0 0;
-  border-bottom-color: transparent;
   white-space: nowrap;
   min-height: 28px;
 }
@@ -359,7 +342,6 @@ footer.app {
     display: none;
   }
   body.in-practice header.app {
-    padding: 4px 8px;
     min-height: 40px;
     gap: 6px;
   }
@@ -499,7 +481,6 @@ body.in-practice footer.app {
 }
 body.in-practice header.app {
   min-height: 38px;
-  padding: 3px 10px;
 }
 body.in-practice header.app .brand small {
   display: none;

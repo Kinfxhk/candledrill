@@ -31,15 +31,18 @@ const RULE_LABEL: Record<RuleId, MessageKey> = {
 };
 const MONEY_RULES = new Set<RuleId>(['profitTarget', 'dailyLoss', 'maxLoss']);
 
+/** Whole currency in the rule card: the column is narrow and cents add nothing to a limit. */
+const money0 = (x: number) => Math.round(x).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
 function valueText(r: RuleResult): string {
   const v = (x: number | null) =>
-    x === null ? '–' : MONEY_RULES.has(r.id) ? fmtMoney(x) : String(x);
+    x === null ? '–' : MONEY_RULES.has(r.id) ? money0(x) : String(x);
   if (r.id === 'consistency') return r.value === null ? '–' : `${r.value}% / ${r.limit}%`;
   if (r.id === 'flatBy') {
     const m = r.limit ?? 0;
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   }
-  if (r.id === 'noOvernight') return '';
+  if (r.id === 'noOvernight') return '–';
   return `${v(r.value)} / ${v(r.limit)}`;
 }
 
