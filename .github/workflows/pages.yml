@@ -2,10 +2,11 @@
 # Publish the browser-only build (engine + IndexedDB in the page) to GitHub Pages.
 name: Pages
 
+# main only: the github-pages environment accepts deployments from main (release tags point
+# at a main commit that is already deployed).
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 
 permissions:
