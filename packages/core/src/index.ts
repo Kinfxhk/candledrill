@@ -232,3 +232,20 @@ export {
   type Excursion,
   type GroupRow,
 } from './journal.js';
+export {
+  RULE_PROFILE_FORMAT,
+  RULE_PROFILE_VERSION,
+  MAX_PROFILE_NAME,
+  MAX_PROFILE_NOTE,
+  blankProfile,
+  profileIssues,
+  parseProfile,
+  profileToSettings,
+  evaluateProfile,
+  type RuleProfile,
+  type RuleId,
+  type RuleState,
+  type RuleResult,
+  type ProfileReport,
+  type EvalClock,
+} from './rules-profile.js';
