@@ -69,8 +69,8 @@ export interface SessionSettings {
   /**
    * Timeframe (seconds) used for fills and practice rules.
    * When omitted, each revealed source bar is a practice bar (legacy 1:1).
-   * When set larger than the source spacing (e.g. 60 with 10s, 300 with 50s,
-   * 900 with 150s — source = practice / 6), stepping still reveals source bars
+   * When set larger than the source spacing (e.g. 60 with 20s, 300 with 100s,
+   * 900 with 300s — source = practice ÷ 3), stepping still reveals source bars
    * for the chart, but `processBar` / rules run only when a practice bar closes
    * (dual-cursor forming).
    */

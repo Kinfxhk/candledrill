@@ -7,11 +7,11 @@
 // replay UI can be developed and demonstrated without bundling any real market
 // data. It is NOT a model of any real instrument and must never be presented as
 // one: every symbol is forced to start with "SYNTH-" and metadata marks it synthetic.
-// Finer bars (practice timeframe / 6: 10s, 50s, 150s, …) exist so a practice
-// chart can show a real forming candle. They are not a model of tick/trade flow.
+// Finer bars (practice timeframe / FORMING_PARTS: 20s, 100s, 300s, …) exist so a
+// practice chart can show a real forming candle. They are not a model of tick/trade flow.
 
 import { createRng } from './rng.js';
-import { isSyntheticTimeframe } from './forming.js';
+import { FORMING_PARTS, isSyntheticTimeframe } from './forming.js';
 import { expandSessions } from './calendar.js';
 import { assertTickSize, tickDecimals, ticksToPrice } from './ticks.js';
 import type { Bar, DatasetMeta, SessionCalendar } from './types.js';
@@ -52,7 +52,8 @@ export interface SyntheticOptions {
   /**
    * Bar length in seconds. Default 60. Either a positive divisor of 60
    * (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60) or the forming source of a
-   * standard practice timeframe (practice / 6: 50, 150, 600, 14400).
+   * standard practice timeframe (practice / FORMING_PARTS: 100, 300, 1200, 28800;
+   * v1.0.4 ÷6 sources 50, 150, 600, 14400 still generate).
    */
   readonly timeframeSeconds?: number;
 }
@@ -101,7 +102,7 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
   checkRange('baseVolume', baseVolume, 1, 1e9);
   if (!isSyntheticTimeframe(timeframeSeconds)) {
     throw new RangeError(
-      `timeframeSeconds must be a positive divisor of 60 or a practice timeframe divided by 6, got ${timeframeSeconds}`,
+      `timeframeSeconds must be a positive divisor of 60 or a practice timeframe divided by ${FORMING_PARTS}, got ${timeframeSeconds}`,
     );
   }
   if (!/^[A-Z0-9_-]{1,24}$/.test(name)) {

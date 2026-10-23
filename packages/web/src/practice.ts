@@ -573,8 +573,8 @@ export class PracticeView {
     step10.addEventListener('click', () => void this.stepBars(10));
     jumpBtn.addEventListener('click', () => void this.jump());
 
-    // Pane menu stays on practice timeframes (≥ the bound practice TF). Never offer the
-    // forming source (10s/50s/150s) as its own chart.
+    // Pane menu stays on practice timeframes (≥ the bound practice TF). Never offer a
+    // sub-minute forming source (20s/100s, or a v1.0.4 10s/50s/150s file) as its own chart.
     const defaultTf = this.chartTimeframes()[0] ?? 60;
     this.addPane(defaultTf);
     if (localStorage.getItem('candledrill.split') === '1') this.toggleSplit();
@@ -1511,8 +1511,8 @@ export class PracticeView {
   }
 
   /**
-   * Source bars to advance `n` practice bars. With a TF÷6 source (10s under 1m, 50s under
-   * 5m, 150s under 15m), "Next bar" finishes the forming practice bar and then reveals `n`
+   * Source bars to advance `n` practice bars. With a TF÷3 source (20s under 1m, 100s under
+   * 5m, 300s under 15m), "Next bar" finishes the forming practice bar and then reveals `n`
    * whole ones. A market order placed now fills at the open of the next practice bar, so
    * one press is enough to see the fill. The chart still paints each source bar.
    * shortcut: assumes no missing source bars inside a practice bar (gaps make it land a few
@@ -1604,10 +1604,18 @@ export class PracticeView {
     pump();
   }
 
-  /** Spread forming paints across the play interval, or a short beat for one Next. */
+  /**
+   * Gap between forming paints. The first source bar paints immediately; the other
+   * `count - 1` gaps use the whole budget (`budget / (count - 1)`), so the candle
+   * keeps building until the next bar instead of finishing early and sitting idle.
+   * There is no 16ms floor and no 140ms cap.
+   * Playing budget is `clamp(1000/speed, 48, 1600)` ms. One Next uses a 420ms beat.
+   * Play stays blocked on `presentTimer` until the last paint — it does not fetch
+   * the next bar while this candle is still drawing.
+   */
   private formingGapMs(count: number): number {
     const budget = this.playing ? Math.max(48, Math.min(1600, 1000 / this.speed)) : 420;
-    return Math.max(16, Math.min(140, Math.floor(budget / Math.max(1, count))));
+    return budget / Math.max(1, count - 1);
   }
 
   /** Catch the chart up to bars already committed. Does not write session state. */
@@ -1678,8 +1686,8 @@ export class PracticeView {
     this.timer = setInterval(() => {
       this.carry += (this.speed * TICK_MS) / 1000;
       const n = Math.floor(this.carry);
-      // While a practice bar is still painting its source bars, keep the clock but don't
-      // fetch the next one — otherwise play would skip the forming updates.
+      // While a practice bar is still painting, keep the clock but don't fetch the next
+      // one. The paints already fill this bar's budget; fetching early would cut the build.
       if (n < 1 || this.inFlight || this.presentTimer) return;
       // Speed is practice bars per second (one 1m bar on 10s data), like Next and +10.
       // An armed watch checks every closed practice bar, so it advances one per tick.

@@ -7,7 +7,7 @@ import { PriceChart } from './chart.js';
 import { t } from './i18n.js';
 import { el, fmtTime, tfLabel, toast } from './format.js';
 
-/** Practice TF plus its forming source when the dataset is an exact TF÷6 pair. */
+/** Practice TF plus its forming source when the dataset is an exact forming pair. */
 function datasetTfLabel(seconds: number): string {
   const practice = pairedPracticeTimeframe(seconds);
   if (practice === undefined) return tfLabel(seconds);
@@ -77,7 +77,7 @@ export class LibraryView {
     try {
       const seed = (Math.floor(Math.random() * 0xffffffff) >>> 0) % 4294967295;
       const start = new Date(Date.UTC(2026, 0, 5)).toISOString().slice(0, 10);
-      // Practice TF (1m/5m/15m/…) → source = TF/6. No separate sub-TF control.
+      // Practice TF (1m/5m/15m/…) → source = TF÷3. No separate sub-TF control.
       const picked = Number(
         (document.getElementById('demo-tf') as HTMLSelectElement | null)?.value ?? 60,
       );
