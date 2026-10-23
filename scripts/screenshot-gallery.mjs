@@ -36,6 +36,12 @@ async function startSession(page, { blind = false, name = 'Practice' } = {}) {
   await page.getByTestId('charts').waitFor({ timeout: 15000 });
 }
 
+/** Open the floating Draw palette if it is collapsed (its state persists). */
+async function openPalette(page) {
+  const toggle = page.getByTestId('drawing-palette-toggle').first();
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+}
+
 async function step(page, n = 1) {
   for (let i = 0; i < n; i++) await page.getByTestId('btn-step10').click();
 }
@@ -60,7 +66,7 @@ async function step(page, n = 1) {
   await page.getByTestId('btn-step').click();
   await page.getByTestId('btn-split').click();
   const body = await page.locator('.chart-body').first().boundingBox();
-  await page.getByTestId('drawing-palette-toggle').first().click();
+  await openPalette(page);
   await page.getByTestId('palette-long').first().click();
   await page.mouse.click(body.x + body.width * 0.72, body.y + body.height * 0.4);
   await page.waitForTimeout(4500);
@@ -88,7 +94,7 @@ async function step(page, n = 1) {
   const page = await freshPage();
   await startSession(page, { blind: false, name: 'Draw tools' });
   await step(page, 2);
-  await page.getByTestId('drawing-palette-toggle').first().click();
+  await openPalette(page);
   await page.getByTestId('palette-hline').first().waitFor({ state: 'visible' });
   // Place a trendline so chart looks alive
   const body = await page.locator('.chart-body').first().boundingBox();
@@ -99,7 +105,7 @@ async function step(page, n = 1) {
   // Re-open palette if it collapsed after tool use — keep tools visible for shot
   const hline = page.getByTestId('palette-hline').first();
   if (!(await hline.isVisible().catch(() => false))) {
-    await page.getByTestId('drawing-palette-toggle').first().click();
+    await openPalette(page);
     await hline.waitFor({ state: 'visible' });
   }
   await page.waitForTimeout(300);
@@ -191,6 +197,95 @@ async function step(page, n = 1) {
   await page.screenshot({ path: 'docs/shot-semi-result.png' });
   await page.close();
   console.info('wrote docs/shot-semi-result.png');
+}
+
+// v1.0 shots: rule check + review (desktop), phone and tablet layouts.
+const PROFILE = {
+  format: 'candledrill-rule-profile',
+  version: 1,
+  id: 'readme50k',
+  name: 'My 50K rules',
+  accountSize: 50000,
+  profitTarget: 3000,
+  dailyLoss: 1000,
+  maxLoss: 2000,
+  maxLossMode: 'eod',
+  consistencyPct: 50,
+  minTradingDays: 3,
+  maxTradingDays: null,
+  minProfitDays: null,
+  minProfitDayAmount: null,
+  maxContracts: 5,
+  flatBy: '16:00',
+  noOvernight: true,
+  maxTradesPerDay: null,
+  maxConsecutiveLosses: 4,
+};
+async function v1Page(viewport, mobile) {
+  const ctx = await browser.newContext({
+    viewport,
+    deviceScaleFactor: mobile ? 2 : 1,
+    isMobile: mobile,
+    hasTouch: mobile,
+    colorScheme: 'dark',
+    locale: 'en-US',
+  });
+  await ctx.addInitScript((p) => {
+    localStorage.setItem('candledrill.profiles.v1', JSON.stringify([p]));
+  }, PROFILE);
+  const page = await ctx.newPage();
+  await page.goto(base, { waitUntil: 'networkidle' });
+  const demoBtn = page.locator('#btn-demo');
+  await demoBtn.click();
+  await page.waitForTimeout(800);
+  await page.getByTestId('ns-blind').setChecked(false);
+  await page.getByTestId('ns-profile').selectOption('readme50k');
+  await page.locator('#new-session-form input[name=name]').fill('Morning practice');
+  await page.locator('#new-session-form button[type=submit]').click();
+  await page.getByTestId('charts').waitFor({ timeout: 15000 });
+  return { ctx, page };
+}
+{
+  const { ctx, page } = await v1Page({ width: 1440, height: 900 }, false);
+  await step(page, 2);
+  await page.getByTestId('sl-ticks').fill('12');
+  await page.getByTestId('tp-ticks').fill('24');
+  await page.getByTestId('btn-buy').click();
+  await step(page, 4);
+  await page.getByTestId('btn-sell').click();
+  await step(page, 4);
+  await page.getByTestId('btn-buy').click();
+  await step(page, 6);
+  await page.waitForTimeout(4500);
+  await page.getByTestId('rule-check').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'docs/shot-rules.png' });
+  console.info('wrote docs/shot-rules.png');
+  await page.getByTestId('tab-review').click();
+  await page.getByTestId('mc-run').click();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: 'docs/shot-review.png' });
+  console.info('wrote docs/shot-review.png');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await v1Page({ width: 390, height: 844 }, true);
+  for (let i = 0; i < 3; i++) await page.getByTestId('tb-step10').click();
+  await page.getByTestId('tb-buy').click();
+  for (let i = 0; i < 2; i++) await page.getByTestId('tb-step10').click();
+  await page.waitForTimeout(4500);
+  await page.screenshot({ path: 'docs/shot-phone.png' });
+  console.info('wrote docs/shot-phone.png');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await v1Page({ width: 1024, height: 768 }, true);
+  await step(page, 3);
+  await page.getByTestId('btn-buy').click();
+  await step(page, 2);
+  await page.waitForTimeout(4500);
+  await page.screenshot({ path: 'docs/shot-tablet.png' });
+  console.info('wrote docs/shot-tablet.png');
+  await ctx.close();
 }
 
 await browser.close();

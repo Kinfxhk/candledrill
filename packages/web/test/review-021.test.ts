@@ -106,8 +106,10 @@ describe('review 2026-10-08 labels', () => {
     expect(html).toContain('data-i18n="pr.rulesBar"');
     expect(html).toContain('data-i18n="imp.tickHint"');
     const readme = read('README.md');
-    expect(readme).toMatch(/desktop browser/i);
-    expect(readme).toMatch(/桌面瀏覽器/);
+    // v1.0: the README documents both the local (desktop) and the browser (phone/tablet) builds.
+    expect(readme).toMatch(/Browser version \(phone, tablet, desktop\)/);
+    expect(readme).toMatch(/瀏覽器版（手機、平板、電腦）/);
+    expect(readme).not.toMatch(/designed for desktop windows/i);
   });
 
   it('Python price-axis check round-trips the displayed price', () => {

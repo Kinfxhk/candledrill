@@ -56,9 +56,11 @@ function histSvg(buckets: { from: number; count: number }[]): SVGSVGElement {
         class: b.from < 0 ? 'neg' : 'pos',
       }),
     );
-    if (i % 2 === 0) {
+    // End buckets also hold everything beyond them, so label them as open ranges.
+    const last = i === buckets.length - 1;
+    if (i % 2 === 0 || last) {
       const lbl = svg('text', { x: i * bw + bw / 2, y: H + 12, 'text-anchor': 'middle' });
-      lbl.textContent = String(b.from);
+      lbl.textContent = i === 0 ? `≤${b.from + 0.5}` : last ? `≥${b.from}` : String(b.from);
       root.append(lbl);
     }
   });
