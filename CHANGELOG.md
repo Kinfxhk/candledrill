@@ -6,6 +6,15 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-23
+
+Phone and tablet practice can change playback speed. The fill model is unchanged (v4).
+
+### Fixed
+
+- **Playback speed on small screens.** Viewports at or under 899px (and short landscape) hid the toolbar speed control. The compact trade bar now shows the same dropdown on the Play row, so a phone can slow the tape without a keyboard.
+- **Default speed is 1×/s.** A new browser profile starts at one bar per second. A later choice is remembered on this device. The desktop speed dropdown is unchanged.
+
 ## [1.0.1] - 2026-10-23
 
 Phone usability fixes from real-device testing. The fill model is unchanged (v4).
