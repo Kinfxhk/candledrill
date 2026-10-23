@@ -10,6 +10,7 @@ import {
   aggregateBars,
   bucketStart,
   macroSignal,
+  practiceChartTimeframes,
   roundToTick,
   workingOrders,
   type Bar,
@@ -97,7 +98,6 @@ function saveCheckpoints(id: number, list: Checkpoint[]): void {
   }
 }
 
-const TIMEFRAMES = [60, 300, 900, 3600, 86400];
 const SPEEDS = [0.5, 1, 2, 5, 10, 30, 60, 120];
 const TICK_MS = 100;
 /** Last playback speed on this device. Missing or unknown values fall back to 1 bar/s. */
@@ -144,6 +144,10 @@ export class PracticeView {
   private playing = false;
   private timer: ReturnType<typeof setInterval> | undefined;
   private inFlight = false;
+  /** Paints forming source bars one at a time so a practice candle does not pop in whole. */
+  private presentTimer: ReturnType<typeof setTimeout> | undefined;
+  private presentToken = 0;
+  private finishPresent: (() => void) | undefined;
   /** Compact-bar Flatten: first tap arms, second tap within this window confirms. */
   private flattenBtn: HTMLButtonElement | undefined;
   private flattenArmTimer: ReturnType<typeof setTimeout> | undefined;
@@ -194,6 +198,11 @@ export class PracticeView {
     return Number.isFinite(best) && best > 0 ? best : 60;
   }
 
+  /** Practice-TF panes the source can build. No sub-timeframe entries. */
+  private chartTimeframes(): number[] {
+    return [...practiceChartTimeframes(this.baseTf, this.meta?.settings.practiceTimeframeSeconds)];
+  }
+
   /** True while a blind session's real period and prices are still hidden. */
   get blindHidden(): boolean {
     return this.meta?.settings.blind?.revealed === false;
@@ -234,6 +243,7 @@ export class PracticeView {
   }
 
   close(): void {
+    this.cancelPresent();
     this.disarmFlatten();
     this.summary?.destroy();
     this.summary = undefined;
@@ -556,8 +566,9 @@ export class PracticeView {
     step10.addEventListener('click', () => void this.stepBars(10));
     jumpBtn.addEventListener('click', () => void this.jump());
 
-    // Pane menu stays on STANDARD timeframes (≥60s); never offer a sub-minute chart option.
-    const defaultTf = TIMEFRAMES.find((x) => x >= this.baseTf) ?? TIMEFRAMES[0]!;
+    // Pane menu stays on practice timeframes (≥ the bound practice TF). Never offer the
+    // forming source (10s/50s/150s) as its own chart.
+    const defaultTf = this.chartTimeframes()[0] ?? 60;
     this.addPane(defaultTf);
     if (localStorage.getItem('candledrill.split') === '1') this.toggleSplit();
   }
@@ -565,7 +576,8 @@ export class PracticeView {
   private toggleSplit(): void {
     const charts = this.els.charts!;
     if (this.panes.length === 1) {
-      const higher = TIMEFRAMES.find((x) => x > this.panes[0]!.tf * 4) ?? TIMEFRAMES.at(-1)!;
+      const choices = this.chartTimeframes();
+      const higher = choices.find((x) => x > this.panes[0]!.tf * 4) ?? choices.at(-1)!;
       this.addPane(higher);
       this.resetPane(this.panes[1]!);
     } else {
@@ -776,7 +788,7 @@ export class PracticeView {
       'aria-label': t('pr.tf'),
       'data-testid': `tf-${this.panes.length}`,
     });
-    for (const x of TIMEFRAMES.filter((x) => x >= this.baseTf))
+    for (const x of this.chartTimeframes())
       select.append(el('option', { value: String(x) }, tfLabel(x)));
     select.value = String(tf);
     const indBtn = el(
@@ -1098,6 +1110,7 @@ export class PracticeView {
   }
 
   async placeOrder(req: OrderRequest): Promise<void> {
+    this.flushPresent();
     if (!this.meta) return;
     if (this.inFlight) {
       toast(t('pr.busy'));
@@ -1163,6 +1176,7 @@ export class PracticeView {
 
   // ---------------------------------------------------------------- rewind / save points
   private async restore(state: SessionStateDto): Promise<boolean> {
+    this.cancelPresent();
     if (!this.meta || this.inFlight) return false;
     const generation = this.generation;
     this.pause();
@@ -1254,6 +1268,7 @@ export class PracticeView {
   }
 
   private async flattenAll(): Promise<void> {
+    this.flushPresent();
     if (!this.meta) return;
     if (this.inFlight) {
       toast(t('pr.busy'));
@@ -1273,6 +1288,7 @@ export class PracticeView {
   private onFlattenTap(): void {
     const btn = this.flattenBtn;
     if (!btn) return;
+    this.flushPresent();
     if (this.inFlight) {
       toast(t('pr.busy'));
       return;
@@ -1465,10 +1481,10 @@ export class PracticeView {
   }
 
   /**
-   * Source bars to advance `n` practice bars. With 10s data and a 1m practice timeframe,
-   * "Next bar" must show the next *whole* 1m bar: if the current 1m bar is still forming it
-   * is finished first, then `n` full bars follow. A market order placed now fills at the open
-   * of the next 1m bar, so one press is enough to see the fill.
+   * Source bars to advance `n` practice bars. With a TF÷6 source (10s under 1m, 50s under
+   * 5m, 150s under 15m), "Next bar" finishes the forming practice bar and then reveals `n`
+   * whole ones. A market order placed now fills at the open of the next practice bar, so
+   * one press is enough to see the fill. The chart still paints each source bar.
    * shortcut: assumes no missing source bars inside a practice bar (gaps make it land a few
    * bars early or late; the next press realigns), upgrade if real tick data has gaps.
    */
@@ -1490,7 +1506,7 @@ export class PracticeView {
   }
 
   async step(count: number): Promise<void> {
-    if (!this.meta || this.inFlight) return;
+    if (!this.meta || this.inFlight || this.presentTimer) return;
     const generation = this.generation;
     this.inFlight = true;
     const before = this.state;
@@ -1498,11 +1514,12 @@ export class PracticeView {
       const r = await sessionsApi.step(this.meta.id, count);
       if (generation !== this.generation) return;
       if (before && !this.blindHidden) this.pushUndoState(before);
-      this.appendBars(r.revealed);
-      this.applyView(r);
-      if (r.revealed.length > 0) await this.manageStop();
-      if (this.macroArmed && r.revealed.length > 0) await this.watchMacro();
-      if (r.state.status === 'finished') this.pause();
+      this.presentStep(r.revealed, r, async () => {
+        if (generation !== this.generation) return;
+        if (r.revealed.length > 0) await this.manageStop();
+        if (this.macroArmed && r.revealed.length > 0) await this.watchMacro();
+        if (r.state.status === 'finished') this.pause();
+      });
     } catch (err) {
       if (generation !== this.generation) return;
       this.pause();
@@ -1512,7 +1529,75 @@ export class PracticeView {
     }
   }
 
+  /**
+   * Paint a practice step's source bars so the candle forms, then apply the fill state.
+   * One Next still commits the whole practice bar on the server; only the paint is split.
+   * More than one practice bar (+10, a fast play burst) paints at once.
+   */
+  private presentStep(revealed: Bar[], view: SessionViewDto, after: () => Promise<void>): void {
+    const generation = this.generation;
+    const instant = revealed.length <= 1 || revealed.length > 12;
+    if (instant) {
+      this.appendBars(revealed);
+      this.applyView(view);
+      void after();
+      return;
+    }
+    const token = this.presentToken;
+    let i = 0;
+    const gap = this.formingGapMs(revealed.length);
+    const finish = () => {
+      if (generation !== this.generation) return;
+      if (i < revealed.length) this.appendBars(revealed.slice(i));
+      i = revealed.length;
+      this.presentTimer = undefined;
+      this.finishPresent = undefined;
+      this.applyView(view);
+      void after();
+    };
+    this.finishPresent = finish;
+    const pump = () => {
+      if (token !== this.presentToken || generation !== this.generation) return;
+      this.appendBars([revealed[i]!]);
+      i += 1;
+      if (i >= revealed.length) {
+        this.presentTimer = undefined;
+        this.finishPresent = undefined;
+        this.applyView(view);
+        void after();
+        return;
+      }
+      this.presentTimer = setTimeout(pump, gap);
+    };
+    pump();
+  }
+
+  /** Spread forming paints across the play interval, or a short beat for one Next. */
+  private formingGapMs(count: number): number {
+    const budget = this.playing ? Math.max(48, Math.min(1600, 1000 / this.speed)) : 420;
+    return Math.max(16, Math.min(140, Math.floor(budget / Math.max(1, count))));
+  }
+
+  /** Finish a forming paint now (an order or jump needs the practice bar on screen). */
+  private flushPresent(): void {
+    const finish = this.finishPresent;
+    if (this.presentTimer !== undefined) clearTimeout(this.presentTimer);
+    this.presentTimer = undefined;
+    this.presentToken += 1;
+    this.finishPresent = undefined;
+    finish?.();
+  }
+
+  /** Drop a forming paint without applying it (the view is closing or rewinding). */
+  private cancelPresent(): void {
+    if (this.presentTimer !== undefined) clearTimeout(this.presentTimer);
+    this.presentTimer = undefined;
+    this.presentToken += 1;
+    this.finishPresent = undefined;
+  }
+
   private async jump(): Promise<void> {
+    this.flushPresent();
     if (!this.meta || this.inFlight) return;
     const generation = this.generation;
     const id = this.meta.id;
@@ -1560,7 +1645,9 @@ export class PracticeView {
     this.timer = setInterval(() => {
       this.carry += (this.speed * TICK_MS) / 1000;
       const n = Math.floor(this.carry);
-      if (n < 1 || this.inFlight) return;
+      // While a practice bar is still painting its source bars, keep the clock but don't
+      // fetch the next one — otherwise play would skip the forming updates.
+      if (n < 1 || this.inFlight || this.presentTimer) return;
       // Speed is practice bars per second (one 1m bar on 10s data), like Next and +10.
       // An armed watch checks every closed practice bar, so it advances one per tick.
       const bars = this.macroArmed ? 1 : n;

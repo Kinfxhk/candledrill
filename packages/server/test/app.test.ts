@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { openDatabase, type Db } from '../src/db.js';
 import { LOOPBACK_HOST } from '../src/config.js';
-import { TEST_TOKEN, withToken } from './helpers.js';
+import { SETTINGS, TEST_TOKEN, withToken } from './helpers.js';
 
 let app: FastifyInstance | undefined;
 let db: Db | undefined;
@@ -95,7 +95,51 @@ describe('HTTP API', () => {
     expect(ds.barCount).toBe(510 * 6); // 08:00–16:30 session × 6 ten-second bars
   });
 
-  it('rejects timeframeSeconds that do not divide 60', async () => {
+  it('binds 50s and 150s sources to 5m and 15m practice', async () => {
+    const a = setup();
+    let source150 = 0;
+    for (const [tf, practice, bars] of [
+      [50, 300, 612],
+      [150, 900, 204],
+    ] as const) {
+      const created = await a.inject({
+        method: 'POST',
+        url: '/api/datasets/synthetic',
+        payload: { seed: 7, startDate: '2026-01-05', days: 1, timeframeSeconds: tf },
+      });
+      expect(created.statusCode).toBe(201);
+      const ds = created.json().dataset;
+      expect(ds.timeframeSeconds).toBe(tf);
+      expect(ds.barCount).toBe(bars);
+      if (tf === 150) source150 = ds.id as number;
+      const session = await a.inject({
+        method: 'POST',
+        url: '/api/sessions',
+        payload: {
+          datasetId: ds.id,
+          name: `p${tf}`,
+          startTime: ds.firstTime + 3600,
+          settings: SETTINGS,
+        },
+      });
+      expect(session.statusCode).toBe(201);
+      expect(session.json().session.settings.practiceTimeframeSeconds).toBe(practice);
+    }
+    const mismatched = await a.inject({
+      method: 'POST',
+      url: '/api/sessions',
+      payload: {
+        datasetId: source150,
+        name: 'bad',
+        startTime: 0,
+        settings: { ...SETTINGS, practiceTimeframeSeconds: 60 },
+      },
+    });
+    // 150s does not divide 60s, so this cannot be a 1m practice session.
+    expect(mismatched.statusCode).toBe(400);
+  });
+
+  it('rejects timeframeSeconds that are not a minute divisor or TF/6', async () => {
     const a = setup();
     const bad = await a.inject({
       method: 'POST',
