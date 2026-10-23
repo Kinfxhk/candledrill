@@ -19,6 +19,7 @@ import {
   checkSessionState,
   createSession,
   disguiseBars,
+  drawingIssues,
   generateSyntheticBars,
   groupTrades,
   importCsv,
@@ -240,6 +241,9 @@ function engineSettings(s: StoredSettings): SessionSettings {
 function drawingProblem(drawings: unknown[]): string | null {
   if (!Array.isArray(drawings)) return 'drawings must be an array';
   if (drawings.length > MAX_DRAWINGS) return `at most ${MAX_DRAWINGS} drawings`;
+  // Same shape rules the server's JSON schema applies (shared with session-file import).
+  const shape = drawingIssues(drawings);
+  if (shape.length) return shape[0]!;
   const ids = new Set<string>();
   for (const raw of drawings) {
     const d = raw as Record<string, unknown> & { id: string; kind: string };

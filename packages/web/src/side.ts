@@ -25,6 +25,8 @@ import { orderRoleText, orderTypeText } from './labels.js';
 import { el, fmtMoney, fmtNum, signClass } from './format.js';
 
 export interface SideActions {
+  /** Called when ticket fields change (chart bracket preview). */
+  ticketChanged?: () => void;
   place(req: OrderRequest): Promise<void>;
   cancel(orderId: number): Promise<void>;
   modify(orderId: number, change: OrderChange): Promise<void>;
@@ -143,7 +145,10 @@ export class SidePanel {
       'aria-atomic': 'true',
     });
     for (const input of [this.qty, this.price, this.sl, this.tp])
-      input.addEventListener('input', () => this.renderRisk());
+      input.addEventListener('input', () => {
+        this.renderRisk();
+        this.actions.ticketChanged?.();
+      });
 
     const ticket = el(
       'section',
@@ -237,7 +242,8 @@ export class SidePanel {
       this.dialogCurrentOrderId = null;
     });
 
-    this.root.replaceChildren(this.extra, ticket, position);
+    // Ticket and position first: trading must not need a scroll; rules and tools follow.
+    this.root.replaceChildren(ticket, position, this.extra);
     document.body.append(this.dialog);
     this.setType('market');
   }
@@ -278,6 +284,13 @@ export class SidePanel {
       }),
     );
     this.renderRisk();
+  }
+
+  /** Stop / target the ticket would place for a buy now (for the chart preview). */
+  previewBracket(): { stopLoss: number | null; takeProfit: number | null } | null {
+    if (!this.settings || !this.state) return null;
+    const o = ticketOrder(this.settings, this.state.trading.lastClose, this.ticketInputs(), 'buy');
+    return { stopLoss: o.stopLoss ?? null, takeProfit: o.takeProfit ?? null };
   }
 
   /** Market-style submit from the compact trade bar with its own quantity. */

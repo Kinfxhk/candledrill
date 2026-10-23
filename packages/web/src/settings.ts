@@ -16,7 +16,33 @@ export interface UiSettings {
   defaultSl: number | null;
   defaultTp: number | null;
   confirmFlatten: boolean;
+  /** Auto break-even trigger in ticks (null = off) and offset beyond entry. */
+  breakEvenTicks: number | null;
+  breakEvenOffset: number;
+  /** Trailing stop distance in ticks (null = off). */
+  trailTicks: number | null;
+  /** Show the stop / target the ticket would place as dashed lines before you submit. */
+  previewBracket: boolean;
+  /** Drawing magnet: snap clicks and drags to the nearest open/high/low/close. */
+  magnet: boolean;
+  /** Keyboard bindings: action -> key (KeyboardEvent.key, lower case). */
+  keys: Record<HotkeyAction, string>;
 }
+
+export type HotkeyAction =
+  'step' | 'back' | 'play' | 'buy' | 'sell' | 'flatten' | 'checkpoint' | 'slower' | 'faster';
+
+export const DEFAULT_KEYS: Record<HotkeyAction, string> = {
+  step: 'arrowright',
+  back: 'arrowleft',
+  play: ' ',
+  buy: 'b',
+  sell: 's',
+  flatten: 'f',
+  checkpoint: 'p',
+  slower: '[',
+  faster: ']',
+};
 
 export const DEFAULT_SETTINGS: UiSettings = {
   upColor: '',
@@ -27,6 +53,12 @@ export const DEFAULT_SETTINGS: UiSettings = {
   defaultSl: null,
   defaultTp: null,
   confirmFlatten: false,
+  breakEvenTicks: null,
+  breakEvenOffset: 0,
+  trailTicks: null,
+  previewBracket: true,
+  magnet: false,
+  keys: DEFAULT_KEYS,
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -58,7 +90,41 @@ export function loadSettings(raw: string | null): UiSettings {
     defaultTp: posIntOrNull(o.defaultTp),
     confirmFlatten:
       typeof o.confirmFlatten === 'boolean' ? o.confirmFlatten : DEFAULT_SETTINGS.confirmFlatten,
+    breakEvenTicks: posIntOrNull(o.breakEvenTicks),
+    breakEvenOffset:
+      typeof o.breakEvenOffset === 'number' &&
+      Number.isInteger(o.breakEvenOffset) &&
+      o.breakEvenOffset >= 0 &&
+      o.breakEvenOffset <= 1000
+        ? o.breakEvenOffset
+        : 0,
+    trailTicks: posIntOrNull(o.trailTicks),
+    previewBracket:
+      typeof o.previewBracket === 'boolean' ? o.previewBracket : DEFAULT_SETTINGS.previewBracket,
+    magnet: typeof o.magnet === 'boolean' ? o.magnet : DEFAULT_SETTINGS.magnet,
+    keys: loadKeys(o.keys),
   };
+}
+
+/** Keep valid single-key bindings; a key bound twice keeps only its first action. */
+function loadKeys(raw: unknown): Record<HotkeyAction, string> {
+  const out = { ...DEFAULT_KEYS };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  const used = new Set<string>();
+  for (const a of Object.keys(DEFAULT_KEYS) as HotkeyAction[]) {
+    const v = (raw as Record<string, unknown>)[a];
+    if (typeof v === 'string' && v.length >= 1 && v.length <= 12 && !used.has(v.toLowerCase()))
+      out[a] = v.toLowerCase();
+    used.add(out[a]);
+  }
+  return out;
+}
+
+/** The action bound to a key event, or null. Shift+step = +10 is handled by the caller. */
+export function hotkeyAction(key: string, keys: Record<HotkeyAction, string>): HotkeyAction | null {
+  const k = key.toLowerCase();
+  for (const a of Object.keys(keys) as HotkeyAction[]) if (keys[a] === k) return a;
+  return null;
 }
 
 let current: UiSettings = DEFAULT_SETTINGS;
@@ -149,4 +215,39 @@ export function setSessionProfile(
   if (profile) map[String(sessionId)] = profile;
   else delete map[String(sessionId)];
   storage.setItem(SESSION_PROFILE_KEY, JSON.stringify(map));
+}
+
+/** Per-session hidden / locked drawing ids (UI state, not part of the session file). */
+export const DRAWING_FLAGS_KEY = 'candledrill.drawingFlags.v1';
+export interface DrawingFlags {
+  hidden: string[];
+  locked: string[];
+}
+export function readDrawingFlags(sessionId: number): DrawingFlags {
+  try {
+    const all = JSON.parse(localStorage.getItem(DRAWING_FLAGS_KEY) ?? '{}') as Record<
+      string,
+      DrawingFlags
+    >;
+    const f = all[String(sessionId)];
+    return {
+      hidden: Array.isArray(f?.hidden) ? f.hidden.filter((x) => typeof x === 'string') : [],
+      locked: Array.isArray(f?.locked) ? f.locked.filter((x) => typeof x === 'string') : [],
+    };
+  } catch {
+    return { hidden: [], locked: [] };
+  }
+}
+export function writeDrawingFlags(sessionId: number, flags: DrawingFlags): void {
+  let all: Record<string, DrawingFlags>;
+  try {
+    all = JSON.parse(localStorage.getItem(DRAWING_FLAGS_KEY) ?? '{}') as Record<
+      string,
+      DrawingFlags
+    >;
+  } catch {
+    all = {};
+  }
+  all[String(sessionId)] = flags;
+  localStorage.setItem(DRAWING_FLAGS_KEY, JSON.stringify(all));
 }

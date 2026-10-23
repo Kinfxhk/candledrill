@@ -10,7 +10,6 @@ import {
   bucketStart,
   macroSignal,
   roundToTick,
-  tickDecimals,
   workingOrders,
   type Bar,
   type OrderChange,
@@ -22,6 +21,7 @@ import { sessionsApi, type SessionMeta, type SessionStateDto, type SessionViewDt
 import {
   PriceChart,
   readTheme,
+  withAlpha,
   type Drawing,
   type MarkerSpec,
   type PriceLineSpec,
@@ -47,7 +47,17 @@ import { getLang, t, type MessageKey } from './i18n.js';
 import { statusReasonText } from './labels.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 import { RulesView } from './rules-view.js';
-import { getSettings, onSettings, sessionProfile } from './settings.js';
+import { reviewTab } from './review-tab.js';
+import {
+  getSettings,
+  hotkeyAction,
+  onSettings,
+  readDrawingFlags,
+  sessionProfile,
+  writeDrawingFlags,
+  type DrawingFlags,
+} from './settings.js';
+import { managedStop, protectiveStop } from './stops.js';
 
 /** Steps kept for "Back" (rewind). Each entry is an engine state before one action. */
 const MAX_UNDO = 200;
@@ -258,6 +268,8 @@ export class PracticeView {
     saveCp.addEventListener('click', () => this.addCheckpoint());
     this.pnlChip = el('span', { class: 'pnl-chip num', 'data-testid': 'pnl-chip' });
     this.checkpointList = el('ul', { class: 'checkpoint-list', 'data-testid': 'checkpoints' });
+    this.objectsList = el('ul', { class: 'object-list', 'data-testid': 'objects' });
+    this.flags = readDrawingFlags(m.id);
     this.checkpointCard = el(
       'section',
       { class: 'card' },
@@ -412,9 +424,18 @@ export class PracticeView {
       cancel: (oid) => this.mutate(() => sessionsApi.cancelOrder(m.id, oid)),
       modify: (oid, change) => this.mutate(() => sessionsApi.modifyOrder(m.id, oid, change)),
       flatten: () => this.flattenAll(),
+      ticketChanged: () => this.decorate(),
     });
     this.side.extra.prepend(this.rulesView.el);
-    this.side.extra.append(this.checkpointCard!);
+    this.side.extra.append(
+      this.checkpointCard!,
+      el(
+        'section',
+        { class: 'card' },
+        el('h3', { 'data-i18n': 'v1.objects' }, t('v1.objects')),
+        this.objectsList!,
+      ),
+    );
     this.renderCheckpoints();
     this.unsubscribeSettings = onSettings(() => {
       for (const p of this.panes) p.chart.applyTheme();
@@ -456,6 +477,7 @@ export class PracticeView {
         macroTab,
         journalTab,
         statsTab,
+        reviewTab,
         fillsTab,
         exportTab,
         ...PracticeView.extraTabs,
@@ -586,8 +608,96 @@ export class PracticeView {
     void this.saveDrawings(this.drawings.filter((d) => d.id !== id));
   }
 
+  private flags: DrawingFlags = { hidden: [], locked: [] };
+  private objectsList: HTMLElement | undefined;
+
   private renderDrawings(): void {
-    for (const p of this.panes) p.chart.setDrawings(this.drawings, (time) => this.snap(p, time));
+    const hidden = new Set(this.flags.hidden);
+    const locked = new Set(this.flags.locked);
+    for (const p of this.panes) {
+      p.chart.setDrawingFlags(hidden, locked);
+      p.chart.setDrawings(this.drawings, (time) => this.snap(p, time));
+    }
+    this.renderObjects();
+  }
+
+  /** Object list: show / hide, lock / unlock, delete each drawing. */
+  private renderObjects(): void {
+    const list = this.objectsList;
+    if (!list || !this.meta) return;
+    if (!this.drawings.length) {
+      list.replaceChildren(el('li', { class: 'muted small' }, t('v1.objectsNone')));
+      return;
+    }
+    const toggle = (key: 'hidden' | 'locked', id: string) => {
+      const set = new Set(this.flags[key]);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      this.flags = { ...this.flags, [key]: [...set] };
+      writeDrawingFlags(this.meta!.id, this.flags);
+      this.renderDrawings();
+    };
+    list.replaceChildren(
+      ...this.drawings.map((d) => {
+        const isHidden = this.flags.hidden.includes(d.id);
+        const isLocked = this.flags.locked.includes(d.id);
+        const eye = el(
+          'button',
+          {
+            type: 'button',
+            class: 'small ghost',
+            'aria-pressed': String(!isHidden),
+            title: t('v1.objectShow'),
+          },
+          isHidden ? '◌' : '●',
+        );
+        eye.addEventListener('click', () => toggle('hidden', d.id));
+        const lock = el(
+          'button',
+          {
+            type: 'button',
+            class: 'small ghost',
+            'aria-pressed': String(isLocked),
+            title: t('v1.objectLock'),
+          },
+          isLocked ? '🔒' : '🔓',
+        );
+        lock.addEventListener('click', () => toggle('locked', d.id));
+        const del = el(
+          'button',
+          { type: 'button', class: 'small ghost', title: t('pr.deleteDrawing') },
+          '✕',
+        );
+        del.addEventListener('click', () => this.deleteDrawing(d.id));
+        return el(
+          'li',
+          { 'data-object': d.id },
+          el('span', {}, this.drawingName(d)),
+          eye,
+          lock,
+          del,
+        );
+      }),
+    );
+  }
+
+  private drawingName(d: Drawing): string {
+    const names: Partial<Record<Drawing['kind'], MessageKey>> = {
+      hline: 'pr.hline',
+      tline: 'pr.tline',
+      ray: 'v1.toolRay',
+      vline: 'v1.toolVline',
+      channel: 'v1.toolChannel',
+      fib: 'v1.toolFib',
+      measure: 'v1.toolMeasure',
+      rect: 'pr.rect',
+      text: 'pr.textTool',
+      arrow: 'pr.arrowTool',
+      freehand: 'pr.freehandTool',
+    };
+    if (d.kind === 'position') return t(d.side === 'long' ? 'pr.longTool' : 'pr.shortTool');
+    const key = names[d.kind];
+    return key ? t(key) : d.kind;
   }
 
   private async saveDrawings(next: Drawing[]): Promise<void> {
@@ -830,7 +940,24 @@ export class PracticeView {
       // Handled by pointer capture in PriceChart; the click itself does nothing.
       return;
     }
-    if (this.drawMode === 'tline' || this.drawMode === 'rect' || this.drawMode === 'arrow') {
+    if (this.drawMode === 'vline') {
+      if (time === null) return;
+      this.setDrawMode(null);
+      void this.saveDrawings([
+        ...this.drawings,
+        { kind: 'vline', id, t1: time, p1: px, t2: time, p2: px },
+      ]);
+      return;
+    }
+    if (
+      this.drawMode === 'tline' ||
+      this.drawMode === 'rect' ||
+      this.drawMode === 'arrow' ||
+      this.drawMode === 'ray' ||
+      this.drawMode === 'fib' ||
+      this.drawMode === 'measure' ||
+      this.drawMode === 'channel'
+    ) {
       if (time === null) return;
       if (!this.pendingPoint) {
         this.pendingPoint = { time, price: px };
@@ -841,11 +968,15 @@ export class PracticeView {
       const kind = this.drawMode;
       this.setDrawMode(null);
       for (const p of this.panes) p.chart.setPendingAnchor(null);
-      if (a.time === time && kind === 'tline') return;
-      void this.saveDrawings([
-        ...this.drawings,
-        { kind, id, t1: a.time, p1: a.price, t2: time, p2: px },
-      ]);
+      if (a.time === time && (kind === 'tline' || kind === 'ray' || kind === 'channel')) return;
+      const t1 = a.time;
+      const t2 = time;
+      const next: Drawing =
+        kind === 'channel'
+          ? // Default width: 1% of price, user drags the middle handle to adjust.
+            { kind, id, t1, p1: a.price, t2, p2: px, w: roundToTick(a.price * 0.01, tick) || tick }
+          : { kind, id, t1, p1: a.price, t2, p2: px };
+      void this.saveDrawings([...this.drawings, next]);
       return;
     }
     this.side?.setPrice(price);
@@ -929,6 +1060,38 @@ export class PracticeView {
       toast((err as Error).message, 'error');
       throw err;
     }
+  }
+
+  /** Auto break-even / trailing stop: tighten the protective stop after a bar close. */
+  private async manageStop(): Promise<void> {
+    const st = getSettings();
+    if ((st.breakEvenTicks === null && st.trailTicks === null) || !this.meta || !this.state) return;
+    const tr = this.state.trading;
+    const stop = protectiveStop(tr);
+    if (!stop || !tr.position || !tr.openTrade) return;
+    const side = tr.position.qty > 0 ? 'long' : 'short';
+    // Best close since the position opened, from revealed bars only.
+    let best = tr.position.avgPrice;
+    for (let i = this.bars.length - 1; i >= 0 && this.bars[i]!.time >= tr.openTrade.openTime; i--) {
+      const c = this.bars[i]!.close;
+      best = side === 'long' ? Math.max(best, c) : Math.min(best, c);
+    }
+    const want = managedStop(
+      {
+        breakEvenTicks: st.breakEvenTicks,
+        breakEvenOffset: st.breakEvenOffset,
+        trailTicks: st.trailTicks,
+      },
+      side,
+      tr.position.avgPrice,
+      stop.price!,
+      best,
+      this.meta.settings.tickSize,
+    );
+    if (want === null) return;
+    // A stop on the wrong side of the last close would fill at once: leave it.
+    if (side === 'long' ? want >= tr.lastClose : want <= tr.lastClose) return;
+    await this.mutate(() => sessionsApi.modifyOrder(this.meta!.id, stop.id, { price: want }));
   }
 
   // ---------------------------------------------------------------- rewind / save points
@@ -1134,6 +1297,7 @@ export class PracticeView {
       if (before && !this.blindHidden) this.pushUndoState(before);
       this.appendBars(r.revealed);
       this.applyView(r);
+      if (r.revealed.length > 0) await this.manageStop();
       if (this.macroArmed && r.revealed.length > 0) await this.watchMacro();
       if (r.state.status === 'finished') this.pause();
     } catch (err) {
@@ -1239,12 +1403,30 @@ export class PracticeView {
         title: `${tr.position.qty > 0 ? '+' : ''}${tr.position.qty}`,
       });
     }
-    const dp = tickDecimals(this.meta!.settings.tickSize);
+    // Ghost bracket: where the ticket's stop / target would go for a buy (flat only).
+    const ghost = getSettings().previewBracket && !tr.position ? this.side?.previewBracket() : null;
+    if (ghost) {
+      if (ghost.stopLoss !== null)
+        lines.push({
+          price: ghost.stopLoss,
+          color: withAlpha(theme.down, 0.55),
+          title: 'SL?',
+          dashed: true,
+        });
+      if (ghost.takeProfit !== null)
+        lines.push({
+          price: ghost.takeProfit,
+          color: withAlpha(theme.up, 0.55),
+          title: 'TP?',
+          dashed: true,
+        });
+    }
     for (const p of this.panes) {
       const markers: MarkerSpec[] = tr.fills.map((f) => ({
         time: this.snap(p, f.time),
         side: f.side,
-        text: `${f.side === 'buy' ? 'B' : 'S'}${f.qty}@${f.price.toFixed(dp)}`,
+        // Short label keeps candles readable; the fill price is on the Fills tab.
+        text: `${f.side === 'buy' ? 'B' : 'S'}${f.qty}`,
       }));
       p.chart.setMarkers(markers);
       p.chart.setPriceLines(lines);
@@ -1299,8 +1481,9 @@ export class PracticeView {
     (this.els.play as HTMLButtonElement).disabled = ended;
     this.renderReviewControls();
     this.renderDrawings();
-    this.decorate();
+    // Ticket first: the chart's bracket preview reads the ticket's current last close.
     this.side?.render(this.meta.settings, this.state);
+    this.decorate();
     this.rulesView?.render(this.engineSettings(), this.state, this.cursorTime);
     this.renderPnl();
     const back = this.els.back as HTMLButtonElement | undefined;
@@ -1344,33 +1527,28 @@ export class PracticeView {
     if (e.key === 'Escape') {
       if (this.drawMode !== null) this.setDrawMode(null);
       else for (const p of this.palettes) p.collapse();
-    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      return;
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
       const sel = this.panes.map((p) => p.chart.selectedDrawing).find((x) => x !== null);
       if (sel) this.deleteDrawing(sel);
-    } else if (e.key === ' ') {
-      e.preventDefault();
+      return;
+    }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const action = hotkeyAction(e.key, getSettings().keys);
+    if (!action) return;
+    e.preventDefault();
+    if (action === 'play') {
       if (this.playing) this.pause();
       else this.play();
-    } else if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      void this.step(e.shiftKey ? 10 : 1);
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      void this.rewind();
-    } else if (e.key === 'p' || e.key === 'P') {
-      this.addCheckpoint();
-    } else if (e.key === 'b' || e.key === 'B') {
-      void this.side?.submit('buy');
-    } else if (e.key === 's' || e.key === 'S') {
-      void this.side?.submit('sell');
-    } else if (e.key === 'f' || e.key === 'F') {
+    } else if (action === 'step') void this.step(e.shiftKey ? 10 : 1);
+    else if (action === 'back') void this.rewind();
+    else if (action === 'checkpoint') this.addCheckpoint();
+    else if (action === 'buy') void this.side?.submit('buy');
+    else if (action === 'sell') void this.side?.submit('sell');
+    else if (action === 'flatten') {
       if (this.meta && this.state?.status !== 'finished') void this.flattenAll();
-    } else if (e.key === '[' || e.key === '-') {
-      e.preventDefault();
-      this.setSpeedIndex(-1);
-    } else if (e.key === ']' || e.key === '=') {
-      e.preventDefault();
-      this.setSpeedIndex(1);
-    }
+    } else if (action === 'slower') this.setSpeedIndex(-1);
+    else if (action === 'faster') this.setSpeedIndex(1);
   }
 }

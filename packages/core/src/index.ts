@@ -215,6 +215,7 @@ export {
   MAX_IMPORT_RECORDS,
   parseSessionFile,
   checkSessionState,
+  drawingIssues,
   type SessionFile,
 } from './import.js';
 export {
@@ -249,3 +250,11 @@ export {
   type ProfileReport,
   type EvalClock,
 } from './rules-profile.js';
+export {
+  equityCurve,
+  rDistribution,
+  monteCarlo,
+  type EquityPoint,
+  type RBucket,
+  type MonteCarloResult,
+} from './review.js';

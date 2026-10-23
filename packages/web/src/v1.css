@@ -606,3 +606,159 @@ body.in-practice header.app select {
   background: var(--panel-2);
   color: var(--muted);
 }
+
+.object-list,
+.key-table {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+.object-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 2px;
+}
+.key-table label {
+  justify-content: space-between;
+}
+.key-table .key {
+  min-width: 72px;
+  font-family: ui-monospace, monospace;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.review-grid h4 {
+  margin: 4px 0;
+  font-size: 12px;
+}
+.review-svg {
+  width: 100%;
+  height: auto;
+  max-height: 160px;
+}
+.review-svg .equity {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+}
+.review-svg .base {
+  stroke: var(--border);
+  stroke-dasharray: 3 3;
+}
+.review-svg .pos {
+  fill: var(--up);
+}
+.review-svg .neg {
+  fill: var(--down);
+}
+.review-svg text {
+  fill: var(--muted);
+  font-size: 9px;
+}
+
+/* Tablet landscape (900–1199): narrow rail, chart gets the height. */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .side {
+    width: 260px;
+    padding: 6px;
+    gap: 6px;
+  }
+  body.in-practice header.app .brand small,
+  body.in-practice #lang-picker {
+    display: none;
+  }
+  .toolbar {
+    min-height: 40px;
+    padding: 2px 8px;
+  }
+  .status-banner:empty,
+  .macro-blind-notice[hidden] {
+    display: none;
+  }
+}
+/* Short landscape screens: drop the volume margin and tighten chart heads. */
+@media (max-height: 820px) and (min-width: 900px) {
+  .chart-cell .chart-head {
+    min-height: 26px;
+  }
+}
+
+/* The base sheet stacks the rail under the chart below 1000px; keep them side by side down to
+   900px (tablet landscape), below that the rail is a drawer. */
+@media (min-width: 900px) and (max-width: 1000px) {
+  .workspace {
+    flex-direction: row;
+  }
+  .side {
+    border-left: 1px solid var(--border);
+    border-top: 0;
+  }
+}
+
+/* ================================================================== polish pass 2 */
+/* Folded bottom panel = exactly the tab strip; tabs are a fixed 30px on every pointer. */
+.bottom .tabbar {
+  flex-wrap: nowrap;
+  padding: 3px 8px 0;
+  height: 34px;
+  flex-shrink: 0;
+  mask-image: linear-gradient(to right, #000 92%, transparent);
+}
+.bottom .tabbar button {
+  min-height: 30px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.bottom .tabbar .bottom-toggle {
+  position: sticky;
+  right: 0;
+  background: var(--panel);
+}
+.bottom:not(.expanded):not(.macro-open) {
+  height: calc(34px + env(safe-area-inset-bottom));
+}
+.bottom:not(.expanded):not(.macro-open) .tabpanel {
+  display: none;
+}
+/* Draw button sits left of the OHLC legend, not on top of it. */
+.ohlc-legend {
+  top: 36px;
+  left: 8px;
+}
+.drawing-palette.collapsed {
+  top: 2px;
+}
+/* Risk preview: one column, buy and sell as two value columns. */
+.risk-preview-wrap .risk-sides {
+  grid-template-columns: 1fr;
+}
+/* Phone header: P&L chip gets the room, symbol and session name shrink first. */
+@media (max-width: 767px) {
+  .toolbar strong {
+    max-width: 22vw;
+  }
+  .toolbar > .muted:not(.clock) {
+    display: none;
+  }
+  .toolbar .clock {
+    max-width: 30vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pnl-chip {
+    flex-shrink: 0;
+  }
+  .bottom.expanded {
+    height: 45vh;
+  }
+}
