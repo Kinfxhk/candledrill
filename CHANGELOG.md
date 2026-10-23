@@ -6,6 +6,19 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-10-23
+
+Forming candles use **timeframe ÷ 3** and paint across the whole play budget. The fill model is unchanged (v4): fills and rules still run on the practice-timeframe close.
+
+### Changed
+
+- **Source divisor is 3** (`FORMING_PARTS`). New demos: 1m←20s, 5m←100s, 15m←300s, 1h←20m, 1D←8h. A 5-minute file is three real bars of a 15m candle. CandleDrill does not invent prices inside a closed bar. Datasets from 1.0.4 (10s, 50s, 150s, 10m, 4h) still bind to the same practice close.
+- **Slow play keeps building.** The gap between source paints is `budget / (paints − 1)` with the 140ms cap removed, so at 0.5×–2× the candle uses the play budget instead of finishing in a burst and sitting still. Play still waits until those paints finish before it fetches the next bar. One Next still shows the build (three or more source paints on a full practice bar).
+
+### Not in this version
+
+- Fill model stays v4. No intra-bar OHLC interpolation. The order ticket still opens on Market (1.0.5).
+
 ## [1.0.5] - 2026-10-23
 
 The order ticket opens on Market. Forming candles stay timeframe ÷ 6. The fill model is unchanged (v4).

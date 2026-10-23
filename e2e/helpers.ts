@@ -38,8 +38,8 @@ export async function showWorkingOrders(page: Page): Promise<void> {
 }
 
 /**
- * Click "Next bar" until `check` is true. Demo data is 10s with fills on 1m
- * practice closes, so a market order needs several source steps (up to ~12).
+ * Click "Next bar" until `check` is true. Demo data is 20s with fills on 1m
+ * practice closes, so a market order needs one practice step (a few source bars).
  */
 export async function stepUntil(
   page: Page,

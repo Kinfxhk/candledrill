@@ -174,7 +174,7 @@ export function buildApp(opts: AppOptions): FastifyInstance {
       startDate: string;
       days: number;
       name?: string;
-      /** Bar length in seconds; a divisor of 60, or practice timeframe / 6. */
+      /** Bar length in seconds; a divisor of 60, or practice timeframe ÷ 3. */
       timeframeSeconds?: number;
     };
   }>(

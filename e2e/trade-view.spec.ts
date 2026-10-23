@@ -41,10 +41,10 @@ test('trade and journal navigation preserves session state across pane/timeframe
   const start = await read();
   const cursor = start.state.cursor as number;
   const cursorTime = start.cursorTime as number;
-  // +10 is ten 1m practice bars. On 10s data the cursor index moves 6 source bars
-  // per bar (60) and the clock moves 60s per bar (600s), not one 10s print.
+  // +10 is ten 1m practice bars. On 20s data the cursor index moves 3 source bars
+  // per bar (30) and the clock moves 60s per bar (600s), not one 20s print.
   // The fill's forming paint ignores a click until that candle finishes.
-  const landed = async () => (await read()).state.cursor >= cursor + 60;
+  const landed = async () => (await read()).state.cursor >= cursor + 30;
   let stepPosts = 0;
   const onStep = (r: Request) => {
     if (r.method() === 'POST' && new URL(r.url()).pathname.endsWith('/step')) stepPosts += 1;

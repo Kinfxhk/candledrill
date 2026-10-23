@@ -95,10 +95,13 @@ describe('HTTP API', () => {
     expect(ds.barCount).toBe(510 * 6); // 08:00–16:30 session × 6 ten-second bars
   });
 
-  it('binds 50s and 150s sources to 5m and 15m practice', async () => {
+  it('binds forming sources to the practice timeframe', async () => {
     const a = setup();
-    let source150 = 0;
+    let source300 = 0;
     for (const [tf, practice, bars] of [
+      [20, 60, 510 * 3],
+      [100, 300, 306],
+      [300, 900, 102],
       [50, 300, 612],
       [150, 900, 204],
     ] as const) {
@@ -111,7 +114,7 @@ describe('HTTP API', () => {
       const ds = created.json().dataset;
       expect(ds.timeframeSeconds).toBe(tf);
       expect(ds.barCount).toBe(bars);
-      if (tf === 150) source150 = ds.id as number;
+      if (tf === 300) source300 = ds.id as number;
       const session = await a.inject({
         method: 'POST',
         url: '/api/sessions',
@@ -129,17 +132,17 @@ describe('HTTP API', () => {
       method: 'POST',
       url: '/api/sessions',
       payload: {
-        datasetId: source150,
+        datasetId: source300,
         name: 'bad',
         startTime: 0,
         settings: { ...SETTINGS, practiceTimeframeSeconds: 60 },
       },
     });
-    // 150s does not divide 60s, so this cannot be a 1m practice session.
+    // 300s does not divide 60s, so this cannot be a 1m practice session.
     expect(mismatched.statusCode).toBe(400);
   });
 
-  it('rejects timeframeSeconds that are not a minute divisor or TF/6', async () => {
+  it('rejects timeframeSeconds that are not a minute divisor or TF÷3', async () => {
     const a = setup();
     const bad = await a.inject({
       method: 'POST',
