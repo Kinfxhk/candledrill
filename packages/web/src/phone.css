@@ -386,3 +386,11 @@ input[type='datetime-local']::-webkit-date-and-time-value {
     flex: 0 0 auto;
   }
 }
+
+/* The tools sheet's z-index only counts inside the palette's own stacking context (z 5), so
+   lift the palette itself while it is open; otherwise the trade bar (z 30) covers the sheet. */
+@media (max-width: 899px), (max-height: 520px) {
+  .drawing-palette:not(.collapsed) {
+    z-index: 45;
+  }
+}
