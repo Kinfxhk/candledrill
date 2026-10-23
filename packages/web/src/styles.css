@@ -146,7 +146,6 @@ header.app {
 @media (max-width: 520px) {
   header.app {
     gap: 8px;
-    padding: 8px 10px;
   }
 }
 .brand {
@@ -493,7 +492,7 @@ dialog {
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
   width: min(920px, 96vw);
   max-height: 92vh;
@@ -750,7 +749,7 @@ table.data.compact th {
   overflow: auto;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 10px;
   box-shadow: var(--shadow);
 }
