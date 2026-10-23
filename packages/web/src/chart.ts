@@ -45,6 +45,8 @@ import {
   type PaneIndicatorConfig,
 } from './indicator-prefs.js';
 import { t } from './i18n.js';
+import { getSettings } from './settings.js';
+import { el } from './format.js';
 
 /** A bounded window within loaded, revealed bars; both trade endpoints must exist. */
 export function tradeWindow(
@@ -83,13 +85,14 @@ export interface ChartTheme {
 export function readTheme(): ChartTheme {
   const cs = getComputedStyle(document.documentElement);
   const v = (n: string) => cs.getPropertyValue(n).trim();
+  const user = getSettings();
   return {
-    background: v('--bg'),
+    background: v('--chart-bg') || v('--bg'),
     text: v('--muted'),
-    grid: v('--panel-2'),
+    grid: user.grid ? v('--grid') || v('--panel-2') : 'rgba(0,0,0,0)',
     border: v('--border'),
-    up: v('--up'),
-    down: v('--down'),
+    up: user.upColor || v('--up'),
+    down: user.downColor || v('--down'),
     accent: v('--accent'),
   };
 }
@@ -259,8 +262,30 @@ export class PriceChart {
         horzLines: { color: this.theme.grid },
       },
       crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor: this.theme.border },
-      timeScale: { borderColor: this.theme.border, timeVisible: true, secondsVisible: false },
+      rightPriceScale: {
+        borderColor: this.theme.border,
+        scaleMargins: { top: 0.08, bottom: 0.22 },
+      },
+      timeScale: {
+        borderColor: this.theme.border,
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 8,
+        shiftVisibleRangeOnNewBar: true,
+      },
+      kineticScroll: { touch: true, mouse: false },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        mouseWheel: true,
+        pinch: true,
+        axisPressedMouseMove: true,
+        axisDoubleClickReset: true,
+      },
     });
     this.candles = this.chart.addSeries(CandlestickSeries, {
       upColor: this.theme.up,
@@ -275,12 +300,42 @@ export class PriceChart {
       lastValueVisible: false,
       priceLineVisible: false,
     });
-    this.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    this.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
+    this.volume.applyOptions({ visible: getSettings().volume });
     this.markers = createSeriesMarkers(this.candles, []);
+    // OHLC legend (top-left): last bar, or the bar under the crosshair.
+    this.legend = el('div', { class: 'ohlc-legend num', 'data-testid': 'ohlc-legend' });
+    this.chart.subscribeCrosshairMove((param) => {
+      const d = param.time === undefined ? undefined : param.seriesData.get(this.candles);
+      this.renderLegend(
+        d && 'open' in d
+          ? (d as unknown as { open: number; high: number; low: number; close: number })
+          : null,
+      );
+    });
     this.overlay = svg('svg', { class: 'draw-overlay', 'data-testid': 'draw-overlay' });
     this.styleBar = elStyleBar();
-    container.append(this.overlay, this.styleBar);
+    container.append(this.overlay, this.styleBar, this.legend);
   }
+
+  private readonly legend: HTMLElement;
+  private renderLegend(b: { open: number; high: number; low: number; close: number } | null): void {
+    const bar = b ?? this.lastOhlc;
+    if (!bar) {
+      this.legend.textContent = '';
+      return;
+    }
+    const dp = tickDecimals(this.tick);
+    const chg = bar.close - bar.open;
+    this.legend.textContent = t('v1.ohlc', {
+      o: bar.open.toFixed(dp),
+      h: bar.high.toFixed(dp),
+      l: bar.low.toFixed(dp),
+      c: bar.close.toFixed(dp),
+    });
+    this.legend.dataset.dir = chg > 0 ? 'up' : chg < 0 ? 'down' : '';
+  }
+  private lastOhlc: { open: number; high: number; low: number; close: number } | null = null;
 
   setTickSize(tickSize: number): void {
     this.tick = tickSize;
@@ -422,6 +477,8 @@ export class PriceChart {
       bars.map((b) => ({ time: this.ts(b.time), value: b.volume, color: this.volColor(b) })),
     );
     this.lastBarTime = bars.at(-1)?.time;
+    this.lastOhlc = bars.at(-1) ?? null;
+    this.renderLegend(null);
     this.indicatorBars = [...bars];
     this.renderIndicators();
   }
@@ -437,6 +494,8 @@ export class PriceChart {
     });
     this.volume.update({ time: this.ts(b.time), value: b.volume, color: this.volColor(b) });
     this.lastBarTime = b.time;
+    this.lastOhlc = b;
+    this.renderLegend(null);
     if (this.indicatorBars.length && b.time < this.indicatorBars.at(-1)!.time) return;
     if (this.indicatorBars.length && b.time === this.indicatorBars.at(-1)!.time) {
       this.indicatorBars[this.indicatorBars.length - 1] = b;
@@ -1116,6 +1175,7 @@ export class PriceChart {
       wickUpColor: this.theme.up,
       wickDownColor: this.theme.down,
     });
+    this.volume.applyOptions({ visible: getSettings().volume });
   }
 
   // ---------------------------------------------------------------- freehand

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { MessageKey } from '../i18n.js';
+import type { BaseKey as MessageKey } from '../i18n.js';
 
 export const ja: Record<MessageKey, string> = {
   'pr.viewChart': 'チャートで表示',
@@ -469,7 +469,7 @@ export const ja: Record<MessageKey, string> = {
   'about.body':
     'CandleDrill（K線練習場）は、歴史または合成ローソク足を使ってチャート読みとトレード管理を練習するための自由ソフトウェア（AGPL-3.0-or-later）です。お使いのコンピュータでのみ動作し、127.0.0.1 にのみバインドされ、アカウントは不要で、使用データを送信しません。',
   'about.notAffiliated':
-    '独立したプロジェクトです。取引プラットフォーム、チャート提供事業者、証券会社、取引所、prop firm とは一切関係ありません。',
+    'CandleDrill は独立したオープンソースプロジェクトです。取引プラットフォーム、チャート提供事業者、証券会社、取引所、prop firm との資本・代理・雇用・公式認可の関係はなく、いずれも代表しません。会社別のルール、パラメータ、テンプレートは含まず、ルールプロファイルは利用者が入力します。各社がソフトウェア、デモデータ、ルール判定を審査したり影響を与えたりすることはありません。一部の外部リンク（おすすめリンクのページを含む）はアフィリエイトリンクです。詳細は「おすすめリンクとリスク開示」をご覧ください。この商業関係はコード、デモデータ、ルール判定に影響しません。',
   'about.close': '閉じる',
   'footer.notice':
     '教育・練習目的のみ。投資助言ではありません。練習結果は実際の取引結果を予測するものではありません。',

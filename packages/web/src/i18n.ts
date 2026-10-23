@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // UI strings. Original wording; keep all languages in sync (a unit test checks the keys).
 
-import { zhHans } from './i18n/zhHans.js';
-import { ja } from './i18n/ja.js';
-import { ko } from './i18n/ko.js';
+import { zhHans as zhHansBase } from './i18n/zhHans.js';
+import { ja as jaBase } from './i18n/ja.js';
+import { ko as koBase } from './i18n/ko.js';
+import { v1En, v1Ja, v1Ko, v1ZhHans, v1ZhHant } from './i18n/v1.js';
 
 export type Lang = 'en' | 'zh-Hant' | 'zh-Hans' | 'ja' | 'ko';
 
-export const en = {
+const enBase = {
   'pr.viewChart': 'View on chart',
   'pr.returnLive': 'Return to current bar',
   'pr.reviewingTrade': 'Viewing trade #{id}',
@@ -478,7 +479,7 @@ export const en = {
   'about.body':
     'CandleDrill (K線操練場) is free software (AGPL-3.0-or-later) for practising chart reading and trade management on historical or synthetic bars. It runs only on your computer, binds to 127.0.0.1, has no accounts and sends no telemetry.',
   'about.notAffiliated':
-    'Independent project. Not affiliated with any trading platform, charting vendor, broker, exchange or prop firm.',
+    'CandleDrill is an independent open-source project. It has no equity, agency, employment or official-authorisation relationship with any trading platform, charting vendor, broker, exchange or prop firm, and does not represent any of them. It ships no firm rules, parameters or templates; rule profiles are entered by users, and no firm reviews or influences the software, demo data or rule evaluation. Some external links (including the recommendations page) are affiliate links; see Recommendations and risk disclosure. That commercial relationship does not affect the code, demo data or rule evaluation.',
   'about.close': 'Close',
   'footer.notice':
     'Educational practice tool only. Not investment advice. Practice results do not predict real results.',
@@ -532,9 +533,11 @@ export const en = {
     'Keys: Space play/pause · → next bar · Shift+→ +10 · [ or - slower · ] or = faster · B buy · S sell · F flatten · Esc cancel drawing',
 } as const;
 
+export const en = { ...enBase, ...v1En };
 export type MessageKey = keyof typeof en;
+export type BaseKey = keyof typeof enBase;
 
-export const zhHant: Record<MessageKey, string> = {
+const zhHantBase: Record<BaseKey, string> = {
   'pr.viewChart': '在圖表查看',
   'pr.returnLive': '返回目前K線',
   'pr.reviewingTrade': '正在查看交易 #{id}',
@@ -990,7 +993,7 @@ export const zhHant: Record<MessageKey, string> = {
   'about.body':
     'CandleDrill（K線操練場）是自由軟件（AGPL-3.0-or-later），用歷史或合成K線練習看圖及交易管理。只在你的電腦運行，只綁定 127.0.0.1，不需要帳戶，亦不會傳送任何使用數據。',
   'about.notAffiliated':
-    '獨立項目，與任何交易平台、圖表供應商、經紀、交易所或 prop firm 均無關係。',
+    'CandleDrill 是獨立開源項目，與任何交易平台、圖表供應商、經紀、交易所或 prop firm 沒有股權、代理、受僱或官方授權關係，亦不代表任何一方。本工具不內置任何公司的規則、參數或範本；規則檔由使用者自行提供，相關公司不會審核或影響本工具的功能、示範數據或規則判定。部分外部連結（包括推薦連結頁）含聯盟佣金，詳見「推薦連結與風險披露」。此商業關係不影響程式碼、示範數據及規則判定。',
   'about.close': '關閉',
   'footer.notice': '只作教育及練習用途，並不構成投資建議；練習成績不能預示真實交易結果。',
   'footer.license': 'AGPL-3.0-or-later · 不收集任何數據',
@@ -1037,6 +1040,11 @@ export const zhHant: Record<MessageKey, string> = {
   shortcuts:
     '快捷鍵：空白鍵 播放／暫停 · → 下一根 · Shift+→ +10 · [ 或 - 減速 · ] 或 = 加速 · B 買入 · S 沽出 · F 平倉 · Esc 取消畫線',
 };
+
+export const zhHant: Record<MessageKey, string> = { ...zhHantBase, ...v1ZhHant };
+export const zhHans: Record<MessageKey, string> = { ...zhHansBase, ...v1ZhHans };
+export const ja: Record<MessageKey, string> = { ...jaBase, ...v1Ja };
+export const ko: Record<MessageKey, string> = { ...koBase, ...v1Ko };
 
 const dictionaries: Record<Lang, Record<MessageKey, string>> = {
   en,

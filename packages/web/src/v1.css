@@ -1,0 +1,608 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/*
+ * v1 layout and look: a dense trading-terminal skin over the base styles.
+ * Breakpoints: desktop ≥ 1200px · tablet 768–1199px · phone < 768px.
+ * Original design; colours and spacing are CandleDrill's own.
+ */
+:root {
+  --bg: #0b0d10;
+  --chart-bg: #0b0d10;
+  --panel: #12151a;
+  --panel-2: #181c22;
+  --border: #232830;
+  --grid: #161a20;
+  --text: #e3e6ea;
+  --muted: #8a919c;
+  --accent: #f2a93b;
+  --accent-ink: #1b1305;
+  --up: #22b07d;
+  --down: #e5484d;
+  --radius: 6px;
+  --tap: 32px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+:root[data-theme='light'] {
+  --bg: #f5f4f0;
+  --chart-bg: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #f2f1ec;
+  --border: #dcdad3;
+  --grid: #efeee9;
+  --text: #16191d;
+  --muted: #646b75;
+  --accent: #b86e08;
+  --up: #12855c;
+  --down: #c8343a;
+}
+@media (pointer: coarse) {
+  :root {
+    --tap: 44px;
+  }
+}
+
+/* ---------- chrome */
+header.app {
+  padding: 6px 12px;
+  gap: 10px;
+  min-height: 44px;
+}
+.brand {
+  font-size: 15px;
+}
+button,
+a.button {
+  min-height: var(--tap);
+  border-radius: 5px;
+}
+button.small {
+  min-height: calc(var(--tap) - 6px);
+}
+input,
+select {
+  min-height: var(--tap);
+}
+.card {
+  border-radius: 8px;
+  padding: 10px;
+}
+.card h2,
+.card h3 {
+  font-size: 11px;
+  letter-spacing: 0.8px;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+footer.app {
+  padding: 4px 12px;
+  gap: 12px;
+}
+.footer-recommend {
+  margin-left: auto;
+}
+
+/* ---------- practice toolbar */
+.toolbar {
+  gap: 6px;
+  padding: 4px 10px;
+  min-height: 44px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.toolbar::-webkit-scrollbar {
+  display: none;
+}
+.toolbar > * {
+  flex-shrink: 0;
+}
+.toolbar .spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+.toolbar .replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel-2);
+}
+.toolbar .replay button {
+  border-color: transparent;
+  background: transparent;
+}
+.toolbar .replay button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.toolbar .replay .speed {
+  padding: 0 4px;
+}
+.toolbar .clock {
+  min-width: 0;
+  font-size: 12px;
+}
+.pnl-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pnl-chip.up {
+  color: var(--up);
+  border-color: color-mix(in srgb, var(--up) 45%, var(--border));
+}
+.pnl-chip.down {
+  color: var(--down);
+  border-color: color-mix(in srgb, var(--down) 45%, var(--border));
+}
+.sheet-toggle {
+  display: none;
+}
+
+/* ---------- chart */
+.chart-cell .chart-head {
+  padding: 2px 6px;
+  min-height: 30px;
+}
+.chart-cell .chart-head select,
+.chart-cell .chart-head button {
+  min-height: 26px;
+  padding: 1px 8px;
+}
+.ohlc-legend {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  font-size: 11px;
+  color: var(--muted);
+  pointer-events: none;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chart-bg) 80%, transparent);
+}
+.ohlc-legend[data-dir='up'] {
+  color: var(--up);
+}
+.ohlc-legend[data-dir='down'] {
+  color: var(--down);
+}
+.chart-body {
+  touch-action: none;
+}
+
+/* ---------- right rail */
+.side {
+  width: 300px;
+  padding: 8px;
+  gap: 8px;
+}
+.side .card {
+  padding: 8px;
+}
+.qty-presets {
+  margin-top: 6px;
+  gap: 4px;
+}
+.qty-presets button {
+  min-width: 36px;
+}
+.side button.buy,
+.side button.sell {
+  min-height: 40px;
+  font-size: 14px;
+}
+.rule-overall {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  font-size: 12px;
+}
+.rule-overall.pass {
+  color: var(--up);
+}
+.rule-overall.fail {
+  color: var(--down);
+}
+.rule-list {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rule-head {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+}
+.rule-state {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.rule-state.pass {
+  color: var(--up);
+  border-color: color-mix(in srgb, var(--up) 50%, var(--border));
+}
+.rule-state.fail {
+  color: var(--down);
+  border-color: color-mix(in srgb, var(--down) 50%, var(--border));
+}
+.rule .meter {
+  margin-top: 3px;
+  height: 4px;
+}
+.rule.fail .meter > span {
+  background: var(--down);
+}
+.rule.pass .meter > span {
+  background: var(--up);
+}
+.checkpoint-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.checkpoint-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  align-items: center;
+}
+.checkpoint-list li > button {
+  justify-self: start;
+}
+
+/* ---------- bottom panel: compact tab strip */
+.bottom {
+  height: 200px;
+}
+.bottom .tabbar {
+  gap: 2px;
+  padding: 4px 8px 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.bottom .tabbar button {
+  border-radius: 5px 5px 0 0;
+  border-bottom-color: transparent;
+  white-space: nowrap;
+  min-height: 28px;
+}
+
+/* ---------- compact trade bar (tablet / phone) */
+.trade-bar {
+  display: none;
+}
+
+/* ---------- library */
+.profile-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.profile-list li {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-list .title {
+  font-weight: 600;
+}
+.profile-form textarea {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  font: inherit;
+}
+.recommend {
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding-top: 8px;
+}
+.disclosure summary {
+  cursor: pointer;
+  margin: 6px 0;
+}
+.keys {
+  line-height: 1.7;
+}
+
+/* ================================================================== tablet */
+@media (max-width: 1199px) {
+  .tb-wide {
+    display: none !important;
+  }
+  .side {
+    width: 280px;
+  }
+  .bottom {
+    height: 170px;
+  }
+}
+
+/* ================================================================== phone + tablet portrait:
+   chart first, drawer for the rail, sticky trade bar */
+@media (max-width: 899px) {
+  body.in-practice footer.app {
+    display: none;
+  }
+  body.in-practice header.app {
+    padding: 4px 8px;
+    min-height: 40px;
+    gap: 6px;
+  }
+  body.in-practice header.app .brand small,
+  body.in-practice #lang-picker {
+    display: none;
+  }
+  .practice-root {
+    height: calc(100dvh - 40px);
+  }
+  .toolbar .replay,
+  #view-practice .toolbar [data-testid='btn-checkpoint'] {
+    display: none;
+  }
+  .toolbar .clock {
+    font-size: 11px;
+  }
+  .sheet-toggle {
+    display: inline-flex;
+    align-items: center;
+  }
+  .workspace {
+    position: relative;
+    flex-direction: row;
+  }
+  .charts.split {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+  .side {
+    position: fixed;
+    z-index: 40;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, 92vw);
+    border-left: 1px solid var(--border);
+    border-top: 0;
+    transform: translateX(105%);
+    transition: transform 0.18s ease-out;
+    box-shadow: var(--shadow);
+    padding-top: calc(8px + env(safe-area-inset-top));
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  body.sheet-open .side {
+    transform: none;
+  }
+  body.sheet-open::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: rgb(0 0 0 / 40%);
+  }
+  .bottom {
+    height: 34px;
+    overflow: hidden;
+  }
+  .bottom:focus-within,
+  .bottom.expanded {
+    height: 40vh;
+  }
+  .trade-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .trade-bar .tb-replay,
+  .trade-bar .tb-order {
+    display: grid;
+    gap: 6px;
+  }
+  .trade-bar .tb-replay {
+    grid-template-columns: 1fr 1.4fr 1fr 1fr;
+  }
+  .trade-bar .tb-order {
+    grid-template-columns: 1.3fr 0.8fr 1.3fr 0.9fr;
+  }
+  .trade-bar button,
+  .trade-bar input {
+    min-height: 44px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .trade-bar input {
+    text-align: center;
+    width: 100%;
+  }
+  .trade-bar button.flat {
+    background: var(--panel-2);
+  }
+}
+
+/* ================================================================== phone */
+@media (max-width: 767px) {
+  .library {
+    padding: 8px;
+    gap: 8px;
+  }
+  .grid3 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .library .preview-chart {
+    height: 240px;
+  }
+  .ohlc-legend {
+    font-size: 10px;
+    top: 34px;
+  }
+  .chart-cell .chart-head {
+    gap: 4px;
+  }
+  .drawing-palette {
+    max-width: calc(100% - 8px);
+  }
+  .drawing-palette button {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  dialog {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    padding: 12px;
+  }
+}
+
+/* ================================================================== v1 density pass */
+/* Practice view: header becomes a thin strip; footer folds away (links stay in About). */
+body.in-practice footer.app {
+  display: none;
+}
+body.in-practice header.app {
+  min-height: 38px;
+  padding: 3px 10px;
+}
+body.in-practice header.app .brand small {
+  display: none;
+}
+body.in-practice header.app button,
+body.in-practice header.app select {
+  min-height: 28px;
+  padding: 2px 8px;
+}
+/* Bottom panel: a tab strip that opens on demand. */
+.bottom {
+  height: 34px;
+  transition: height 0.15s ease-out;
+}
+.bottom.expanded,
+.bottom.macro-open {
+  height: min(300px, 38vh);
+}
+.bottom .tabbar button[aria-selected='true'] {
+  background: var(--panel-2);
+}
+.bottom-toggle {
+  margin-left: auto;
+}
+/* Drawing palette lives in the chart head, not over the candles. */
+.drawing-palette {
+  top: 2px;
+  left: 4px;
+  opacity: 1;
+  box-shadow: none;
+  background: transparent;
+  border-color: transparent;
+}
+.drawing-palette:not(.collapsed) {
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+.chart-cell .chart-head {
+  padding-left: 64px;
+}
+.ohlc-legend {
+  left: 8px;
+  transform: none;
+  top: 34px;
+}
+/* Position line labels: last price stands apart from TP. */
+.side .card h3 + .muted.small {
+  margin-top: 0;
+}
+/* Order ticket: tighter rows on desktop. */
+@media (pointer: fine) {
+  .side input,
+  .side select {
+    min-height: 28px;
+    padding: 2px 6px;
+  }
+  .side button {
+    min-height: 28px;
+  }
+  .side button.buy,
+  .side button.sell {
+    min-height: 36px;
+  }
+  .side .seg {
+    display: flex;
+  }
+  .side .seg button {
+    flex: 1;
+  }
+}
+@media (max-width: 899px) {
+  body.in-practice #about-open {
+    display: none;
+  }
+  body.in-practice header.app nav.tabs button {
+    padding: 2px 8px;
+  }
+  .toolbar strong,
+  .toolbar > .muted:not(.clock) {
+    max-width: 30vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pnl-chip {
+    padding: 2px 8px;
+    font-size: 11px;
+  }
+  .bottom {
+    height: 34px;
+  }
+  .bottom .tabpanel {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+.bottom .tabbar button[data-count]:not([data-count=''])::after {
+  content: attr(data-count);
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: var(--panel-2);
+  color: var(--muted);
+}
