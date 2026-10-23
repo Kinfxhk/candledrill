@@ -25,6 +25,8 @@ import { orderRoleText, orderTypeText } from './labels.js';
 import { el, fmtMoney, fmtNum, signClass } from './format.js';
 
 export interface SideActions {
+  /** Close the phone drawer (its ✕ button). */
+  closeSheet?: () => void;
   /** Called when ticket fields change (chart bracket preview). */
   ticketChanged?: () => void;
   place(req: OrderRequest): Promise<void>;
@@ -68,7 +70,7 @@ export class SidePanel {
   private readonly presets = el('div', { class: 'qty-presets row' });
 
   constructor(
-    private readonly root: HTMLElement,
+    readonly root: HTMLElement,
     private readonly actions: SideActions,
   ) {
     const label = (key: MessageKey, input: HTMLElement) =>
@@ -242,8 +244,20 @@ export class SidePanel {
       this.dialogCurrentOrderId = null;
     });
 
+    // Phone drawer close button (hidden on desktop by CSS).
+    const closeBtn = el(
+      'button',
+      {
+        type: 'button',
+        class: 'ghost sheet-close',
+        'data-testid': 'sheet-close',
+        'aria-label': t('v1.closePanel'),
+      },
+      '✕',
+    );
+    closeBtn.addEventListener('click', () => this.actions.closeSheet?.());
     // Ticket and position first: trading must not need a scroll; rules and tools follow.
-    this.root.replaceChildren(ticket, position, this.extra);
+    this.root.replaceChildren(closeBtn, ticket, position, this.extra);
     document.body.append(this.dialog);
     this.setType('market');
   }

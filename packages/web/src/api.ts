@@ -203,6 +203,8 @@ export interface SessionSettings {
   utcOffsetMinutes: number;
   dayStartMinutes: number;
   anchorMinutes: number;
+  /** Fills and rules run on this timeframe (e.g. 60 with 10s data); absent = every bar. */
+  practiceTimeframeSeconds?: number;
 }
 
 export interface SessionMeta {

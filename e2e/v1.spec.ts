@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // v1.0: rewind and save points, rule profiles, phone trade bar, disclosure placement.
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo, stepUntil } from './helpers.js';
-
-async function sessionState(page: Page) {
-  const list = await (await page.request.get('/api/sessions')).json();
-  const id = list.sessions[0].id as number;
-  return (await page.request.get(`/api/sessions/${id}`)).json();
-}
+import { generateDemo, stepUntil, sessionState } from './helpers.js';
 
 async function newSession(page: Page, name: string) {
   await generateDemo(page);
