@@ -101,6 +101,8 @@ test('phone: chart first, trade bar buys and flattens, drawer holds the rail', a
     await page.getByTestId('tb-step').click();
   expect((await sessionState(page)).state.trading.position.qty).toBe(1);
   await page.getByTestId('tb-flatten').click();
+  await expect(page.getByTestId('tb-flatten')).toHaveClass(/armed/);
+  await page.getByTestId('tb-flatten').click();
   for (let i = 0; i < 24 && (await sessionState(page)).state.trading.position; i++)
     await page.getByTestId('tb-step').click();
   expect((await sessionState(page)).state.trading.position).toBeNull();

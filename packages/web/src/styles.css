@@ -791,8 +791,24 @@ table.data.compact th {
   box-shadow: var(--shadow);
 }
 .indicator-panel h4 {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 13px;
+}
+.indicator-panel .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.indicator-panel .panel-close {
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  flex: none;
 }
 .indicator-panel h5 {
   margin: 10px 0 6px;
