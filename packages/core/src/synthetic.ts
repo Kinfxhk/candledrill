@@ -9,15 +9,29 @@
 // one: every symbol is forced to start with "SYNTH-" and metadata marks it synthetic.
 // Finer bars (practice timeframe / FORMING_PARTS: 20s, 100s, 300s, …) exist so a
 // practice chart can show a real forming candle. They are not a model of tick/trade flow.
+// The 1D forming source is 8h. The 08:00–16:30 session holds one of those, so a
+// daily demo with no explicit calendar uses a midnight-aligned full day instead
+// (three 8h prints, then the daily close). Passing `calendar` leaves it unchanged.
 
 import { createRng } from './rng.js';
-import { FORMING_PARTS, isSyntheticTimeframe } from './forming.js';
+import { DAY_SECONDS } from './aggregate.js';
+import {
+  FORMING_PARTS,
+  demoSessionSeconds,
+  formingSourceSeconds,
+  isSyntheticTimeframe,
+  pairedPracticeTimeframe,
+} from './forming.js';
 import { expandSessions } from './calendar.js';
 import { assertTickSize, tickDecimals, ticksToPrice } from './ticks.js';
 import type { Bar, DatasetMeta, SessionCalendar } from './types.js';
 
 export const SYNTHETIC_GENERATOR_NAME = 'candledrill-synthetic';
-/** Bump when the algorithm changes in a way that alters output for the same seed. */
+/**
+ * Bump when the price path for a given seed and calendar changes.
+ * 1.0.7 changes which calendar an 8h demo uses when `calendar` is omitted.
+ * The path inside a session is the same, and the 1-minute series is unchanged.
+ */
 export const SYNTHETIC_GENERATOR_VERSION = 1;
 export const SYNTHETIC_SYMBOL_PREFIX = 'SYNTH-';
 /** Hard cap to protect memory on small machines (~3.8 years of 24h minutes). */
@@ -28,6 +42,41 @@ export const DEFAULT_SYNTHETIC_CALENDAR: SessionCalendar = {
   utcOffsetMinutes: 0,
   windows: [{ days: [1, 2, 3, 4, 5], start: '08:00', end: '16:30' }],
 };
+
+/**
+ * Weekday session for the 1D forming source (8h). 00:00–24:00 is exactly three
+ * 8h bars, and with the default trading-day start (midnight) they share one
+ * daily bucket. The 08:00–16:30 session holds only the first of those bars.
+ */
+export const DAILY_FORMING_CALENDAR: SessionCalendar = {
+  utcOffsetMinutes: 0,
+  windows: [{ days: [1, 2, 3, 4, 5], start: '00:00', end: '24:00' }],
+};
+
+/**
+ * Calendar for a synthetic request. An explicit calendar is kept. Otherwise the
+ * intraday demo session is used, except for the current 1D forming source, which
+ * needs {@link DAILY_FORMING_CALENDAR} so the daily candle can form.
+ */
+export function syntheticCalendar(
+  timeframeSeconds: number,
+  calendar: SessionCalendar | undefined,
+): SessionCalendar {
+  if (calendar) return calendar;
+  const practice = pairedPracticeTimeframe(timeframeSeconds);
+  // Only the current ÷3 source. A legacy ÷6 file (4h → 1D) keeps the intraday
+  // session so an explicit replay of that spacing does not change shape.
+  // The stretched window is one midnight-aligned day, which is exactly three 8h
+  // bars. A longer practice bar would need its own window.
+  if (
+    practice !== undefined &&
+    formingSourceSeconds(practice) === timeframeSeconds &&
+    demoSessionSeconds(practice) === DAY_SECONDS
+  ) {
+    return DAILY_FORMING_CALENDAR;
+  }
+  return DEFAULT_SYNTHETIC_CALENDAR;
+}
 
 export interface SyntheticOptions {
   /** uint32 seed. Same seed + same options => identical bars. */
@@ -84,7 +133,8 @@ export function intradayActivity(x: number): number {
 }
 
 export function generateSyntheticBars(options: SyntheticOptions): SyntheticDataset {
-  const calendar = options.calendar ?? DEFAULT_SYNTHETIC_CALENDAR;
+  const timeframeSeconds = options.timeframeSeconds ?? 60;
+  const calendar = syntheticCalendar(timeframeSeconds, options.calendar);
   const tickSize = options.tickSize ?? 0.25;
   const startPrice = options.startPrice ?? 4000;
   const annualVol = options.annualVolatility ?? 0.2;
@@ -92,7 +142,6 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
   const missingP = options.missingBarProbability ?? 0;
   const baseVolume = options.baseVolume ?? 400;
   const name = options.name ?? 'DEMO';
-  const timeframeSeconds = options.timeframeSeconds ?? 60;
 
   assertTickSize(tickSize);
   checkRange('startPrice', startPrice, tickSize * 10, 1e9);

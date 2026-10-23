@@ -24,6 +24,8 @@ export {
   generateSyntheticBars,
   intradayActivity,
   DEFAULT_SYNTHETIC_CALENDAR,
+  DAILY_FORMING_CALENDAR,
+  syntheticCalendar,
   SYNTHETIC_GENERATOR_NAME,
   SYNTHETIC_GENERATOR_VERSION,
   SYNTHETIC_SYMBOL_PREFIX,
@@ -58,6 +60,8 @@ export {
 } from './aggregate.js';
 export {
   FORMING_PARTS,
+  DEFAULT_DEMO_SESSION_SECONDS,
+  demoSessionSeconds,
   formingSourceSeconds,
   pairedPracticeTimeframe,
   defaultPracticeTimeframe,
