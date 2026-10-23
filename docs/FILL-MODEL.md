@@ -126,6 +126,12 @@ A practice timeframe can form from a source that is **one third of that timefram
 | 1h (3600s)  | 20m (1200s)     |
 | 1D (86400s) | 8h (28800s)     |
 
+The 1D **demo session** is a full weekday (00:00–24:00), not 08:00–16:30. An 8h
+source fits once in the shorter session, so the daily candle would close on the
+first print. Three 8h bars share one midnight day and the candle forms across
+them. 1m, 5m, 15m and 1h demos stay on 08:00–16:30. Fills still run on the daily
+close.
+
 CandleDrill reveals those source bars so the **chart** updates a forming practice
 candle (three updates, then the bar closes). The chart menu stays on practice
 timeframes (1m and up). There is no 20s or 100s chart option. While playing, those

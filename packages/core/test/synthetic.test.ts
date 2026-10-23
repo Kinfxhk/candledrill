@@ -3,11 +3,13 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
+  DAILY_FORMING_CALENDAR,
   DEFAULT_SYNTHETIC_CALENDAR,
   expandSessions,
   generateSyntheticBars,
   intradayActivity,
   isInSession,
+  syntheticCalendar,
   validateBars,
   MAX_SYNTHETIC_BARS,
   type SessionCalendar,
@@ -193,6 +195,37 @@ describe('synthetic finer timeframe', () => {
 
   it('rejects a timeframe that is neither a minute divisor nor TF÷3', () => {
     expect(() => generateSyntheticBars({ ...base, timeframeSeconds: 7 })).toThrow(/divisor/);
+  });
+
+  it('emits three 8h bars in a midnight day for a 1D demo', () => {
+    expect(syntheticCalendar(28800, undefined)).toBe(DAILY_FORMING_CALENDAR);
+    expect(syntheticCalendar(20, undefined)).toBe(DEFAULT_SYNTHETIC_CALENDAR);
+    expect(syntheticCalendar(28800, DEFAULT_SYNTHETIC_CALENDAR)).toBe(DEFAULT_SYNTHETIC_CALENDAR);
+
+    const { meta, bars } = generateSyntheticBars({
+      ...base,
+      days: 1,
+      timeframeSeconds: 28800,
+    });
+    expect(meta.timeframeSeconds).toBe(28800);
+    expect(bars).toHaveLength(3);
+    expect(bars.map((b) => b.time - bars[0]!.time)).toEqual([0, 28800, 57600]);
+    expect(bars[0]!.time % 86400).toBe(0);
+    expect(validateBars(bars, { timeframeSeconds: 28800 })).toEqual([]);
+
+    // An explicit short session is left alone (one 8h print). The demo omits it.
+    const short = generateSyntheticBars({
+      ...base,
+      days: 1,
+      timeframeSeconds: 28800,
+      calendar: DEFAULT_SYNTHETIC_CALENDAR,
+    });
+    expect(short.bars).toHaveLength(1);
+
+    // 1h demos stay on 08:00–16:30.
+    const hour = generateSyntheticBars({ ...base, days: 1, timeframeSeconds: 1200 });
+    expect(hour.bars[0]!.time % 86400).toBe(8 * 3600);
+    expect(hour.bars).toHaveLength(Math.floor((8 * 3600 + 30 * 60) / 1200));
   });
 
   it.each([

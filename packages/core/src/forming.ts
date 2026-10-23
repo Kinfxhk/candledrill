@@ -6,11 +6,40 @@
 //
 // FORMING_PARTS is the one knob for how many real source bars build a practice
 // candle. v1.0.4 used 6; 3 is the slow-play spacing (fewer visual steps, still a build).
+// The divisor stays 3 for every standard timeframe, including 1D. A daily demo that
+// cannot fit three 8h prints in the 08:00–16:30 session uses a longer session
+// ({@link demoSessionSeconds}) instead of a different divisor.
 
 import { STANDARD_TIMEFRAMES } from './aggregate.js';
 
 /** Source bars that build one practice bar. practiceSeconds / FORMING_PARTS. */
 export const FORMING_PARTS = 3;
+
+/**
+ * Length of the default intraday demo session (08:00–16:30).
+ * `DEFAULT_SYNTHETIC_CALENDAR` in synthetic.ts must describe the same window.
+ */
+export const DEFAULT_DEMO_SESSION_SECONDS = 8 * 3600 + 30 * 60;
+
+/**
+ * How long a demo session must be, in seconds, so one practice bar can show
+ * {@link FORMING_PARTS} source prints.
+ *
+ * Intraday timeframes fit in the 08:00–16:30 session (three 20s prints per 1m
+ * bar, and the same for 5m, 15m and 1h). The 1D source is 8h, and that session
+ * holds only one print, so the daily candle would close on the first bar. The
+ * 1D demo therefore uses a full exchange day — exactly three 8h bars. This does
+ * not change the divisor or when fills run.
+ */
+export function demoSessionSeconds(practiceTimeframeSeconds: number): number {
+  const source = formingSourceSeconds(practiceTimeframeSeconds);
+  if (Math.floor(DEFAULT_DEMO_SESSION_SECONDS / source) >= FORMING_PARTS) {
+    return DEFAULT_DEMO_SESSION_SECONDS;
+  }
+  // The source divides the practice bar, so this is a whole number of prints
+  // and, for 1D, exactly one midnight-aligned day.
+  return Math.max(practiceTimeframeSeconds, source * FORMING_PARTS);
+}
 
 /**
  * v1.0.4 datasets (timeframe ÷ 6). New sessions on those files keep the same
