@@ -213,3 +213,27 @@ test('review tab, custom hotkey and trailing stop', async ({ page }) => {
   await page.getByTestId('mc-run').click();
   await expect(page.getByTestId('mc-result')).not.toBeEmpty();
 });
+
+test('Back after Play rewinds the whole run, even with a trailing stop moving', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByTestId('settings-open').click();
+  const dlg = page.getByTestId('settings-dialog');
+  await dlg.locator('input[name=trailTicks]').fill('2');
+  await dlg.getByTestId('settings-save').click();
+  await newSession(page, 'E2E play undo');
+  for (let i = 0; i < 3; i++) await page.getByTestId('btn-step10').click();
+  await page.getByTestId('sl-ticks').fill('60');
+  await page.getByTestId('btn-buy').click();
+  await stepUntil(page, async () => (await sessionState(page)).state.trading.position !== null);
+  const before = (await sessionState(page)).state.cursor as number;
+  await page.getByTestId('btn-play').click();
+  await expect
+    .poll(async () => (await sessionState(page)).state.cursor, { timeout: 15000 })
+    .toBeGreaterThan(before + 40);
+  await page.getByTestId('btn-play').click(); // pause
+  await page.waitForTimeout(300);
+  await page.getByTestId('btn-back').click();
+  await expect.poll(async () => (await sessionState(page)).state.cursor).toBe(before);
+});

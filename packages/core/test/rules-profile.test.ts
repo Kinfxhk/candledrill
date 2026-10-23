@@ -189,6 +189,19 @@ describe('evaluateProfile', () => {
     expect(r.overall).toBe('fail');
   });
 
+  it('trades per day counts a still-open trade at its entry', () => {
+    const run = play([
+      [0, 0, 100, 'buy'],
+      [0, 1, 100],
+      [0, 2, 101, 'sell'], // closed trade 1
+      [0, 3, 101, 'buy'],
+      [0, 4, 101], // trade 2 still open
+    ]);
+    expect(run.state.trading.openTrade).not.toBeNull();
+    const r = result(P({ maxTradesPerDay: 1 }), run);
+    expect(rule(r, 'maxTradesPerDay')).toMatchObject({ state: 'fail', value: 2 });
+  });
+
   it('flat-by time and no overnight', () => {
     const run = play([
       [0, 0, 100, 'buy'], // 09:00

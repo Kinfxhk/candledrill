@@ -989,9 +989,12 @@ export class PracticeView {
       const view = await fn();
       if (generation !== this.generation) return;
       if (before && !this.blindHidden) {
-        this.undo.push(before);
-        if (this.undo.length > MAX_UNDO) this.undo.shift();
-        this.playUndoTaken = false;
+        // During Play, automatic changes (stop management, macro fills) fold into the one undo
+        // point taken when Play started, so Back undoes the whole run.
+        if (!this.playing) {
+          this.undo.push(before);
+          if (this.undo.length > MAX_UNDO) this.undo.shift();
+        } else this.pushUndoState(before);
       }
       this.applyView(view);
     } catch (err) {

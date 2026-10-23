@@ -409,12 +409,15 @@ export function evaluateProfile(
     const perDay = new Map<number, number>();
     let worst = 0;
     let brokenAt: number | undefined;
-    for (const t of trades) {
-      const d = dayOf(t.openTime, clock);
+    // Counted at entry, so a still-open trade counts on the day it opened.
+    const opens = trades.map((t) => t.openTime);
+    if (state.trading.openTrade) opens.push(state.trading.openTrade.openTime);
+    for (const openTime of opens) {
+      const d = dayOf(openTime, clock);
       const n = (perDay.get(d) ?? 0) + 1;
       perDay.set(d, n);
       worst = Math.max(worst, n);
-      if (n > p.maxTradesPerDay && brokenAt === undefined) brokenAt = t.openTime;
+      if (n > p.maxTradesPerDay && brokenAt === undefined) brokenAt = openTime;
     }
     results.push({
       id: 'maxTradesPerDay',

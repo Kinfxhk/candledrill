@@ -265,6 +265,44 @@ describe('browser backend parity with the local server', () => {
     expect(list.sessions.map((x) => x.name)).toEqual(['keep']);
   });
 
+  it("backup carries each session's rule profile to the restored session id", async () => {
+    let store: Record<string, unknown> = {};
+    const lb = new LocalBackend('test', NOW, { read: () => store, write: (m) => (store = m) });
+    backends.push(lb);
+    const ds = (
+      (
+        await lb.handle('POST', '/api/datasets/synthetic', {
+          seed: 6,
+          startDate: '2026-01-05',
+          days: 1,
+        })
+      ).body as { dataset: { id: number; firstTime: number } }
+    ).dataset;
+    const mk = async (name: string) =>
+      (
+        (
+          await lb.handle('POST', '/api/sessions', {
+            datasetId: ds.id,
+            name,
+            startTime: ds.firstTime + 600,
+            settings: SETTINGS,
+          })
+        ).body as { session: { id: number } }
+      ).session.id;
+    await mk('a');
+    const b = await mk('b');
+    store = { [String(b)]: { name: 'rules for b' } };
+    const backup = await lb.handle('GET', '/api/backup', undefined);
+    await lb.handle('DELETE', `/api/datasets/${ds.id}`, undefined);
+    store = {};
+    await lb.handle('POST', '/api/restore', backup.download!.text);
+    const list = (await lb.handle('GET', '/api/sessions', undefined)).body as {
+      sessions: { id: number; name: string }[];
+    };
+    const newB = list.sessions.find((x) => x.name === 'b')!.id;
+    expect(store).toEqual({ [String(newB)]: { name: 'rules for b' } });
+  });
+
   it('keeps blind sessions hidden: no dataset bars, no rewind, no session file', async () => {
     const b = browser();
     const ds = (
