@@ -40,7 +40,8 @@ test('trade and journal navigation preserves session state across pane/timeframe
   const read = await setup(page, 'Trade navigation');
   const cursor = (await read()).state.cursor;
   await page.getByTestId('btn-step10').click();
-  await expect.poll(async () => (await read()).state.cursor).toBe(cursor + 10);
+  // +10 = ten practice (1m) bars; the 10s demo source advances 6 source bars per 1m bar.
+  await expect.poll(async () => (await read()).state.cursor).toBeGreaterThanOrEqual(cursor + 60);
   const before = await read();
   const chart = page.locator('.chart-body').first();
   const liveImage = await chart.screenshot();

@@ -52,3 +52,19 @@ export async function stepUntil(
   }
   expect(await check()).toBe(true);
 }
+
+/**
+ * The session open in this page (the app records it), falling back to the most recently
+ * updated one. The e2e server is shared, so "newest" alone can pick another test's session.
+ */
+export async function sessionState(page: Page) {
+  const open = await page.evaluate(
+    () => document.getElementById('practice-root')?.getAttribute('data-session-id') ?? null,
+  );
+  let id = open ? Number(open) : NaN;
+  if (!Number.isInteger(id)) {
+    const list = await (await page.request.get('/api/sessions')).json();
+    id = list.sessions[0].id as number;
+  }
+  return (await page.request.get(`/api/sessions/${id}`)).json();
+}

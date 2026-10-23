@@ -6,6 +6,45 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-23
+
+Phone usability fixes from real-device testing. The fill model is unchanged (v4).
+
+### Fixed
+
+- **Orders on phones.** "Next bar" now advances one practice bar (one 1m bar on 10s demo
+  data, six source bars), so a market order fills on the first press instead of after
+  several. +10, play and the keyboard step count practice bars too.
+- **Play / pause.** The trade-bar play button shows pause while playing (and its label says
+  so); a separate step glyph so play and step no longer look the same.
+- **Blind practice.** Semi-auto is no longer offered while a blind session is hidden (button
+  and tab are removed instead of leading to a warning). Generating demo data no longer shows
+  a semi-auto warning.
+- **Panels close sensibly.** One panel at a time: the drawer, the bottom panel, Indicators and
+  the phone draw tools close on a tap outside, Escape, or opening another panel; the drawer
+  has a ✕. The tap that closes a panel does nothing else (no stray drawing point or order).
+- **No sideways swiping.** Toolbar and bottom tabs wrap instead of scrolling sideways, the page
+  never scrolls horizontally, and the chart keeps its drags, so an edge swipe does not turn
+  into the browser's Back gesture.
+- **Fits the screen.** Practice fills the visible viewport; header controls stay on screen
+  (language, Settings, About); touch inputs use 16px text so iOS does not zoom on focus; date
+  and time fields are as wide as the other fields; saved sessions show as cards on phones and
+  the table no longer grows under the new-session form on desktop.
+- **Open bottom panel.** On phones the trade bar steps aside while a panel is open and the chart
+  keeps at least 40% of the screen; folding the panel gives the chart its full height back.
+- **Phone landscape.** Compact rows keep the chart at 150px or more.
+- Light theme: muted text and accent meet 4.5:1 contrast; tab badges and the panel toggle are
+  clearly visible.
+
+### Included
+
+- #27 (narrow-viewport layout): one-column forms, flexible chart row, indicator bottom sheet
+  with 44px rows, no clipped price label over the candles, wrapped tab strip.
+
+### Docs
+
+- README: online version link at the top; all screenshots regenerated in the light theme.
+
 ## [1.0.0] - 2026-10-23
 
 ### Added

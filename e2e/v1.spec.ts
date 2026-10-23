@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // v1.0: rewind and save points, rule profiles, phone trade bar, disclosure placement.
 import { expect, test, type Page } from '@playwright/test';
-import { generateDemo, stepUntil } from './helpers.js';
-
-async function sessionState(page: Page) {
-  const list = await (await page.request.get('/api/sessions')).json();
-  const id = list.sessions[0].id as number;
-  return (await page.request.get(`/api/sessions/${id}`)).json();
-}
+import { generateDemo, stepUntil, sessionState } from './helpers.js';
 
 async function newSession(page: Page, name: string) {
   await generateDemo(page);
@@ -180,6 +174,10 @@ test('review tab, custom hotkey and trailing stop', async ({ page }) => {
   await page.getByTestId('tp-ticks').fill('');
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('k');
+  // The rebound key places the order (wait for it), then the next bars fill it.
+  await expect
+    .poll(async () => ((await sessionState(page)).state.trading.orders as unknown[]).length)
+    .toBeGreaterThan(0);
   await stepUntil(page, async () => (await sessionState(page)).state.trading.position !== null);
   const stopPrice = async () =>
     (

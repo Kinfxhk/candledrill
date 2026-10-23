@@ -2,8 +2,16 @@
 //
 // Collapsible floating drawing-tool palette inside each chart pane (UX Option A).
 
+import * as overlays from './overlays.js';
 import { t, type MessageKey } from './i18n.js';
 import { el } from './format.js';
+
+/** Phone / short-screen layout (the tools become a bottom sheet there, see phone.css). */
+export const PaletteLayout = {
+  compact: (): boolean =>
+    typeof window !== 'undefined' &&
+    !!window.matchMedia?.('(max-width: 899px), (max-height: 520px)').matches,
+};
 
 export type PaletteTool =
   | 'hline'
@@ -67,7 +75,9 @@ export class DrawingPalette {
     container: HTMLElement,
     private readonly hooks: DrawingPaletteHooks,
   ) {
-    this.expanded = readPaletteExpanded();
+    // Always start folded: an open palette covers the chart and must be opened on purpose.
+    this.expanded = false;
+    void readPaletteExpanded;
     this.root = el('div', {
       class: 'drawing-palette',
       'data-testid': 'drawing-palette',
@@ -145,21 +155,41 @@ export class DrawingPalette {
     const next = this.active === tool ? null : tool;
     this.setActive(next);
     this.hooks.select(next);
+    // Phones: picking a tool folds the tools sheet so the chart is free to draw on (the Draw
+    // button names the active tool). Desktop keeps the palette open for repeated drawing.
+    if (next !== null && PaletteLayout.compact()) this.setExpanded(false);
   }
 
   setActive(tool: PaletteTool): void {
     this.active = tool;
     for (const [key, b] of this.buttons) b.setAttribute('aria-pressed', String(key === tool));
+    // The folded Draw button names the tool in use, so a folded palette is never ambiguous.
+    const label = tool ? (this.buttons.get(tool)?.textContent ?? '') : '';
+    this.toggleBtn.textContent = tool ? `${t('pr.drawTools')} · ${label}` : t('pr.drawTools');
+    this.toggleBtn.classList.toggle('active-tool', tool !== null);
   }
 
   isExpanded(): boolean {
     return this.expanded;
   }
 
+  private readonly overlayId = `pal-${Math.random().toString(36).slice(2, 8)}`;
+
   setExpanded(on: boolean): void {
     this.expanded = on;
     writePaletteExpanded(on);
     this.applyExpanded();
+    // Phones only: the tools sheet closes on an outside tap. On desktop the palette is a
+    // toolbar you keep open while drawing, so a chart click must reach the chart.
+    if (on && PaletteLayout.compact())
+      overlays.opened({
+        id: this.overlayId,
+        // Only the Draw button and the tools count as inside (the palette root sits in the
+        // chart body, so root.contains() would treat every chart tap as inside).
+        contains: (n) => this.toggleBtn.contains(n) || this.toolsEl.contains(n),
+        close: () => this.setExpanded(false),
+      });
+    else overlays.closed(this.overlayId);
   }
 
   expand(): void {

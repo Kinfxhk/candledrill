@@ -3,6 +3,7 @@
 // Indicator catalog: typeahead search, category chips, and a free-form instance list.
 // The panel shell keeps data-testid="indicator-panel".
 
+import * as overlays from './overlays.js';
 import { t, type MessageKey } from './i18n.js';
 import { el } from './format.js';
 import {
@@ -54,7 +55,6 @@ const KIND_KEY: Record<IndicatorKind, MessageKey> = {
 export class IndicatorPanel {
   private root: HTMLElement | undefined;
   private cfg: PaneIndicatorConfig;
-  private clickOutside: ((e: MouseEvent) => void) | undefined;
   private query = '';
   private category: IndicatorCategory | 'all' = 'all';
   private limitNote = '';
@@ -75,30 +75,31 @@ export class IndicatorPanel {
     else this.open();
   }
 
+  private readonly overlayId = `ind-${Math.random().toString(36).slice(2, 8)}`;
+
   open(): void {
     this.close();
     this.cfg = loadIndicatorConfig();
     this.root = el('div', { class: 'indicator-panel', 'data-testid': 'indicator-panel' });
     this.render();
     this.anchor.append(this.root);
-    this.clickOutside = (e: MouseEvent) => {
-      if (!this.root) return;
-      const target = e.target as Node;
-      if (this.root.contains(target)) return;
-      if (this.anchor.contains(target)) return;
-      this.close();
-    };
-    document.addEventListener('click', this.clickOutside, true);
+    // Tap outside / Escape / opening another panel closes it (shared rule, overlays.ts).
+    overlays.opened({
+      id: this.overlayId,
+      contains: (n) => !!this.root?.contains(n) || this.anchor.contains(n),
+      close: () => this.close(),
+    });
   }
 
   close(): void {
-    if (this.clickOutside) {
-      document.removeEventListener('click', this.clickOutside, true);
-      this.clickOutside = undefined;
-    }
+    overlays.closed(this.overlayId);
     this.root?.remove();
     this.root = undefined;
+    this.onClose?.();
   }
+
+  /** Called after the panel closes for any reason (keeps the toggle's aria-expanded right). */
+  onClose: (() => void) | undefined;
 
   private commit(): void {
     saveIndicatorConfig(this.cfg);
