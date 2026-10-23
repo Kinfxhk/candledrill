@@ -12,7 +12,7 @@
 //    unchanged and results stay reproducible.
 
 import type { SessionSettings, SessionState, TrailingDrawdownMode } from './session.js';
-import { sessionEquity } from './session.js';
+import { sessionEquity, trailingPeak } from './session.js';
 import type { Trade, Fill } from './orders.js';
 
 export const RULE_PROFILE_FORMAT = 'candledrill-rule-profile';
@@ -284,10 +284,12 @@ export function evaluateProfile(
     });
   }
   if (p.maxLoss !== null) {
+    // Same basis as the engine rule: distance below the mode's peak (or the static floor).
+    const used = Math.max(0, trailingPeak(settings, state) - sessionEquity(settings, state));
     results.push({
       id: 'maxLoss',
       state: engineBreach.startsWith('trailing drawdown') ? 'fail' : 'pass',
-      value: Math.round(state.maxDrawdown * 100) / 100,
+      value: Math.round(used * 100) / 100,
       limit: p.maxLoss,
     });
   }
