@@ -154,6 +154,12 @@ export class PracticeView {
   private flattenWatchInstalled = false;
   /** Invalidates pending requests whenever this view is opened or closed. */
   private generation = 0;
+  /**
+   * Id of the latest session write (step snapshot, order, cancel, edit).
+   * A response applies only while its id is still the latest, so a slow write cannot
+   * replace a newer one. The forming-candle timer is not a write.
+   */
+  private viewSeq = 0;
   private speed = readPlaybackSpeed();
   /** Toolbar dropdown and the compact trade-bar dropdown, kept on the same value. */
   private speedSelects: HTMLSelectElement[] = [];
@@ -228,6 +234,7 @@ export class PracticeView {
       throw err;
     }
     if (generation !== this.generation) return;
+    this.claimView();
     this.meta = view.session;
     this.bars = view.bars;
     this.drawings = (view.session.drawings as Drawing[]) ?? [];
@@ -642,6 +649,7 @@ export class PracticeView {
     try {
       const view = await sessionsApi.reveal(this.meta.id);
       if (generation !== this.generation) return;
+      this.claimView();
       this.meta = view.session;
       this.els.reveal!.hidden = true;
       this.applyView(view);
@@ -1047,12 +1055,23 @@ export class PracticeView {
     this.side?.setPrice(price);
   }
 
+  /** Take the next session-write id. Older responses must not apply after this. */
+  private claimView(): number {
+    this.viewSeq += 1;
+    return this.viewSeq;
+  }
+
+  private viewCurrent(seq: number, generation: number): boolean {
+    return generation === this.generation && seq === this.viewSeq;
+  }
+
   private async mutate(fn: () => Promise<SessionViewDto>): Promise<void> {
     const generation = this.generation;
+    const seq = this.claimView();
     const before = this.state;
     try {
       const view = await fn();
-      if (generation !== this.generation) return;
+      if (!this.viewCurrent(seq, generation)) return;
       if (before && !this.blindHidden) {
         // During Play, automatic changes (stop management, macro fills) fold into the one undo
         // point taken when Play started, so Back undoes the whole run.
@@ -1131,9 +1150,10 @@ export class PracticeView {
     if (!o) throw new Error('order not found');
     const change: OrderChange = o.role === 'entry' ? { price } : { price };
     const generation = this.generation;
+    const seq = this.claimView();
     try {
       const view = await sessionsApi.modifyOrder(this.meta.id, orderId, change);
-      if (generation !== this.generation) return;
+      if (!this.viewCurrent(seq, generation)) return;
       this.applyView(view);
     } catch (err) {
       if (generation !== this.generation) throw err;
@@ -1184,6 +1204,7 @@ export class PracticeView {
     try {
       const r = await sessionsApi.restoreState(this.meta.id, state);
       if (generation !== this.generation) return false;
+      this.claimView();
       this.bars = r.bars;
       this.applyView(r);
       this.resetCharts();
@@ -1473,11 +1494,20 @@ export class PracticeView {
     this.render();
   }
 
-  private appendBars(revealed: Bar[]): void {
+  private pushBars(revealed: Bar[]): void {
+    for (const b of revealed) this.bars.push(b);
+  }
+
+  /** Chart only. Session bars are already committed, so a replayed paint must not push them again. */
+  private paintBars(revealed: Bar[]): void {
     for (const b of revealed) {
-      this.bars.push(b);
       for (const p of this.panes) p.chart.updateBar(p.agg.push(b).bar);
     }
+  }
+
+  private appendBars(revealed: Bar[]): void {
+    this.pushBars(revealed);
+    this.paintBars(revealed);
   }
 
   /**
@@ -1513,13 +1543,21 @@ export class PracticeView {
     try {
       const r = await sessionsApi.step(this.meta.id, count);
       if (generation !== this.generation) return;
+      // This snapshot wins over edits still in flight. Stop management and the macro run
+      // before inFlight clears, and the forming timer never writes session state again.
+      this.claimView();
       if (before && !this.blindHidden) this.pushUndoState(before);
-      this.presentStep(r.revealed, r, async () => {
+      this.pushBars(r.revealed);
+      this.applyView(r);
+      if (generation !== this.generation) return;
+      this.presentChart(r.revealed);
+      if (r.revealed.length > 0) {
+        await this.manageStop();
         if (generation !== this.generation) return;
-        if (r.revealed.length > 0) await this.manageStop();
-        if (this.macroArmed && r.revealed.length > 0) await this.watchMacro();
-        if (r.state.status === 'finished') this.pause();
-      });
+        if (this.macroArmed) await this.watchMacro();
+      }
+      if (generation !== this.generation) return;
+      if (r.state.status === 'finished') this.pause();
     } catch (err) {
       if (generation !== this.generation) return;
       this.pause();
@@ -1530,41 +1568,35 @@ export class PracticeView {
   }
 
   /**
-   * Paint a practice step's source bars so the candle forms, then apply the fill state.
-   * One Next still commits the whole practice bar on the server; only the paint is split.
-   * More than one practice bar (+10, a fast play burst) paints at once.
+   * Paint a practice step's source bars so the candle forms. The step view is already
+   * committed; more than one practice bar (+10, a fast play burst) paints at once.
+   * The timer must not apply that view again — a cancel, edit, flatten, or play can
+   * land while the candle is still drawing.
    */
-  private presentStep(revealed: Bar[], view: SessionViewDto, after: () => Promise<void>): void {
+  private presentChart(revealed: Bar[]): void {
     const generation = this.generation;
-    const instant = revealed.length <= 1 || revealed.length > 12;
-    if (instant) {
-      this.appendBars(revealed);
-      this.applyView(view);
-      void after();
+    if (revealed.length <= 1 || revealed.length > 12) {
+      this.paintBars(revealed);
       return;
     }
     const token = this.presentToken;
     let i = 0;
     const gap = this.formingGapMs(revealed.length);
-    const finish = () => {
+    const paintRest = () => {
       if (generation !== this.generation) return;
-      if (i < revealed.length) this.appendBars(revealed.slice(i));
+      if (i < revealed.length) this.paintBars(revealed.slice(i));
       i = revealed.length;
       this.presentTimer = undefined;
       this.finishPresent = undefined;
-      this.applyView(view);
-      void after();
     };
-    this.finishPresent = finish;
+    this.finishPresent = paintRest;
     const pump = () => {
       if (token !== this.presentToken || generation !== this.generation) return;
-      this.appendBars([revealed[i]!]);
+      this.paintBars([revealed[i]!]);
       i += 1;
       if (i >= revealed.length) {
         this.presentTimer = undefined;
         this.finishPresent = undefined;
-        this.applyView(view);
-        void after();
         return;
       }
       this.presentTimer = setTimeout(pump, gap);
@@ -1578,7 +1610,7 @@ export class PracticeView {
     return Math.max(16, Math.min(140, Math.floor(budget / Math.max(1, count))));
   }
 
-  /** Finish a forming paint now (an order or jump needs the practice bar on screen). */
+  /** Catch the chart up to bars already committed. Does not write session state. */
   private flushPresent(): void {
     const finish = this.finishPresent;
     if (this.presentTimer !== undefined) clearTimeout(this.presentTimer);
@@ -1588,7 +1620,7 @@ export class PracticeView {
     finish?.();
   }
 
-  /** Drop a forming paint without applying it (the view is closing or rewinding). */
+  /** Drop a forming paint without finishing it (close and rewind rebuild the charts). */
   private cancelPresent(): void {
     if (this.presentTimer !== undefined) clearTimeout(this.presentTimer);
     this.presentTimer = undefined;
@@ -1615,6 +1647,7 @@ export class PracticeView {
         await this.open(id);
         return;
       }
+      this.claimView();
       this.appendBars(r.revealed);
       this.applyView(r);
       for (const p of this.panes) p.chart.scrollToEnd();
