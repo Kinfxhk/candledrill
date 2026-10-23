@@ -503,13 +503,15 @@ export class PracticeView {
         },
       },
       (id) => {
-        this.els.bottom?.classList.toggle('macro-open', id === 'macro');
+        this.bottomTab = id;
+        this.syncMacroOpen();
       },
     );
     // Only an actually open panel is an overlay (onSelect also runs on every render).
     this.bottom.onExpandedChange = (on) => {
       if (on) this.bottomOpened();
       else overlays.closed('bottom');
+      this.syncMacroOpen();
     };
     returnLive.addEventListener('click', () => this.returnToCurrent());
 
@@ -1218,6 +1220,13 @@ export class PracticeView {
     await this.mutate(() => sessionsApi.flatten(this.meta!.id));
   }
 
+  /** Active bottom tab, and the tall semi-auto layout only while that panel is open. */
+  private bottomTab = '';
+  private syncMacroOpen(): void {
+    const on = this.bottomTab === 'macro' && !!this.bottom?.isExpanded;
+    this.els.bottom?.classList.toggle('macro-open', on);
+  }
+
   // ---------------------------------------------------------------- phone panels
   private sheetOpen = false;
   /** Rail drawer (phone / tablet portrait). Closes on a tap outside, Escape or its ✕. */
@@ -1441,10 +1450,12 @@ export class PracticeView {
       this.carry += (this.speed * TICK_MS) / 1000;
       const n = Math.floor(this.carry);
       if (n < 1 || this.inFlight) return;
-      // Armed watch checks every closed bar, so play advances one bar per tick.
-      const count = this.macroArmed ? 1 : Math.min(n, 5000);
-      this.carry -= this.macroArmed ? 1 : n;
-      void this.step(count);
+      // Speed is practice bars per second (one 1m bar on 10s data), like Next and +10.
+      // An armed watch checks every closed practice bar, so it advances one per tick.
+      const bars = this.macroArmed ? 1 : n;
+      this.carry -= bars;
+      // The step route accepts at most 5000 source bars per call.
+      void this.step(Math.min(this.practiceSteps(bars), 5000));
     }, TICK_MS);
     this.renderPlay();
   }

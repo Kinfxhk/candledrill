@@ -411,6 +411,9 @@ export class BottomPanel {
   private readonly root: HTMLElement;
   private readonly toggle: HTMLButtonElement;
   private expanded = false;
+  get isExpanded(): boolean {
+    return this.expanded;
+  }
   /** Told when the panel opens or folds (phones treat the open panel as an overlay). */
   onExpandedChange: ((on: boolean) => void) | undefined;
   setExpanded(on: boolean): void {

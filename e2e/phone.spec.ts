@@ -174,3 +174,47 @@ test('nothing scrolls sideways; header and form line up', async ({ browser }) =>
   expect(prac.scrollers, 'no sideways scroll strips').toEqual([]);
   await ctx.close();
 });
+
+test('play steps whole practice bars; folding semi-auto brings the trade bar back', async ({
+  browser,
+}) => {
+  const { ctx, page } = await phone(browser);
+  // Every step request made by play covers at least one whole 1m bar of 10s data (6 bars).
+  const counts: number[] = [];
+  page.on('request', (r) => {
+    if (r.url().endsWith('/step') && r.method() === 'POST')
+      counts.push(JSON.parse(r.postData() ?? '{}').count as number);
+  });
+  await page.getByTestId('tb-play').click();
+  await expect.poll(() => counts.length).toBeGreaterThanOrEqual(2);
+  await page.getByTestId('tb-play').click();
+  expect(Math.min(...counts), `play step counts ${counts}`).toBeGreaterThanOrEqual(6);
+
+  // Semi-auto opens tall; folding it (outside tap) restores the trade bar and the strip.
+  await page.getByTestId('macro-open').click();
+  await expect(page.getByTestId('bottom')).toHaveClass(/macro-open/);
+  await tapChart(page);
+  await expect(page.getByTestId('bottom')).not.toHaveClass(/macro-open|expanded/);
+  await expect(page.getByTestId('trade-bar')).toBeVisible();
+  await ctx.close();
+});
+
+test('the tap that closes the draw sheet does not start a freehand stroke', async ({ browser }) => {
+  const { ctx, page } = await phone(browser);
+  const toggle = page.getByTestId('drawing-palette-toggle').first();
+  await toggle.click();
+  await page.getByTestId('palette-freehand').first().click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  // Re-open the sheet with freehand still active, then dismiss it with a drag on the chart.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const b = (await page.locator('.chart-body').first().boundingBox())!;
+  await page.mouse.move(b.x + 40, b.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(b.x + 120, b.y + 80, { steps: 6 });
+  await page.mouse.up();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await page.waitForTimeout(300);
+  expect(((await sessionState(page)).session.drawings as unknown[]).length).toBe(0);
+  await ctx.close();
+});

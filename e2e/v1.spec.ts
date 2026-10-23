@@ -174,6 +174,10 @@ test('review tab, custom hotkey and trailing stop', async ({ page }) => {
   await page.getByTestId('tp-ticks').fill('');
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('k');
+  // The rebound key places the order (wait for it), then the next bars fill it.
+  await expect
+    .poll(async () => ((await sessionState(page)).state.trading.orders as unknown[]).length)
+    .toBeGreaterThan(0);
   await stepUntil(page, async () => (await sessionState(page)).state.trading.position !== null);
   const stopPrice = async () =>
     (

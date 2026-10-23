@@ -184,7 +184,9 @@ export class DrawingPalette {
     if (on && PaletteLayout.compact())
       overlays.opened({
         id: this.overlayId,
-        contains: (n) => this.root.contains(n),
+        // Only the Draw button and the tools count as inside (the palette root sits in the
+        // chart body, so root.contains() would treat every chart tap as inside).
+        contains: (n) => this.toggleBtn.contains(n) || this.toolsEl.contains(n),
         close: () => this.setExpanded(false),
       });
     else overlays.closed(this.overlayId);

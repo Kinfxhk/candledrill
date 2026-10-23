@@ -11,6 +11,8 @@ export interface Overlay {
 }
 
 let open: Overlay | null = null;
+/** The gesture that closed a panel: its pointer events and click reach nothing else. */
+let swallowPointer: number | null = null;
 let swallowClick = false;
 let swallowTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -20,22 +22,40 @@ function dismiss(): void {
   o?.close();
 }
 
+function stop(e: Event): void {
+  e.preventDefault();
+  e.stopImmediatePropagation();
+}
+
 function onPointerDown(e: PointerEvent): void {
   if (!open) return;
   const target = e.target as Node | null;
   if (target && open.contains(target)) return;
   dismiss();
+  // Stop the whole gesture here (capture phase, before the chart sees it): no pan, no
+  // freehand stroke, no drawing point, no button press.
+  stop(e);
+  swallowPointer = e.pointerId;
   swallowClick = true;
-  // A tap is pointerdown + click; if no click follows (it was a drag), drop the flag.
+  // If no click follows (it was a drag), drop the click flag.
   clearTimeout(swallowTimer);
   swallowTimer = setTimeout(() => (swallowClick = false), 600);
+}
+
+function onPointerMove(e: PointerEvent): void {
+  if (swallowPointer !== null && e.pointerId === swallowPointer) stop(e);
+}
+
+function onPointerUp(e: PointerEvent): void {
+  if (swallowPointer === null || e.pointerId !== swallowPointer) return;
+  swallowPointer = null;
+  stop(e);
 }
 
 function onClick(e: MouseEvent): void {
   if (!swallowClick) return;
   swallowClick = false;
-  e.preventDefault();
-  e.stopPropagation();
+  stop(e);
 }
 
 function onKey(e: KeyboardEvent): void {
@@ -45,12 +65,17 @@ function onKey(e: KeyboardEvent): void {
 
 let installed = false;
 function install(): void {
-  if (installed || typeof document === 'undefined' || !document.addEventListener) return;
+  if (installed || typeof window === 'undefined' || !window.addEventListener) return;
   installed = true;
-  // Capture phase: the chart library stops some events from bubbling.
-  document.addEventListener('pointerdown', onPointerDown, true);
-  document.addEventListener('click', onClick, true);
-  document.addEventListener('keydown', onKey, true);
+  // Capture on window: it runs before any element's own capture listener (the chart and its
+  // freehand recorder listen in capture on their container), so a closing gesture is stopped
+  // before anything underneath sees it.
+  window.addEventListener('pointerdown', onPointerDown, true);
+  window.addEventListener('pointermove', onPointerMove, true);
+  window.addEventListener('pointerup', onPointerUp, true);
+  window.addEventListener('pointercancel', onPointerUp, true);
+  window.addEventListener('click', onClick, true);
+  window.addEventListener('keydown', onKey, true);
 }
 
 /** Register `o` as the open panel; any other open panel closes first. */
@@ -72,5 +97,6 @@ export function isOpen(id: string): boolean {
 /** Close whatever is open (view teardown). */
 export function closeAll(): void {
   swallowClick = false;
+  swallowPointer = null;
   dismiss();
 }
