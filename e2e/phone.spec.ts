@@ -116,11 +116,34 @@ for (const [width, height] of PRACTICE_WIDTHS) {
     expect(speedBox.height).toBeGreaterThanOrEqual(44);
     expect(speedBox.width).toBeGreaterThanOrEqual(88);
 
-    for (const id of ['tb-buy', 'tb-sell', 'tb-flatten'] as const) {
+    for (const id of [
+      'tb-buy',
+      'tb-sell',
+      'tb-flatten',
+      'tb-play',
+      'tb-step',
+      'tb-back',
+    ] as const) {
       const box = (await page.getByTestId(id).boundingBox())!;
       expect(box.width, id).toBeGreaterThanOrEqual(44);
       expect(box.height, id).toBeGreaterThanOrEqual(44);
       expect(box.y + box.height, id).toBeLessThanOrEqual(height + 0.5);
+    }
+    const buyBox = (await page.getByTestId('tb-buy').boundingBox())!;
+    const flatBox = (await page.getByTestId('tb-flatten').boundingBox())!;
+    expect(
+      flatBox.x - (buyBox.x + buyBox.width),
+      'space between Buy and Flatten',
+    ).toBeGreaterThanOrEqual(16);
+    const tabCount = await page.locator('.bottom .tabbar button').count();
+    for (let i = 0; i < tabCount; i++) {
+      const tab = page.locator('.bottom .tabbar button').nth(i);
+      if (!(await tab.isVisible())) continue;
+      const box = (await tab.boundingBox())!;
+      expect(box.height, 'tab hit height').toBeGreaterThanOrEqual(44);
+      expect(box.width, 'tab hit width').toBeGreaterThanOrEqual(44);
+      expect(box.x, 'tab on screen').toBeGreaterThanOrEqual(-0.5);
+      expect(box.x + box.width, 'tab not clipped').toBeLessThanOrEqual(width + 0.5);
     }
 
     await speed.selectOption('2');
@@ -260,6 +283,123 @@ test('play steps whole practice bars; folding semi-auto brings the trade bar bac
   await tapChart(page);
   await expect(page.getByTestId('bottom')).not.toHaveClass(/macro-open|expanded/);
   await expect(page.getByTestId('trade-bar')).toBeVisible();
+  await ctx.close();
+});
+
+test('short landscape keeps 44px trade controls and a usable chart', async ({ browser }) => {
+  const ctx = await browser.newContext({
+    viewport: { width: 844, height: 390 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await generateDemo(page);
+  await page.locator('#new-session-form button[type=submit]').click();
+  await expect(page.locator('#practice-root')).toBeVisible();
+  for (const id of ['tb-buy', 'tb-sell', 'tb-flatten', 'tb-speed', 'tb-play'] as const) {
+    const box = (await page.getByTestId(id).boundingBox())!;
+    expect(box.width, id).toBeGreaterThanOrEqual(44);
+    expect(box.height, id).toBeGreaterThanOrEqual(44);
+  }
+  const chart = (await page.locator('.chart-body').first().boundingBox())!;
+  expect(chart.height, 'chart keeps 150px').toBeGreaterThanOrEqual(150);
+  const scrollX = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  expect(scrollX).toBeLessThanOrEqual(0);
+  await ctx.close();
+});
+
+test('pressed trade buttons, flatten arm, and a closing tap does not order', async ({
+  browser,
+}) => {
+  const { ctx, page } = await phone(browser);
+  const buy = page.getByTestId('tb-buy');
+  const box = (await buy.boundingBox())!;
+  const orders = async () => (await sessionState(page)).state.trading.orders.length;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  const filter = await buy.evaluate((el) => getComputedStyle(el).filter);
+  await page.mouse.up();
+  expect(filter, 'pressed state').not.toBe('none');
+  // Releasing the press is a real click, so one order is already working.
+  // Wait until that response is finished; a click during it is correctly ignored.
+  await expect.poll(orders).toBe(1);
+  await page.waitForLoadState('networkidle');
+
+  await page.evaluate(() => {
+    const b = document.querySelector('[data-testid=tb-buy]') as HTMLButtonElement;
+    b.click();
+    b.click();
+  });
+  await expect.poll(orders).toBe(2);
+  await page.waitForTimeout(250);
+  expect(await orders()).toBe(2);
+  await expect(page.locator('.toast')).toContainText(/still running/i);
+
+  const flat = page.getByTestId('tb-flatten');
+  await flat.click();
+  await expect(flat).toHaveClass(/armed/);
+  await expect(flat).toHaveText('Sure?');
+  await expect(page.locator('.toast')).toContainText(/Tap again/);
+  expect(await orders()).toBe(2);
+  await tapChart(page);
+  await expect(flat).not.toHaveClass(/armed/);
+  await expect(flat).toHaveText('Close');
+
+  await page.getByTestId('btn-sheet').click();
+  await expect(page.locator('body')).toHaveClass(/sheet-open/);
+  const close = (await page.getByTestId('sheet-close').boundingBox())!;
+  expect(close.width).toBeGreaterThanOrEqual(44);
+  expect(close.height).toBeGreaterThanOrEqual(44);
+  // The event target is Sell itself (not the dimmer). Closing must swallow it.
+  await page.evaluate(() => {
+    const b = document.querySelector('[data-testid=tb-sell]') as HTMLButtonElement;
+    const opts = { bubbles: true, cancelable: true, composed: true, pointerId: 1 };
+    b.dispatchEvent(new PointerEvent('pointerdown', opts));
+    b.dispatchEvent(new PointerEvent('pointerup', opts));
+    b.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  });
+  await expect(page.locator('body')).not.toHaveClass(/sheet-open/);
+  expect(await orders()).toBe(2);
+
+  await page.getByTestId('indicators-toggle').first().click();
+  await expect(page.getByTestId('indicator-panel')).toBeVisible();
+  const indClose = (await page.getByTestId('indicator-close').boundingBox())!;
+  expect(indClose.width).toBeGreaterThanOrEqual(44);
+  expect(indClose.height).toBeGreaterThanOrEqual(44);
+  await page.getByTestId('indicator-close').click();
+  await expect(page.getByTestId('indicator-panel')).toHaveCount(0);
+  await ctx.close();
+});
+
+test('blind checkbox hit area is at least 44px and demo generation ignores a double tap', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext({
+    viewport: { width: 375, height: 812 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  const label = (await page.locator('label.blind-toggle').boundingBox())!;
+  expect(label.height).toBeGreaterThanOrEqual(44);
+  const check = (await page.getByTestId('ns-blind').boundingBox())!;
+  expect(check.width).toBeGreaterThanOrEqual(20);
+  expect(check.height).toBeGreaterThanOrEqual(20);
+
+  const count = async () =>
+    ((await (await page.request.get('/api/datasets')).json()) as { datasets: unknown[] }).datasets
+      .length;
+  const before = await count();
+  await page.evaluate(() => {
+    const b = document.querySelector('#btn-demo') as HTMLButtonElement;
+    b.click();
+    b.click();
+  });
+  await expect.poll(count, { timeout: 20_000 }).toBe(before + 1);
+  await page.waitForTimeout(400);
+  expect(await count()).toBe(before + 1);
   await ctx.close();
 });
 

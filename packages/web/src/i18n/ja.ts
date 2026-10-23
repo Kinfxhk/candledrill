@@ -8,6 +8,7 @@ export const ja: Record<MessageKey, string> = {
   'pr.reviewBlind': 'ブラインド練習を公開してから取引ナビゲーションを使用してください。',
   'pr.reviewMissing': 'この画面では取引履歴が完全に読み込まれていません。',
   'pr.reviewBusy': '現在のリクエストが完了するまで待ってから取引を表示してください。',
+  'pr.busy': '少々お待ちください。前の操作がまだ完了していません。',
   'nav.library': 'ライブラリ',
   'nav.practice': '練習',
   'risk.title': 'リスクプレビュー',
@@ -43,6 +44,7 @@ export const ja: Record<MessageKey, string> = {
   'lib.empty':
     'データセットがありません。合成デモデータを生成するか、独自の CSV をインポートしてください。',
   'lib.demo': 'デモデータを生成',
+  'lib.demoBusy': 'デモデータを生成しています。少々お待ちください。',
   'lib.import': 'CSV をインポート',
   'lib.delete': '削除',
   'lib.confirmDelete': 'このデータセットとすべての練習を削除しますか？',

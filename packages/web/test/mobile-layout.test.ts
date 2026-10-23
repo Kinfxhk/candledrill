@@ -9,6 +9,7 @@ const v1 = readFileSync(`${root}/packages/web/src/v1.css`, 'utf8');
 const align = readFileSync(`${root}/packages/web/src/align.css`, 'utf8');
 const chart = readFileSync(`${root}/packages/web/src/chart.ts`, 'utf8');
 const practice = readFileSync(`${root}/packages/web/src/practice.ts`, 'utf8');
+const phone = readFileSync(`${root}/packages/web/src/phone.css`, 'utf8');
 
 describe('narrow viewport layout', () => {
   it('stacks .grid3 to one column at the 1000px breakpoint', () => {
@@ -38,6 +39,17 @@ describe('narrow viewport layout', () => {
     expect(practice).toContain("bindSpeedSelect('tb-speed')");
     expect(practice).toMatch(/'tb-replay' \}, back, playBtn, next, ten, speed\)/);
     expect(practice).not.toMatch(/private speed = 5/);
+  });
+
+  it('gives compact trade controls a 44px target and separates Flatten', () => {
+    expect(phone).toMatch(/height:\s*44px;/);
+    expect(phone).toMatch(/\.trade-bar \.tb-order \{[^}]*12px minmax\(44px/);
+    expect(phone).toMatch(/\.trade-bar button\.flat\.armed/);
+    expect(phone).toMatch(/\.sheet-close \{[^}]*width:\s*44px;/);
+    expect(phone).toMatch(/label\.blind-toggle \{[^}]*min-height:\s*44px;/);
+    expect(phone).toMatch(/No new swipe/);
+    expect(practice).toContain('onFlattenTap');
+    expect(practice).toContain("toast(t('pr.busy'))");
   });
 
   it('does not let a global border-box rule stretch chart axis canvases', () => {
