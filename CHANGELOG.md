@@ -6,6 +6,14 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-10-23
+
+The order ticket opens on Market. Forming candles stay timeframe ÷ 6. The fill model is unchanged (v4).
+
+### Changed
+
+- **Order ticket opens on Market.** A new practice session, the same ticket during a backtest, and the phone sheet start with Market selected (session status Active). Clicking the chart fills the price only and no longer switches that default to Limit. Limit and Stop stay on the ticket when you choose them. Semi-auto still sends a simulated market order.
+
 ## [1.0.4] - 2026-10-23
 
 Forming candles for every practice timeframe use a source of **timeframe ÷ 6**.

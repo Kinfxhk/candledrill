@@ -6,7 +6,7 @@
 >
 > 手機、平板、電腦瀏覽器都可以用，不用安裝、不用登入。資料只存於你自己的瀏覽器，不會上傳。
 
-> **v1.0.4** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> **v1.0.5** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill 練習畫面：雙時框、好倉 R、括號單、下單票與成交紀錄](docs/screenshot.png)
 
@@ -269,7 +269,7 @@ CandleDrill 免費，也會持續免費。若這個工具對你有幫助：https
 >
 > Works in any phone, tablet or desktop browser. No install, no sign-in. Your data stays in your own browser.
 
-> **v1.0.4** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v1.0.5** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 
