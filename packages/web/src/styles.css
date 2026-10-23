@@ -562,14 +562,51 @@ footer.app a {
   color: var(--accent-ink);
 }
 @media (max-width: 1000px) {
+  .view,
+  .library,
+  .library .left,
+  .library .right,
+  .card,
+  .grid2,
+  .grid3,
+  label.field {
+    min-width: 0;
+  }
   .library {
     flex-direction: column;
   }
   .library .left {
     width: auto;
   }
+  /* datetime-local / time refuse to shrink inside repeat(3, 1fr). One column
+     keeps the new-session form and the import grids inside the viewport. */
+  .grid3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .grid2 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  label.field > input,
+  label.field > select,
+  input[type='datetime-local'],
+  input[type='time'],
+  input[type='date'],
+  input[type='file'] {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
   .workspace {
     flex-direction: column;
+    min-height: 0;
+  }
+  .charts {
+    min-height: 0;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+  .chart-cell {
+    min-height: 0;
+    flex: 1 1 auto;
   }
   .side {
     width: auto;
@@ -1104,6 +1141,24 @@ svg.draw-overlay .position-body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+/* lightweight-charts sizes its table for content-box. A global border-box
+   rule lets an axis canvas or the attribution mark paint over the candles. */
+.tv-lightweight-charts,
+.tv-lightweight-charts * {
+  box-sizing: content-box;
+}
+.tv-lightweight-charts table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+a#tv-attr-logo,
+a#tv-attr-logo svg {
+  width: 35px;
+  height: 19px;
+  max-width: 35px;
+  max-height: 19px;
 }
 .risk-preview-wrap h4 {
   margin: 4px 0;
