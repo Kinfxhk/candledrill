@@ -5,6 +5,7 @@ import {
   checkSessionState,
   createSession,
   defaultPracticeTimeframe,
+  FORMING_PARTS,
   formingSourceSeconds,
   generateSyntheticBars,
   practiceChartTimeframes,
@@ -133,9 +134,9 @@ describe('dual-cursor forming (10s source / 1m fill)', () => {
   });
 
   it.each([
-    [60, 10],
-    [300, 50],
-    [900, 150],
+    [60, 20],
+    [300, 100],
+    [900, 300],
   ] as const)(
     'practice %i forms from %i-second bars and fills on the practice close',
     (practice, sourceTf) => {
@@ -157,10 +158,10 @@ describe('dual-cursor forming (10s source / 1m fill)', () => {
       let s = createSession(source, settings, start);
       expect(s.cursor).toBe(startIdx - 1);
 
-      // Five source steps build the practice candle. It has not closed, so nothing fills.
+      // All but the last source bar build the practice candle. It has not closed, so nothing fills.
       let formingChanged = false;
       const open = source[startIdx]!.open;
-      for (let n = 0; n < 5; n++) {
+      for (let n = 0; n < FORMING_PARTS - 1; n++) {
         s = stepSession(source, settings, s, 1).state;
         expect(s.trading.fills).toHaveLength(0);
         const slice = source.slice(startIdx, s.cursor + 1);
@@ -182,8 +183,8 @@ describe('dual-cursor forming (10s source / 1m fill)', () => {
       s = stepSession(source, settings, s, 1).state;
       expect(s.trading.fills).toHaveLength(0);
 
-      // The next practice bar (6 source bars) closes, and the market order fills there.
-      const filled = stepSession(source, settings, s, 6).state;
+      // The next practice bar closes, and the market order fills there.
+      const filled = stepSession(source, settings, s, FORMING_PARTS).state;
       expect(filled.trading.fills.length).toBeGreaterThan(0);
       expect(filled.trading.fills[0]!.time).toBe(start + practice);
 
@@ -199,7 +200,7 @@ describe('dual-cursor forming (10s source / 1m fill)', () => {
         });
         return stepSession(bars, tfSettings, state, steps).state;
       };
-      const dual = run(source, settings, 12 * 6);
+      const dual = run(source, settings, 12 * FORMING_PARTS);
       const legacy = run(practiceBars, SETTINGS, 12);
       const slim = (f: (typeof dual.trading.fills)[number]) => ({
         time: f.time,
@@ -214,25 +215,48 @@ describe('dual-cursor forming (10s source / 1m fill)', () => {
   );
 
   it('a file of only practice-TF bars does not grow a finer forming source', () => {
+    expect(FORMING_PARTS).toBe(3);
     expect(defaultPracticeTimeframe(60)).toBeUndefined();
-    expect(defaultPracticeTimeframe(300)).toBeUndefined();
+    // 300s is the 15m forming source (three real 5m bars), not an invented path.
+    expect(defaultPracticeTimeframe(300)).toBe(900);
     expect(defaultPracticeTimeframe(900)).toBeUndefined();
+    expect(defaultPracticeTimeframe(3600)).toBeUndefined();
+    expect(defaultPracticeTimeframe(86400)).toBeUndefined();
     // Sub-minute data that is not an exact pair still fills on 1m (V0).
     expect(defaultPracticeTimeframe(5)).toBe(60);
-    expect(formingSourceSeconds(3600)).toBe(600);
-    expect(formingSourceSeconds(86400)).toBe(14400);
+    expect(formingSourceSeconds(60)).toBe(20);
+    expect(formingSourceSeconds(300)).toBe(100);
+    expect(formingSourceSeconds(900)).toBe(300);
+    expect(formingSourceSeconds(3600)).toBe(1200);
+    expect(formingSourceSeconds(86400)).toBe(28800);
+    expect(defaultPracticeTimeframe(20)).toBe(60);
+    expect(defaultPracticeTimeframe(100)).toBe(300);
+    expect(defaultPracticeTimeframe(1200)).toBe(3600);
+    expect(defaultPracticeTimeframe(28800)).toBe(86400);
+    // v1.0.4 ÷6 files keep the practice close they were generated for.
+    expect(defaultPracticeTimeframe(10)).toBe(60);
+    expect(defaultPracticeTimeframe(50)).toBe(300);
+    expect(defaultPracticeTimeframe(150)).toBe(900);
     expect(defaultPracticeTimeframe(600)).toBe(3600);
     expect(defaultPracticeTimeframe(14400)).toBe(86400);
+    expect(practiceChartTimeframes(20, 60)).toEqual([60, 300, 900, 3600, 86400]);
+    expect(practiceChartTimeframes(100, 300)).toEqual([300, 900, 3600, 86400]);
+    expect(practiceChartTimeframes(300, 900)).toEqual([900, 3600, 86400]);
     expect(practiceChartTimeframes(10, 60)).toEqual([60, 300, 900, 3600, 86400]);
     expect(practiceChartTimeframes(50, 300)).toEqual([300, 900, 3600, 86400]);
     expect(practiceChartTimeframes(150, 900)).toEqual([900, 3600, 86400]);
     for (const list of [
+      practiceChartTimeframes(20, 60),
+      practiceChartTimeframes(100, 300),
+      practiceChartTimeframes(300, 900),
       practiceChartTimeframes(10, 60),
       practiceChartTimeframes(50, 300),
       practiceChartTimeframes(150, 900),
     ]) {
       expect(list).not.toContain(10);
+      expect(list).not.toContain(20);
       expect(list).not.toContain(50);
+      expect(list).not.toContain(100);
       expect(list).not.toContain(150);
     }
   });

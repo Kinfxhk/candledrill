@@ -266,7 +266,7 @@ test('play steps whole practice bars; folding semi-auto brings the trade bar bac
   browser,
 }) => {
   const { ctx, page } = await phone(browser);
-  // Every step request made by play covers at least one whole 1m bar of 10s data (6 bars).
+  // Every step request made by play covers at least one whole 1m bar of 20s data (3 bars).
   const counts: number[] = [];
   page.on('request', (r) => {
     if (r.url().endsWith('/step') && r.method() === 'POST')
@@ -275,7 +275,7 @@ test('play steps whole practice bars; folding semi-auto brings the trade bar bac
   await page.getByTestId('tb-play').click();
   await expect.poll(() => counts.length).toBeGreaterThanOrEqual(2);
   await page.getByTestId('tb-play').click();
-  expect(Math.min(...counts), `play step counts ${counts}`).toBeGreaterThanOrEqual(6);
+  expect(Math.min(...counts), `play step counts ${counts}`).toBeGreaterThanOrEqual(3);
 
   // Semi-auto opens tall; folding it (outside tap) restores the trade bar and the strip.
   await page.getByTestId('macro-open').click();

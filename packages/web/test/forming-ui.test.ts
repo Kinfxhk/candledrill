@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 describe('demo practice timeframe control', () => {
-  it('offers practice timeframes and not the TF/6 source', () => {
+  it('offers practice timeframes and not the TF÷3 source', () => {
     const html = readFileSync(fileURLToPath(new URL('../index.html', import.meta.url)), 'utf8');
     const start = html.indexOf('id="demo-tf"');
     const end = html.indexOf('</select>', start);
@@ -13,7 +13,9 @@ describe('demo practice timeframe control', () => {
     expect(menu).toContain('value="300"');
     expect(menu).toContain('value="900"');
     expect(menu).not.toMatch(/value="10"/);
+    expect(menu).not.toMatch(/value="20"/);
     expect(menu).not.toMatch(/value="50"/);
+    expect(menu).not.toMatch(/value="100"/);
     expect(menu).not.toMatch(/value="150"/);
     expect(menu).not.toMatch(/value="600"/);
   });

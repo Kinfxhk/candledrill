@@ -151,6 +151,83 @@ describe('playback speed', () => {
   });
 });
 
+describe('forming paint budget', () => {
+  type GapView = { formingGapMs(count: number): number; speed: number; playing: boolean };
+  function gapView(view: PracticeView): GapView {
+    return view as unknown as GapView;
+  }
+
+  it('spaces paints across the whole budget with no 140ms cap', () => {
+    const view = new PracticeView();
+    const g = gapView(view);
+    g.playing = true;
+    g.speed = 0.5;
+    // budget clamps 2000ms to 1600; 3 paints → gap = 1600 / 2.
+    expect(g.formingGapMs(3)).toBe(800);
+    g.speed = 1;
+    expect(g.formingGapMs(3)).toBe(500);
+    g.speed = 2;
+    expect(g.formingGapMs(3)).toBe(250);
+    g.speed = 1;
+    // ÷6-sized reveal used to clamp each gap at 140ms (span 700 of 1000).
+    expect(g.formingGapMs(6)).toBe(200);
+    g.playing = false;
+    expect(g.formingGapMs(3)).toBe(210);
+    view.close();
+  });
+
+  it('play waits until the forming paints finish before the next bar', async () => {
+    vi.useFakeTimers();
+    const step = vi.spyOn(sessionsApi, 'step').mockImplementation(async () => {
+      const base = a.cursorTime;
+      return {
+        ...stepped(a),
+        revealed: [bar(base + 20), bar(base + 40), bar(base + 60)],
+        cursorTime: base + 60,
+      };
+    });
+    const view = new PracticeView();
+    await view.open(1);
+    const painted: number[] = [];
+    (
+      view as unknown as {
+        panes: {
+          chart: { updateBar(b: { time: number }): void; destroy(): void };
+          agg: { push(b: unknown): { bar: unknown } };
+        }[];
+      }
+    ).panes.push({
+      chart: {
+        updateBar: (b) => painted.push(b.time),
+        destroy: () => {},
+      },
+      agg: { push: (b) => ({ bar: b }) },
+    });
+    internals(view).speed = 1;
+    view.play();
+
+    // Carry reaches one bar just after 1s (tenths of a bar are not exact in binary).
+    await vi.advanceTimersByTimeAsync(1000);
+    if (step.mock.calls.length === 0) await vi.advanceTimersByTimeAsync(100);
+    expect(step).toHaveBeenCalledTimes(1);
+    expect(step).toHaveBeenLastCalledWith(1, 1);
+    expect(painted).toHaveLength(1);
+
+    // 1× budget is 1000ms for 3 paints (gaps of 500). Do not fetch during the build.
+    await vi.advanceTimersByTimeAsync(999);
+    expect(step).toHaveBeenCalledTimes(1);
+    expect(painted.length).toBeGreaterThan(1);
+    expect(painted.length).toBeLessThan(3);
+
+    await vi.advanceTimersByTimeAsync(150);
+    expect(painted.slice(0, 3)).toEqual([a.cursorTime + 20, a.cursorTime + 40, a.cursorTime + 60]);
+    expect(step).toHaveBeenCalledTimes(2);
+    // The next bar has started forming (one source paint), not snapped in whole.
+    expect(painted).toHaveLength(4);
+    view.close();
+  });
+});
+
 describe('drag-to-modify rejection', () => {
   it('shows an error and leaves state unchanged when a dragged price is rejected', async () => {
     const base = createSession([bar(1000), bar(1060)], settings, 1060);

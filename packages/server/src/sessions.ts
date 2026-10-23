@@ -336,7 +336,7 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     async (req, reply) => {
       const ds = getDataset(db, req.body.datasetId);
       if (!ds) return reply.code(404).send({ error: 'dataset not found' });
-      // Source = practice / 6 → dual-cursor: chart reveals source bars; fills on practice close.
+      // Source = practice ÷ 3 → dual-cursor: chart reveals source bars; fills on practice close.
       const resolved = resolvePracticeTimeframe(
         ds.timeframeSeconds,
         req.body.settings.practiceTimeframeSeconds,
