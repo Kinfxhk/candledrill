@@ -762,3 +762,55 @@ body.in-practice header.app select {
     height: 45vh;
   }
 }
+
+/* Toolbar fits without scrolling: labels that duplicate a control's aria-label go,
+   long names truncate, so the clock and P&L chip are always on screen. */
+.toolbar label > span[data-i18n='pr.jump'],
+.toolbar .speed > span[data-i18n='pr.speed'] {
+  display: none;
+}
+.toolbar strong {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toolbar > .muted:not(.clock) {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toolbar input[type='datetime-local'] {
+  max-width: 190px;
+}
+@media (max-width: 767px) {
+  .toolbar strong {
+    display: none;
+  }
+}
+
+/* Jump-to and split/link controls fold away a little earlier than the rail does, so the
+   P&L chip never scrolls off at common laptop widths. */
+@media (max-width: 1365px) {
+  .tb-wide {
+    display: none !important;
+  }
+}
+/* 1px border-top on the bottom panel pushed the strip past the viewport. */
+.bottom {
+  box-sizing: border-box;
+}
+
+/* The strip sits under the panel's 1px top border: 33 + 1 = the 34px folded height. */
+.bottom .tabbar {
+  height: 33px;
+}
+
+/* Touch devices raise --tap to 44px; the folded strip keeps its own 30px tabs. */
+.bottom .tabbar button,
+.bottom .tabbar button.small {
+  min-height: 0;
+  height: 28px;
+  box-sizing: border-box;
+}

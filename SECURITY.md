@@ -19,5 +19,17 @@ CandleDrill is a local, single-user tool with no login. Its protections:
 Loopback is not a sandbox: other programs running under your account can reach
 `127.0.0.1`. Do not expose CandleDrill to a network.
 
+## Browser version (GitHub Pages)
+
+The browser build has no server: the engine runs in the page and data is stored in the
+browser's IndexedDB and localStorage for that site only. Nothing is uploaded and the page
+makes no requests beyond its own static files. Limits to know:
+
+- Anyone with access to the browser profile can read the data; clearing site data deletes it.
+- Blind mode keeps practice honest but is not a security boundary: the real bars are in the
+  page, so devtools can reveal them. Use the local version for strict blind practice.
+- The one outbound link (the recommendations page in About) opens only when you click it,
+  with `rel="noopener noreferrer sponsored"`.
+
 Please report vulnerabilities privately through GitHub's "Report a vulnerability"
 (security advisories) on the repository rather than in a public issue.

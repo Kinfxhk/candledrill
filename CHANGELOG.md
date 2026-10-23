@@ -6,6 +6,48 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-23
+
+### Added
+
+- **Browser version (GitHub Pages).** The engine runs in the page and stores data in
+  IndexedDB, so phones and tablets can use CandleDrill from a URL with no install. Same
+  routes and results as the local server (a parity test replays one session on both).
+  Backup is one JSON file. Blind mode in the browser keeps practice honest but is not a
+  lock against devtools (stated in the app).
+- **Phone and tablet layouts.** Under 900px: chart first, rail as a drawer, sticky trade
+  bar (back / play / next / +10, sell / qty / buy / close, 44px targets). Tablet landscape
+  keeps the rail beside the chart.
+- **Back (rewind) and save points.** Back restores the state before the last action; save
+  points keep named moments per session. `PUT /api/sessions/:id/state` re-validates the
+  state against the bars, so it cannot invent fills; off while a blind session is hidden.
+- **Rule profiles.** User-defined (no firm presets): account size, profit target, daily
+  loss, max loss with drawdown mode, consistency %, min/max trading days, profitable days,
+  contract cap, flat-by time, no overnight, trades per day, losing streak. JSON
+  import/export; a profile fills the session form; live rule check on the rail. Evaluation
+  rules use revealed fills and trades only and never change fills; the Python oracle
+  recomputes them.
+- **Drawing tools.** Ray, vertical line, parallel channel, Fibonacci retracement, measure;
+  magnet snap to OHLC; a Drawings card to show/hide, lock and delete.
+- **Stop management.** Auto break-even and trailing stop move the stop-loss order after
+  each bar close through the normal modify path (only ever tightens). Chart preview of the
+  ticket's stop and target before ordering.
+- **Settings.** Candle colours, grid, volume, quantity presets, default SL/TP, confirm
+  before Flatten all, rebindable hotkeys; export/import.
+- **Review tab.** Equity by closed trade, R distribution, Monte Carlo of the same trades
+  reordered (seeded; drawdown percentiles and limit breach rate).
+- **Chart.** OHLC legend, pinch / wheel zoom, touch pan, short fill markers.
+- **Recommendations link** with affiliate and risk disclosure in About and the footer,
+  folded by default and never next to order entry or rule alerts.
+
+### Changed
+
+- Practice screen: thin header, grouped replay controls, P&L chip, folding bottom panel with
+  counts, ticket and position first on the rail, risk preview open by default.
+- About and NOTICE: the "not affiliated" sentence now states no equity, agency, employment or
+  official relationship and discloses affiliate links.
+- Session-file import accepts text `fontSize` (the server already did).
+
 ## [0.5.0] - 2026-10-23
 
 ### Added
