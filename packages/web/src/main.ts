@@ -297,7 +297,11 @@ mountFooterLink(
 mountBrowserNotice(document.querySelector('#view-library .left')!);
 
 function showView(name: 'library' | 'practice'): void {
-  if (name === 'library') void renderSessions();
+  if (name === 'library') {
+    // The intro timer must not start Play after this tab is hidden.
+    practice.cancelIntro();
+    void renderSessions();
+  }
   document
     .querySelectorAll<HTMLElement>('.view')
     .forEach((v) => v.classList.toggle('active', v.id === `view-${name}`));

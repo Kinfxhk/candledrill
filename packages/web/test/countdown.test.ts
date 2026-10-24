@@ -68,7 +68,7 @@ class NodeEl {
   parent: NodeEl | null = null;
   children: NodeEl[] = [];
   attrs: Record<string, string> = {};
-  listeners = new Map<string, Array<(ev: { preventDefault(): void }) => void>>();
+  listeners = new Map<string, Array<(ev: { key?: string; preventDefault(): void }) => void>>();
   classList = {
     contains: (name: string) => this.className.split(/\s+/).includes(name),
     add: (...names: string[]) => {
@@ -128,7 +128,7 @@ class NodeEl {
     this.parent = null;
   }
 
-  addEventListener(type: string, fn: (ev: { preventDefault(): void }) => void): void {
+  addEventListener(type: string, fn: (ev: { key?: string; preventDefault(): void }) => void): void {
     const list = this.listeners.get(type) ?? [];
     list.push(fn);
     this.listeners.set(type, list);
@@ -174,6 +174,7 @@ let view: PracticeView | undefined;
 beforeEach(() => {
   root.children = [];
   root.hidden = true;
+  viewPractice.className = 'active';
   empty.hidden = false;
   store.clear();
   keyListeners.length = 0;
@@ -327,6 +328,62 @@ describe('session countdown', () => {
     expect(byTestId('countdown')).toBeNull();
   });
 
+  it('does not start play when Practice is hidden before the countdown ends', async () => {
+    markCountdownPending(5);
+    view = new PracticeView();
+    await view.open(5);
+    expect(byTestId('countdown')).not.toBeNull();
+    viewPractice.classList.remove('active');
+    vi.advanceTimersByTime(COUNTDOWN_STEP_MS * COUNTDOWN_SEQUENCE.length);
+    expect(hooks(view).playing).toBe(false);
+    expect(byTestId('countdown')).toBeNull();
+    viewPractice.classList.add('active');
+  });
+
+  it('cancelIntro drops the countdown and does not play', async () => {
+    markCountdownPending(5);
+    view = new PracticeView();
+    await view.open(5);
+    view.cancelIntro();
+    expect(byTestId('countdown')).toBeNull();
+    expect(hooks(view).playing).toBe(false);
+    vi.advanceTimersByTime(COUNTDOWN_STEP_MS * 4);
+    expect(hooks(view).playing).toBe(false);
+    expect(byTestId('countdown')).toBeNull();
+  });
+
+  it('holds sibling controls inert and keeps Tab on Skip', () => {
+    const host = new NodeEl('div');
+    const play = new NodeEl('button');
+    const already = new NodeEl('button');
+    already.setAttribute('inert', '');
+    host.append(play, already);
+    const done = vi.fn();
+    const countdown = mountCountdown(host as unknown as HTMLElement, {
+      onComplete: done,
+      stepMs: COUNTDOWN_STEP_MS,
+    });
+    expect(play.getAttribute('inert')).toBe('');
+    expect(host.query('countdown')!.getAttribute('inert')).toBeNull();
+    const overlay = host.query('countdown')!;
+    let prevented = false;
+    for (const fn of overlay.listeners.get('keydown') ?? []) {
+      fn({
+        key: 'Tab',
+        preventDefault() {
+          prevented = true;
+        },
+      });
+    }
+    expect(prevented).toBe(true);
+    countdown.cancel();
+    expect(play.getAttribute('inert')).toBeNull();
+    expect(already.getAttribute('inert')).toBe('');
+    expect(done).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(COUNTDOWN_STEP_MS * 4);
+    expect(done).not.toHaveBeenCalled();
+  });
+
   it('closing during the countdown does not start play', async () => {
     markCountdownPending(7);
     view = new PracticeView();
@@ -387,6 +444,7 @@ describe('session countdown', () => {
     const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
     expect(main.match(/markCountdownPending\(/g)).toHaveLength(1);
     expect(main).toContain('markCountdownPending(view.session.id)');
+    expect(main).toContain('practice.cancelIntro()');
     const spec = readFileSync(new URL('../../../e2e/countdown.spec.ts', import.meta.url), 'utf8');
     const config = readFileSync(new URL('../../../playwright.config.ts', import.meta.url), 'utf8');
     expect(spec).toContain(COUNTDOWN_E2E_KEY);
