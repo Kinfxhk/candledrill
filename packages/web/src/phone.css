@@ -505,13 +505,30 @@ input[type='datetime-local']::-webkit-date-and-time-value {
   }
   .chart-cell .chart-head button,
   .chart-cell .chart-head select,
-  .drawing-palette-toggle,
-  .rules-strip-grip,
-  .rules-strip-toggle {
+  .drawing-palette-toggle {
     height: 44px;
     min-height: 44px;
     min-width: 44px;
     touch-action: manipulation;
+  }
+  /* The glance strip stays one thin row. A 44px grip made the row ~49px and
+     pushed the open-panel chart under 240px (402×718 measured 230). 32×44 keeps
+     a touchable grip without spending that row on the candle pane. */
+  .rules-strip {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .rules-strip-grip,
+  .rules-strip-toggle {
+    height: 32px;
+    min-height: 32px;
+    min-width: 44px;
+  }
+  .rules-strip-toggle {
+    touch-action: manipulation;
+  }
+  .rules-strip-grip {
+    touch-action: none;
   }
   .bottom .tabbar {
     flex-wrap: wrap;
@@ -542,6 +559,37 @@ input[type='datetime-local']::-webkit-date-and-time-value {
     height: 44px;
     min-height: 44px;
     min-width: 44px;
+  }
+}
+
+/* Short screens (phone landscape, open fold): the docked strip used to sit in
+   flow (~37px, or ~49px when the grip was 44px) and the candle pane fell under
+   150px (874×352 measured 121, 816×536 measured 128). It now overlays the empty
+   middle of the chart head — timeframe stays left, indicators stay right — so
+   the pane keeps that height. The grip still drags; touch-action stays none so
+   the drag does not become a page pan. */
+@media (max-height: 560px) {
+  .rules-strip.docked {
+    position: absolute;
+    top: 1px;
+    left: 50%;
+    width: max-content;
+    max-width: calc(100% - 200px);
+    transform: translateX(-50%);
+    z-index: 7;
+    padding-top: 0;
+    padding-bottom: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+  }
+  .rules-strip.docked .rules-strip-grip,
+  .rules-strip.docked .rules-strip-toggle {
+    height: 26px;
+    min-height: 26px;
+  }
+  .rules-strip.docked .rules-strip-grip {
+    touch-action: none;
   }
 }
 
