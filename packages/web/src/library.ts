@@ -252,6 +252,7 @@ export class LibraryView {
 
   rerender(): void {
     this.renderList();
+    this.chart?.refreshLegend();
     void this.hooks.renderSessions?.();
   }
 }

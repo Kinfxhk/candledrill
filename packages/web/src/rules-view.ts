@@ -209,12 +209,26 @@ export class ProfileManager {
     this.list = el('ul', { class: 'profile-list', 'data-testid': 'profile-list' });
     const add = el(
       'button',
-      { type: 'button', class: 'primary small', 'data-testid': 'profile-new' },
+      {
+        type: 'button',
+        class: 'primary small',
+        'data-testid': 'profile-new',
+        'data-i18n': 'v1.profileNew',
+      },
       t('v1.profileNew'),
     );
     add.addEventListener('click', () => this.edit(newProfile(t('v1.profileNew'))));
     const file = el('input', { type: 'file', accept: '.json,application/json', hidden: '' });
-    const imp = el('button', { type: 'button', class: 'small' }, t('v1.profileImport'));
+    const imp = el(
+      'button',
+      {
+        type: 'button',
+        class: 'small',
+        'data-testid': 'profile-import',
+        'data-i18n': 'v1.profileImport',
+      },
+      t('v1.profileImport'),
+    );
     imp.addEventListener('click', () => file.click());
     file.addEventListener('change', async () => {
       const f = file.files?.[0];
@@ -242,7 +256,11 @@ export class ProfileManager {
     this.form = el('form', { method: 'dialog', class: 'profile-form' });
     this.dialog = el(
       'dialog',
-      { 'data-testid': 'profile-dialog', 'aria-label': t('v1.profiles') },
+      {
+        'data-testid': 'profile-dialog',
+        'aria-label': t('v1.profiles'),
+        'data-i18n-aria': 'v1.profiles',
+      },
       this.form,
     ) as HTMLDialogElement;
     document.body.append(this.dialog);
@@ -259,16 +277,28 @@ export class ProfileManager {
     const all = readProfiles();
     this.list.replaceChildren(
       ...all.map((p) => {
-        const edit = el('button', { type: 'button', class: 'small' }, t('v1.profileEdit'));
+        const edit = el(
+          'button',
+          { type: 'button', class: 'small', 'data-i18n': 'v1.profileEdit' },
+          t('v1.profileEdit'),
+        );
         edit.addEventListener('click', () => this.edit(p));
-        const exp = el('button', { type: 'button', class: 'small ghost' }, t('v1.profileExport'));
+        const exp = el(
+          'button',
+          { type: 'button', class: 'small ghost', 'data-i18n': 'v1.profileExport' },
+          t('v1.profileExport'),
+        );
         exp.addEventListener('click', () =>
           download(
             `candledrill-rules-${p.name.replace(/[^A-Za-z0-9_-]+/g, '_')}.json`,
             JSON.stringify(p, null, 2),
           ),
         );
-        const del = el('button', { type: 'button', class: 'small ghost' }, t('v1.profileDelete'));
+        const del = el(
+          'button',
+          { type: 'button', class: 'small ghost', 'data-i18n': 'v1.profileDelete' },
+          t('v1.profileDelete'),
+        );
         del.addEventListener('click', () => {
           if (!confirm(t('v1.profileDeleteConfirm'))) return;
           this.save(readProfiles().filter((x) => x.id !== p.id));
