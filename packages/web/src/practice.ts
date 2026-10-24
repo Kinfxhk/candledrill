@@ -1702,7 +1702,8 @@ export class PracticeView {
 
   /**
    * First open of a new session only. An inactive session consumes the arm and stays stopped.
-   * Skip and the end of "1" both call play(); closing the session cancels without playing.
+   * Skip and the end of "1" both call play(); closing the session, or leaving Practice,
+   * cancels without playing.
    */
   private startCountdown(): void {
     if (this.state?.status !== 'active') return;
@@ -1712,6 +1713,9 @@ export class PracticeView {
       onComplete: () => {
         this.intro = undefined;
         if (generation !== this.generation) return;
+        // The overlay lives inside the Practice view, so hiding that tab would
+        // otherwise let the timer start Play while the user is in Library.
+        if (document.getElementById('view-practice')?.classList.contains('active') !== true) return;
         this.play();
       },
     });
@@ -1721,6 +1725,11 @@ export class PracticeView {
     const current = this.intro;
     this.intro = undefined;
     current?.cancel();
+  }
+
+  /** The Practice tab was hidden. Drop the intro and do not start Play. */
+  cancelIntro(): void {
+    this.dismissCountdown();
   }
 
   /** While playing, one undo point per play run (the state when Play was pressed). */

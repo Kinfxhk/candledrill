@@ -6,6 +6,10 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Practice countdown.** Leaving Practice during 3→2→1 cancels the intro instead of starting Play in the background. Tab stays on Skip; Play, Step, and the order ticket under the overlay do not take focus.
+
 ## [1.0.10] - 2026-10-24
 
 ### Added
