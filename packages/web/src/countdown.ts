@@ -156,11 +156,34 @@ export function mountCountdown(
     );
   };
 
+  // The overlay covers the chart, but Tab could still reach Play, Step, and the ticket
+  // underneath. Hold those siblings inert and keep Tab on Skip until the intro ends.
+  const held: HTMLElement[] = [];
+  const canHold = (node: Element): node is HTMLElement => {
+    const candidate = node as Partial<HTMLElement>;
+    return (
+      node !== overlay &&
+      typeof candidate.setAttribute === 'function' &&
+      typeof candidate.removeAttribute === 'function' &&
+      typeof candidate.getAttribute === 'function'
+    );
+  };
+  for (const child of Array.from(host.children)) {
+    if (!canHold(child) || child.getAttribute('inert') !== null) continue;
+    child.setAttribute('inert', '');
+    held.push(child);
+  }
+  const release = (): void => {
+    for (const child of held) child.removeAttribute('inert');
+    held.length = 0;
+  };
+
   const finish = (): void => {
     if (settled) return;
     settled = true;
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
+    release();
     overlay.remove();
     opts.onComplete();
   };
@@ -170,6 +193,7 @@ export function mountCountdown(
     settled = true;
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
+    release();
     overlay.remove();
   };
 
@@ -186,6 +210,12 @@ export function mountCountdown(
   };
 
   skipBtn.addEventListener('click', () => finish());
+  overlay.addEventListener('keydown', (ev) => {
+    const key = (ev as { key?: string }).key;
+    if (key !== 'Tab') return;
+    ev.preventDefault();
+    skipBtn.focus();
+  });
   syncLabel();
   tick();
   skipBtn.focus();
