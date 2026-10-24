@@ -461,6 +461,8 @@ export const zhHans: Record<MessageKey, string> = {
   'about.notAffiliated':
     'CandleDrill 是独立开源项目，与任何交易平台、图表供应商、经纪、交易所或 prop firm 没有股权、代理、受雇或官方授权关系，亦不代表任何一方。本工具不内置任何公司的规则、参数或模板；规则档由用户自行提供，相关公司不会审核或影响本工具的功能、示范数据或规则判定。部分外部链接（包括推荐链接页）含联盟佣金，详见“推荐链接与风险披露”。此商业关系不影响代码、示范数据及规则判定。',
   'about.close': '关闭',
+  'about.thirdParty': '第三方声明',
+  'about.source': '源代码（AGPL-3.0-or-later）：',
   'footer.notice': '只作教育及练习用途，并不构成投资建议；练习成绩不能预示真实交易结果。',
   'footer.license': 'AGPL-3.0-or-later · 不收集任何数据',
   'err.network': '连接不到本地服务器。CandleDrill 是否正在运行？',

@@ -1,16 +1,16 @@
 # CandleDrill（K線操練場）
 
-**CandleDrill**（中文：**K線操練場**）是免費、開源的 **K 線回放練習工具**：匯入 K 線 → 逐根前進（看不到未來）→ 模擬下單 → 檢討結果。電腦、平板、手機都可以用。無需帳戶、無訂閱、無遙測。**不構成投資建議。**
+免費、開網址即用、無需帳戶的 **K 線回放練習**：逐根前進（看不到未來）→ 模擬下單 → 檢討。
 
-> ### ▶ 線上版，開網址即玩：**<https://kinfxhk.github.io/candledrill/>**
->
-> 手機、平板、電腦瀏覽器都可以用，不用安裝、不用登入。資料只存於你自己的瀏覽器，不會上傳。
+▶ 線上版，開網址即玩：[https://kinfxhk.github.io/candledrill/](https://kinfxhk.github.io/candledrill/)
 
-> **v1.0.7** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+手機、平板、電腦瀏覽器都可以用，不用安裝、不用登入。資料只存於你自己的瀏覽器。
 
 ![CandleDrill 練習畫面：雙時框、好倉 R、括號單、下單票與成交紀錄](docs/screenshot.png)
 
 <sub>所有截圖使用產生的 `SYNTH-` 示範資料，並非真實市價。</sub>
+
+> **v1.0.8** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 完整教學（v0.2 實測稿）：[docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -22,7 +22,7 @@ CandleDrill 是**教育與練習工具**。**不構成投資建議**，不提供
 
 ### 瀏覽器版（手機、平板、電腦）
 
-打開 **<https://kinfxhk.github.io/candledrill/>** → **產生示範數據** → 填寫練習表單 → **開始練習**。
+打開 [https://kinfxhk.github.io/candledrill/](https://kinfxhk.github.io/candledrill/) → **產生示範數據** → 填寫練習表單 → **開始練習**。
 
 - 不用安裝。所有運算在頁面內進行，資料存於**這個瀏覽器**（IndexedDB），不會上傳。
 - 清除網站資料會一併刪除練習。請定期用 **全部備份**（一個 JSON 檔），換機時用 **從備份還原**。
@@ -263,17 +263,17 @@ CandleDrill 免費，也會持續免費。若這個工具對你有幫助：https
 
 # CandleDrill (English)
 
-**CandleDrill** (Chinese: **K線操練場**) is a free, open-source **candlestick replay practice** tool: load bars → step without seeing the future → place simulated orders → review. Works on desktop, tablet and phone. No account, no subscription, no telemetry. **Not investment advice.**
+Free, open a URL, no account: **candlestick replay practice**. Step without seeing the future → place simulated orders → review.
 
-> ### ▶ Try it online: **<https://kinfxhk.github.io/candledrill/>**
->
-> Works in any phone, tablet or desktop browser. No install, no sign-in. Your data stays in your own browser.
+▶ Try it online: [https://kinfxhk.github.io/candledrill/](https://kinfxhk.github.io/candledrill/)
 
-> **v1.0.7** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+Phone, tablet or desktop browser. No install, no sign-in. Your data stays in your own browser.
 
 ![CandleDrill practice: two timeframes, Long R drawing, open bracket, order ticket and trade log](docs/screenshot.png)
 
 <sub>All screenshots use generated `SYNTH-` demo data, not real market prices.</sub>
+
+> **v1.0.8** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 Traditional Chinese guide (v0.2 field notes): [docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -289,7 +289,7 @@ prices inside a bar. If the data source is one third of the practice timeframe (
 
 ### Browser version (phone, tablet, desktop)
 
-Open **<https://kinfxhk.github.io/candledrill/>** → **Generate demo data** → fill the session form → **Start practising**.
+Open [https://kinfxhk.github.io/candledrill/](https://kinfxhk.github.io/candledrill/) → **Generate demo data** → fill the session form → **Start practising**.
 
 - Nothing to install. Everything runs in the page; data is stored in **this browser** (IndexedDB) and never uploaded.
 - Clearing site data deletes it. Use **Back up everything** (one JSON file) and **Restore from backup** to move devices.

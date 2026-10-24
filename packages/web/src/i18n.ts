@@ -484,6 +484,8 @@ const enBase = {
   'about.notAffiliated':
     'CandleDrill is an independent open-source project. It has no equity, agency, employment or official-authorisation relationship with any trading platform, charting vendor, broker, exchange or prop firm, and does not represent any of them. It ships no firm rules, parameters or templates; rule profiles are entered by users, and no firm reviews or influences the software, demo data or rule evaluation. Some external links (including the recommendations page) are affiliate links; see Recommendations and risk disclosure. That commercial relationship does not affect the code, demo data or rule evaluation.',
   'about.close': 'Close',
+  'about.thirdParty': 'Third-party notice',
+  'about.source': 'Source code (AGPL-3.0-or-later):',
   'footer.notice':
     'Educational practice tool only. Not investment advice. Practice results do not predict real results.',
   'footer.license': 'AGPL-3.0-or-later · No telemetry',
@@ -1001,6 +1003,8 @@ const zhHantBase: Record<BaseKey, string> = {
   'about.notAffiliated':
     'CandleDrill 是獨立開源項目，與任何交易平台、圖表供應商、經紀、交易所或 prop firm 沒有股權、代理、受僱或官方授權關係，亦不代表任何一方。本工具不內置任何公司的規則、參數或範本；規則檔由使用者自行提供，相關公司不會審核或影響本工具的功能、示範數據或規則判定。部分外部連結（包括推薦連結頁）含聯盟佣金，詳見「推薦連結與風險披露」。此商業關係不影響程式碼、示範數據及規則判定。',
   'about.close': '關閉',
+  'about.thirdParty': '第三方聲明',
+  'about.source': '原始碼（AGPL-3.0-or-later）：',
   'footer.notice': '只作教育及練習用途，並不構成投資建議；練習成績不能預示真實交易結果。',
   'footer.license': 'AGPL-3.0-or-later · 不收集任何數據',
   'err.network': '連接不到本地伺服器。CandleDrill 是否正在運行？',
@@ -1062,6 +1066,20 @@ const dictionaries: Record<Lang, Record<MessageKey, string>> = {
 
 let current: Lang = 'en';
 
+const localeHooks: (() => void)[] = [];
+
+/**
+ * Run after a full-document `applyI18n` pass. For chrome that is not one
+ * `data-i18n` node (disclosure paragraphs, profile list rows).
+ */
+export function onLocaleApplied(fn: () => void): () => void {
+  localeHooks.push(fn);
+  return () => {
+    const i = localeHooks.indexOf(fn);
+    if (i >= 0) localeHooks.splice(i, 1);
+  };
+}
+
 export function setLang(lang: Lang): void {
   current = lang;
 }
@@ -1094,4 +1112,7 @@ export function applyI18n(root: ParentNode = document): void {
     ko: 'ko',
   };
   document.documentElement.lang = htmlLang[current];
+  if (root === document) {
+    for (const fn of [...localeHooks]) fn();
+  }
 }
