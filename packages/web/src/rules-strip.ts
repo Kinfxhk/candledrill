@@ -18,6 +18,9 @@ import { t, type MessageKey } from './i18n.js';
 export const RULES_STRIP_COLLAPSED_KEY = 'candledrill.rulesStrip.collapsed';
 export const RULES_STRIP_POS_KEY = 'candledrill.rulesStrip.pos';
 
+/** Phone landscape and other short windows. The docked strip becomes a chip there. */
+export const RULES_STRIP_SHORT_QUERY = '(max-height: 560px)';
+
 export interface Box {
   readonly x: number;
   readonly y: number;
@@ -216,8 +219,10 @@ function boxOf(node: Element, pad = 0): Box | null {
 
 /**
  * Practice-rules strip. Docked, it sits in flow at the top of the chart column
- * (below the toolbar, above the candles). Dragging floats it inside that column
- * and refuses positions that cover the OHLC legend or the order ticket.
+ * (below the toolbar, above the candles). On a short window (max-height 560px)
+ * the docked strip stays a narrow chip so it does not cover the chart head.
+ * Dragging floats it inside that column and refuses positions that cover the
+ * OHLC legend or the order ticket.
  */
 export class RulesStrip {
   readonly el: HTMLElement;
@@ -277,7 +282,12 @@ export class RulesStrip {
     this.grip.addEventListener('pointerup', (ev) => this.onPointerUp(ev));
     this.grip.addEventListener('pointercancel', (ev) => this.onPointerUp(ev));
     this.grip.addEventListener('dblclick', () => this.dock());
-    this.toggle.addEventListener('click', () => this.setCollapsed(!this.collapsed));
+    this.toggle.addEventListener('click', () => {
+      // A short window keeps the strip as a chip, docked or floating. Expanding
+      // it would paint the metrics over Semi-auto, Indicators, and the OHLC legend.
+      if (this.shortViewport()) return;
+      this.setCollapsed(!this.collapsed);
+    });
     if (this.pos) {
       this.el.classList.add('floating');
       this.el.style.left = `${this.pos.x}px`;
@@ -289,8 +299,14 @@ export class RulesStrip {
     requestAnimationFrame(() => this.reclamp());
   }
 
+  /** Short window: fold to a chip. Not written to the saved collapse preference. */
+  private shortViewport(): boolean {
+    return window.matchMedia(RULES_STRIP_SHORT_QUERY).matches;
+  }
+
   private readonly onResize = (): void => {
     this.reclamp();
+    this.paintToggle();
   };
 
   destroy(): void {
@@ -348,11 +364,14 @@ export class RulesStrip {
   }
 
   private paintToggle(): void {
-    this.el.classList.toggle('is-collapsed', this.collapsed);
-    this.body.hidden = this.collapsed;
-    this.toggle.setAttribute('aria-expanded', String(!this.collapsed));
+    const short = this.shortViewport();
+    this.el.classList.toggle('is-short-chip', short && this.pos === null);
+    const folded = this.collapsed || short;
+    this.el.classList.toggle('is-collapsed', folded);
+    this.body.hidden = folded;
+    this.toggle.setAttribute('aria-expanded', String(!folded));
     this.toggle.setAttribute('aria-label', t('pr.rulesToggle'));
-    this.toggle.textContent = this.collapsed ? t('pr.rules') : '▾';
+    this.toggle.textContent = folded ? t('pr.rules') : '▾';
   }
 
   private setCollapsed(on: boolean): void {
@@ -406,6 +425,7 @@ export class RulesStrip {
     this.el.style.left = `${left}px`;
     this.el.style.top = `${top}px`;
     if (persist) writeRulesStripPos(this.pos);
+    this.paintToggle();
   }
 
   private dock(): void {
@@ -416,6 +436,7 @@ export class RulesStrip {
     this.el.style.left = '';
     this.el.style.top = '';
     writeRulesStripPos(null);
+    this.paintToggle();
   }
 
   private onPointerDown(ev: PointerEvent): void {
