@@ -2,10 +2,30 @@
 // Headless browser smoke test. Run with `npm run test:e2e` (builds the web UI first).
 // Uses Playwright's bundled Chromium (`npx playwright install chromium`), or any local
 // Chrome/Chromium via PW_CHROMIUM_PATH=/usr/bin/google-chrome.
+import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { defineConfig } from '@playwright/test';
 
 const PORT = Number(process.env.E2E_PORT ?? 4899);
 const executablePath = process.env.PW_CHROMIUM_PATH;
+
+// The first-open countdown covers the chart and then presses Play. Existing specs
+// click Play, step, and the ticket while the session is still stopped. Turn the
+// intro off for this origin; e2e/countdown.spec.ts opts back in.
+const storageState = join(tmpdir(), `candledrill-e2e-${PORT}.json`);
+writeFileSync(
+  storageState,
+  JSON.stringify({
+    cookies: [],
+    origins: [
+      {
+        origin: `http://127.0.0.1:${PORT}`,
+        localStorage: [{ name: 'candledrill.countdownE2E', value: '0' }],
+      },
+    ],
+  }),
+);
 
 export default defineConfig({
   testDir: './e2e',
@@ -16,6 +36,7 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
+    storageState,
     headless: true,
     locale: 'en-US',
     colorScheme: 'dark',

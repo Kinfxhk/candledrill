@@ -6,6 +6,16 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.10] - 2026-10-24
+
+### Added
+
+- **Practice countdown.** The first time a new practice session opens, a center-screen 3→2→1 plays with a number animation, then Play starts on its own. Skip starts Play immediately. Opening that same session again does not show the countdown.
+
+### Not in this version
+
+- Fill model stays v4. `FORMING_PARTS` and forming candles are unchanged.
+
 ## [1.0.9] - 2026-10-24
 
 Practice rules during a session are a thin strip above the chart, not a side card. The fill model is unchanged (v4). Forming candles and the 1D calendar are unchanged.
