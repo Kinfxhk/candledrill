@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSession, type Bar } from '@candledrill/core';
 import { sessionsApi, type SessionViewDto } from '../src/api.js';
 import {
+  COUNTDOWN_E2E_KEY,
   COUNTDOWN_SEQUENCE,
   COUNTDOWN_STEP_MS,
   markCountdownPending,
@@ -386,5 +387,37 @@ describe('session countdown', () => {
     const main = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
     expect(main.match(/markCountdownPending\(/g)).toHaveLength(1);
     expect(main).toContain('markCountdownPending(view.session.id)');
+    const spec = readFileSync(new URL('../../../e2e/countdown.spec.ts', import.meta.url), 'utf8');
+    const config = readFileSync(new URL('../../../playwright.config.ts', import.meta.url), 'utf8');
+    expect(spec).toContain(COUNTDOWN_E2E_KEY);
+    expect(config).toContain(COUNTDOWN_E2E_KEY);
+  });
+
+  it('stays stopped when the e2e flag is off', async () => {
+    localStorage.setItem(COUNTDOWN_E2E_KEY, '0');
+    markCountdownPending(5);
+    view = new PracticeView();
+    await view.open(5);
+    expect(byTestId('countdown')).toBeNull();
+    vi.advanceTimersByTime(COUNTDOWN_STEP_MS * 4);
+    expect(hooks(view).playing).toBe(false);
+  });
+
+  it('does not count down in an automated browser unless e2e opts in', async () => {
+    vi.stubGlobal('navigator', { webdriver: true });
+    markCountdownPending(5);
+    view = new PracticeView();
+    await view.open(5);
+    expect(byTestId('countdown')).toBeNull();
+    vi.advanceTimersByTime(COUNTDOWN_STEP_MS * 4);
+    expect(hooks(view).playing).toBe(false);
+    view.close();
+
+    localStorage.setItem(COUNTDOWN_E2E_KEY, '1');
+    markCountdownPending(5);
+    view = new PracticeView();
+    await view.open(5);
+    expect(byTestId('countdown-num')!.textContent).toBe('3');
+    expect(hooks(view).playing).toBe(false);
   });
 });

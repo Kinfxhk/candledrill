@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // First open of a new practice session: 3 → 2 → 1, then Play. Skip ends it early.
 // The same session is not armed again. Fill timing and forming candles are untouched.
+// Automated browsers skip the arm (Playwright sets COUNTDOWN_E2E_KEY to "0") unless a
+// spec opts in with "1", so play, step, and trade clicks keep their manual timing.
 
 import { el } from './format.js';
 import { getLang } from './i18n.js';
@@ -11,6 +13,27 @@ export const COUNTDOWN_STEP_MS = 1000;
 export const COUNTDOWN_SEQUENCE = [3, 2, 1] as const;
 
 const PENDING_KEY = 'candledrill.countdownPending';
+
+/**
+ * `"0"` skips the intro (Playwright storage). `"1"` forces it (the countdown spec).
+ * Absent: real browsers count down; `navigator.webdriver` does not.
+ */
+export const COUNTDOWN_E2E_KEY = 'candledrill.countdownE2E';
+
+function countdownEnabled(): boolean {
+  try {
+    const flag = localStorage.getItem(COUNTDOWN_E2E_KEY);
+    if (flag === '1') return true;
+    if (flag === '0') return false;
+  } catch {
+    return true;
+  }
+  try {
+    return navigator.webdriver !== true;
+  } catch {
+    return true;
+  }
+}
 
 interface CountdownCopy {
   skip: string;
@@ -54,9 +77,13 @@ function writePending(ids: number[]): void {
   }
 }
 
-/** Arm a countdown for the next open of this newly created session. */
+/**
+ * Arm a countdown for the next open of this newly created session.
+ * No-op when `countdownEnabled()` is false, so an automated run stays stopped.
+ */
 export function markCountdownPending(sessionId: number): void {
   if (!Number.isInteger(sessionId) || sessionId <= 0) return;
+  if (!countdownEnabled()) return;
   const ids = readPending();
   if (ids.includes(sessionId)) return;
   writePending([...ids, sessionId]);

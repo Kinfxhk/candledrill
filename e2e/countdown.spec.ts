@@ -3,6 +3,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import { generateDemo } from './helpers.js';
 
+test.beforeEach(async ({ page }) => {
+  // Playwright storage turns the intro off. This spec is the one that covers it.
+  await page.addInitScript(() => {
+    localStorage.setItem('candledrill.countdownE2E', '1');
+  });
+});
+
 async function startSession(page: Page, name: string): Promise<string> {
   await page.locator('nav.tabs button[data-view=library]').click();
   const form = page.locator('#new-session-form');
