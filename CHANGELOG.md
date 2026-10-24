@@ -6,6 +6,20 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-10-24
+
+Practice rules during a session are a thin strip above the chart, not a side card. The fill model is unchanged (v4). Forming candles and the 1D calendar are unchanged.
+
+### Changed
+
+- **Glance strip.** Under the toolbar and above the chart: daily loss, profit target, and trailing drawdown (with floor and buffer). Each limit has a hairline meter and turns red as it nears the cap. The bar-close note stays on the strip's tooltip.
+- **Collapse and drag.** The strip folds to a chip. Drag the grip to float it inside the chart column; a drop on the OHLC legend or the order ticket (side ticket or the compact order row) does not stick. Release it at the top-left to dock again. Collapse and position are remembered on this device.
+- **Side rail.** The practice-rules card and the rule-check card are no longer on the rail during a session. The rail keeps the order ticket, position, save points, and drawings. The full rule-profile check (pass / pending / fail) is the **Rule check** bottom tab. Profile create / edit / import stays on the Library card.
+
+### Not in this version
+
+- Fill model stays v4. `FORMING_PARTS`, forming paints, and the 1D demo calendar are unchanged.
+
 ## [1.0.8] - 2026-10-24
 
 ### Fixed

@@ -505,7 +505,9 @@ input[type='datetime-local']::-webkit-date-and-time-value {
   }
   .chart-cell .chart-head button,
   .chart-cell .chart-head select,
-  .drawing-palette-toggle {
+  .drawing-palette-toggle,
+  .rules-strip-grip,
+  .rules-strip-toggle {
     height: 44px;
     min-height: 44px;
     min-width: 44px;

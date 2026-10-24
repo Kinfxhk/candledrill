@@ -131,6 +131,104 @@ footer.app {
   display: none;
 }
 
+/* ---------- practice rules strip: one thin row above the chart, under the toolbar */
+.rules-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  border-bottom: 1px solid var(--border);
+  z-index: 6;
+}
+.rules-strip.docked {
+  position: relative;
+  width: 100%;
+}
+.rules-strip.floating {
+  position: absolute;
+  width: max-content;
+  max-width: calc(100% - 8px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.rules-strip.is-collapsed {
+  width: max-content;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  padding: 0 4px 0 2px;
+}
+.rules-strip-grip,
+.rules-strip-toggle {
+  flex: 0 0 auto;
+  height: var(--h-sm, 26px);
+  min-width: var(--h-sm, 26px);
+  padding: 0 6px;
+  font-size: 12px;
+}
+.rules-strip-grip {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.rules-strip-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 0;
+  flex: 1;
+}
+.rules-strip.is-collapsed .rules-strip-body {
+  display: none;
+}
+.rules-strip-empty {
+  margin: 0;
+  font-size: 12px;
+}
+.rules-metric {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  padding-bottom: 3px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.rules-metric .k {
+  color: var(--muted);
+}
+.rules-metric .meter {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  border: 0;
+  border-radius: 1px;
+}
+.rules-metric.hot .v,
+.rules-metric.hot .meter > span {
+  color: var(--down);
+}
+.rules-metric.hot .meter > span {
+  background: var(--down);
+}
+.rules-metric.goal .meter > span {
+  background: var(--up);
+}
+.bottom .tabpanel .rule-check {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
 /* ---------- chart */
 .chart-cell .chart-head {
   padding: 2px 6px;

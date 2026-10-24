@@ -349,6 +349,14 @@ table.data th.num {
   display: flex;
   min-height: 0;
 }
+.chart-col {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .charts {
   flex: 1;
   display: grid;
@@ -356,6 +364,7 @@ table.data th.num {
   gap: 1px;
   background: var(--border);
   min-width: 0;
+  min-height: 0;
 }
 .charts.split {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
