@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Rule profiles in the UI: the live rule-check card on the practice rail and the profile
-// manager (list, editor, import/export) opened from the library.
+// Rule profiles in the UI: the live rule-check list (mounted on the practice bottom
+// tab during a session, not as a side card) and the profile manager on the library.
 
 import {
   evaluateProfile,

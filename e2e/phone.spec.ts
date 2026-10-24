@@ -18,14 +18,31 @@ async function phone(browser: Browser, blind = false) {
   return { ctx, page };
 }
 
-/** Tap an empty spot near the top of the chart (bottom sheets cover the lower part). */
+/** Tap the chart above any bottom sheet. Sheets cover the lower chart; the rules
+ *  strip sits in flow above the candles, so a fixed +60px offset now lands inside
+ *  the indicator sheet on a 718px phone (sheet top ~215, chart top ~170). */
 async function tapChart(page: Page) {
   const b = (await page.locator('.chart-body').first().boundingBox())!;
-  await page.mouse.click(b.x + b.width * 0.3, b.y + Math.min(60, b.height * 0.2));
+  const sheetTop = await page.evaluate(() => {
+    const tops = [...document.querySelectorAll('.indicator-panel, .drawing-palette-tools')]
+      .filter((e) => !e.hasAttribute('hidden'))
+      .map((e) => e.getBoundingClientRect())
+      .filter((r) => r.height > 20 && r.top < innerHeight)
+      .map((r) => r.top);
+    return tops.length ? Math.min(...tops) : innerHeight;
+  });
+  const y = Math.max(b.y + 8, Math.min(b.y + 20, sheetTop - 8, b.y + b.height - 8));
+  await page.mouse.click(b.x + b.width * 0.35, y);
 }
 
 test('panels close on a tap outside and the tap does nothing else', async ({ browser }) => {
   const { ctx, page } = await phone(browser);
+  // The 44px hit-area rule must not replace the grip's touch-action: none, or a
+  // strip drag becomes a page pan.
+  expect(
+    await page.getByTestId('rules-strip-drag').evaluate((el) => getComputedStyle(el).touchAction),
+    'rules grip keeps touch-action none',
+  ).toBe('none');
   const drawings = async () => ((await sessionState(page)).session.drawings as unknown[]).length;
 
   // Drawer.
