@@ -45,6 +45,8 @@ import {
   type BottomTab,
 } from './bottom.js';
 import { practiceClockText } from './clock.js';
+import { mountCountdown, takeCountdownPending } from './countdown.js';
+import type { SessionCountdown } from './countdown.js';
 import { getLang, t, type MessageKey } from './i18n.js';
 import { statusReasonText } from './labels.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
@@ -188,6 +190,8 @@ export class PracticeView {
   private rulesView: RulesView | undefined;
   private rulesStrip: RulesStrip | undefined;
   private unsubscribeSettings: (() => void) | undefined;
+  /** 3-2-1 on the first open of a new session. Absent on every later open. */
+  private intro: SessionCountdown | undefined;
 
   constructor(private readonly onChanged: () => void = () => {}) {
     document.addEventListener('keydown', (e) => this.onKey(e));
@@ -249,9 +253,12 @@ export class PracticeView {
     // The open session, readable by tests and tools without guessing from the session list.
     this.root.setAttribute?.('data-session-id', String(id));
     localStorage.setItem('candledrill.lastSession', String(id));
+    // Armed only by session creation. Consuming it here means a reopen does not count down.
+    if (takeCountdownPending(id)) this.startCountdown();
   }
 
   close(): void {
+    this.dismissCountdown();
     this.cancelPresent();
     this.disarmFlatten();
     this.summary?.destroy();
@@ -1693,6 +1700,29 @@ export class PracticeView {
     }
   }
 
+  /**
+   * First open of a new session only. An inactive session consumes the arm and stays stopped.
+   * Skip and the end of "1" both call play(); closing the session cancels without playing.
+   */
+  private startCountdown(): void {
+    if (this.state?.status !== 'active') return;
+    const generation = this.generation;
+    this.dismissCountdown();
+    this.intro = mountCountdown(this.root, {
+      onComplete: () => {
+        this.intro = undefined;
+        if (generation !== this.generation) return;
+        this.play();
+      },
+    });
+  }
+
+  private dismissCountdown(): void {
+    const current = this.intro;
+    this.intro = undefined;
+    current?.cancel();
+  }
+
   /** While playing, one undo point per play run (the state when Play was pressed). */
   private playUndoTaken = false;
   private pushUndoState(st: SessionStateDto): void {
@@ -1705,6 +1735,8 @@ export class PracticeView {
   }
 
   play(): void {
+    // A click on Play, or the end of the intro, must not leave a second timer running.
+    this.dismissCountdown();
     if (!this.meta || this.state?.status === 'finished') return;
     this.playUndoTaken = false;
     this.playing = true;
@@ -1803,6 +1835,7 @@ export class PracticeView {
 
   render(): void {
     if (!this.meta || !this.state) return;
+    this.intro?.syncLabel();
     const off = this.meta.settings.utcOffsetMinutes;
     const blind = this.meta.settings.blind;
     this.els.clock!.textContent = practiceClockText({
@@ -1912,6 +1945,13 @@ export class PracticeView {
       document.querySelector('dialog[open]')
     )
       return;
+    if (this.intro) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.intro.skip();
+      }
+      return;
+    }
     if (e.key === 'Escape') {
       if (this.drawMode !== null) this.setDrawMode(null);
       else for (const p of this.palettes) p.collapse();
