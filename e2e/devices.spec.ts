@@ -94,6 +94,106 @@ for (const [name, width, height] of DEVICES) {
   });
 }
 
+test('short landscape: the rules chip keeps the chart and leaves the head controls clear', async ({
+  browser,
+}) => {
+  for (const [width, height] of [
+    [874, 352],
+    [816, 536],
+  ] as const) {
+    const ctx = await browser.newContext({
+      viewport: { width, height },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const page = await ctx.newPage();
+    await page.goto('/');
+    await generateDemo(page);
+    const form = page.locator('#new-session-form');
+    await form.locator('input[name=dailyLoss]').fill('1000');
+    await form.locator('input[name=trailing]').fill('5000');
+    await form.locator('input[name=target]').fill('3000');
+    await form.locator('button[type=submit]').click();
+    await expect(page.locator('#practice-root')).toBeVisible();
+    const strip = page.getByTestId('rules-strip');
+    await expect(strip).toHaveClass(/is-short-chip/);
+    await expect(strip).toHaveClass(/docked/);
+    await expect(page.getByTestId('rules')).toBeHidden();
+    // Expanding would paint the metrics row over Semi-auto, Indicators, and OHLC.
+    await page.getByTestId('rules-strip-toggle').click();
+    await expect(page.getByTestId('rules')).toBeHidden();
+    await expect(strip).toHaveClass(/is-short-chip/);
+    await expect(page.getByTestId('rules-strip-drag')).toHaveCSS('touch-action', 'none');
+    const legend = page.locator('[data-testid=ohlc-legend]').first();
+    await expect(legend).not.toBeEmpty();
+    const fit = await page.evaluate(() => {
+      const box = (sel: string) => {
+        const e = document.querySelector(sel);
+        if (!e) return null;
+        const r = e.getBoundingClientRect();
+        return { x: r.x, y: r.y, w: r.width, h: r.height };
+      };
+      const hits = (
+        a: { x: number; y: number; w: number; h: number } | null,
+        b: { x: number; y: number; w: number; h: number } | null,
+      ) =>
+        !!a &&
+        !!b &&
+        a.w > 1 &&
+        b.w > 1 &&
+        a.h > 1 &&
+        b.h > 1 &&
+        a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y;
+      const centerHit = (sel: string) => {
+        const e = document.querySelector(sel);
+        if (!e) return false;
+        const r = e.getBoundingClientRect();
+        const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!at && (at === e || e.contains(at));
+      };
+      const stripBox = box('[data-testid=rules-strip]');
+      const chart = box('.chart-body');
+      return {
+        chartH: chart?.h ?? 0,
+        stripH: stripBox?.h ?? 0,
+        aboveChart: !!stripBox && !!chart && stripBox.y + stripBox.h <= chart.y + 1,
+        coverTf: hits(stripBox, box('[data-testid=tf-0]')),
+        coverMacro: hits(stripBox, box('[data-testid=macro-open]')),
+        coverInd: hits(stripBox, box('[data-testid=indicators-toggle]')),
+        coverOhlc: hits(stripBox, box('[data-testid=ohlc-legend]')),
+        hitTf: centerHit('[data-testid=tf-0]'),
+        hitMacro: centerHit('[data-testid=macro-open]'),
+        hitInd: centerHit('[data-testid=indicators-toggle]'),
+      };
+    });
+    expect(fit.chartH, `${width}×${height} chart`).toBeGreaterThanOrEqual(150);
+    expect(fit.stripH, `${width}×${height} chip is one line`).toBeLessThanOrEqual(32);
+    expect(fit.aboveChart, `${width}×${height} chip stays above the candles`).toBe(true);
+    expect(fit.coverTf, `${width}×${height} timeframe`).toBe(false);
+    expect(fit.coverMacro, `${width}×${height} semi-auto`).toBe(false);
+    expect(fit.coverInd, `${width}×${height} indicators`).toBe(false);
+    expect(fit.coverOhlc, `${width}×${height} OHLC`).toBe(false);
+    expect(fit.hitTf, `${width}×${height} timeframe clickable`).toBe(true);
+    expect(fit.hitMacro, `${width}×${height} semi-auto clickable`).toBe(true);
+    expect(fit.hitInd, `${width}×${height} indicators clickable`).toBe(true);
+    // Dragging must not unfold the metrics row over the chart head.
+    const grip = page.getByTestId('rules-strip-drag');
+    const gripBox = (await grip.boundingBox())!;
+    await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + 80, { steps: 6 });
+    await page.mouse.up();
+    await expect(strip).toHaveClass(/floating/);
+    await expect(strip).not.toHaveClass(/is-short-chip/);
+    await expect(page.getByTestId('rules')).toBeHidden();
+    await expect(grip).toHaveCSS('touch-action', 'none');
+    await ctx.close();
+  }
+});
+
 test('phone landscape: a status banner and a toast never push or cover the trade bar', async ({
   browser,
 }) => {
