@@ -65,6 +65,50 @@ test('rule profile: create, use on a session, live rule check', async ({ page })
   await form.locator('input[name=name]').fill('E2E profile');
   await form.locator('button[type=submit]').click();
 
+  await expect(page.getByTestId('side').locator('.rule-check')).toHaveCount(0);
+  const strip = page.getByTestId('rules-strip');
+  await expect(strip).toBeVisible();
+  await expect(page.getByTestId('rules')).toContainText('1,000.00');
+  const overlaps = (
+    a: { x: number; y: number; width: number; height: number } | null,
+    b: { x: number; y: number; width: number; height: number } | null,
+  ) =>
+    !!a &&
+    !!b &&
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y;
+  const stripBox = await strip.boundingBox();
+  const ohlcBox = await page.locator('#practice-root [data-testid=ohlc-legend]').boundingBox();
+  const ticketBox = await page.getByTestId('order-ticket').boundingBox();
+  expect(stripBox).not.toBeNull();
+  expect(ohlcBox).not.toBeNull();
+  expect(ticketBox).not.toBeNull();
+  expect(overlaps(stripBox, ohlcBox)).toBe(false);
+  expect(overlaps(stripBox, ticketBox)).toBe(false);
+  expect(stripBox!.y + stripBox!.height).toBeLessThanOrEqual(ohlcBox!.y + 1);
+  await page.getByTestId('rules-strip-toggle').click();
+  await expect(page.getByTestId('rules')).toBeHidden();
+  await expect(page.getByTestId('rules-strip-toggle')).toHaveAttribute('aria-expanded', 'false');
+  await page.getByTestId('rules-strip-toggle').click();
+  await expect(page.getByTestId('rules')).toBeVisible();
+  const grip = await page.getByTestId('rules-strip-drag').boundingBox();
+  const legend = await page.locator('#practice-root [data-testid=ohlc-legend]').boundingBox();
+  if (grip && legend) {
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(legend.x + 8, legend.y + 4, { steps: 8 });
+    await page.mouse.up();
+    expect(
+      overlaps(
+        await strip.boundingBox(),
+        await page.locator('#practice-root [data-testid=ohlc-legend]').boundingBox(),
+      ),
+    ).toBe(false);
+    await page.getByTestId('rules-strip-drag').dblclick();
+  }
+  await page.getByTestId('tab-rulecheck').click();
   const check = page.getByTestId('rule-check');
   await expect(check).toContainText('E2E 50K rules');
   await expect(check.locator('[data-rule=maxContracts]')).toHaveAttribute('data-state', 'pass');
@@ -92,6 +136,18 @@ test('phone: chart first, trade bar buys and flattens, drawer holds the rail', a
   await page.goto('/');
   await newSession(page, 'E2E phone');
   await expect(page.getByTestId('trade-bar')).toBeVisible();
+  const phoneStrip = await page.getByTestId('rules-strip').boundingBox();
+  const phoneOrder = await page.locator('.tb-order').boundingBox();
+  const phoneOhlc = await page.locator('#practice-root [data-testid=ohlc-legend]').boundingBox();
+  expect(phoneStrip).not.toBeNull();
+  expect(phoneOrder).not.toBeNull();
+  expect(phoneOhlc).not.toBeNull();
+  const hits = (
+    a: { x: number; y: number; width: number; height: number },
+    b: { x: number; y: number; width: number; height: number },
+  ) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+  expect(hits(phoneStrip!, phoneOrder!)).toBe(false);
+  expect(hits(phoneStrip!, phoneOhlc!)).toBe(false);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const chart = await page.locator('.chart-body').first().boundingBox();
   expect(chart!.height).toBeGreaterThan(844 * 0.45);

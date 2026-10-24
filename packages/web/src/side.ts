@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Right-hand panel: practice-rule meters, order ticket, and position.
+// Right-hand panel: order ticket and position.
+// Practice-rule meters live in the chart strip (rules-strip.ts), not this rail.
 // Working orders render into `ordersSection`, which the practice view mounts in the bottom panel.
 
 import {
   roundToTick,
-  ruleStatus,
-  trailingPeak,
-  trailingFloor,
   sessionEquity,
   tickDecimals,
   unrealizedPnl,
@@ -54,7 +52,6 @@ export class SidePanel {
   private readonly riskExpanded = new Map<string, boolean>();
   private riskOpen = localStorage.getItem('candledrill.riskPreviewOpen') !== '0';
   private readonly positionBox: HTMLElement;
-  private readonly rulesBox: HTMLElement;
   readonly extra: HTMLElement;
   private settings: SessionSettings | undefined;
   private state: SessionStateDto | undefined;
@@ -157,7 +154,7 @@ export class SidePanel {
 
     const ticket = el(
       'section',
-      { class: 'card', 'aria-labelledby': 'h-ticket' },
+      { class: 'card', 'aria-labelledby': 'h-ticket', 'data-testid': 'order-ticket' },
       el('h3', { id: 'h-ticket', 'data-i18n': 'pr.ticket' }, t('pr.ticket')),
       seg,
       el(
@@ -187,15 +184,7 @@ export class SidePanel {
       this.positionBox,
       el('p', { class: 'muted small', 'data-i18n': 'pr.realizedHint' }, t('pr.realizedHint')),
     );
-    this.rulesBox = el('div', { 'data-testid': 'rules' });
-    const rules = el(
-      'section',
-      { class: 'card' },
-      el('h3', { 'data-i18n': 'pr.rules' }, t('pr.rules')),
-      el('p', { class: 'muted small', 'data-i18n': 'pr.rulesBar' }, t('pr.rulesBar')),
-      this.rulesBox,
-    );
-    this.extra = el('div', { style: 'display:flex;flex-direction:column;gap:10px' }, rules);
+    this.extra = el('div', { style: 'display:flex;flex-direction:column;gap:10px' });
     this.ordersBox = el('div', { 'data-testid': 'orders' });
     this.ordersHeading = el('h3', { 'data-i18n': 'pr.orders' }, t('pr.orders'));
     this.ordersSection = el('section', { class: 'card' }, this.ordersHeading, this.ordersBox);
@@ -542,80 +531,7 @@ export class SidePanel {
       ...kv('pr.realized', fmtMoney(tr.realizedPnl), signClass(tr.realizedPnl)),
       ...kv('pr.equity', fmtMoney(equity)),
     );
-    const rs = ruleStatus(settings, state);
-    const meter = (key: MessageKey, frac: number | null, limit: number | null) => {
-      if (frac === null || limit === null) return [];
-      const pct = Math.min(100, Math.max(0, frac * 100));
-      const bar = el(
-        'div',
-        {
-          class: 'meter',
-          role: 'meter',
-          'aria-valuemin': '0',
-          'aria-valuemax': '100',
-          'aria-valuenow': pct.toFixed(0),
-          'aria-label': t(key),
-        },
-        el('span', { style: `width:${pct}%` }),
-      );
-      const fill = bar.firstElementChild as HTMLElement;
-      if (key !== 'pr.target' && frac >= 0.8) fill.style.background = 'var(--down)';
-      if (key === 'pr.target') fill.style.background = 'var(--up)';
-      return [
-        el(
-          'div',
-          { class: 'row muted', style: 'justify-content:space-between;margin-top:6px' },
-          el('span', {}, t(key)),
-          el('span', {}, `${pct.toFixed(0)}% · ${fmtMoney(limit)}`),
-        ),
-        bar,
-      ];
-    };
-    const mode = settings.trailingDrawdownMode ?? 'close';
-    const trailingKey =
-      mode === 'eod'
-        ? 'pr.trailingEod'
-        : mode === 'intraday'
-          ? 'pr.trailingIntraday'
-          : mode === 'static'
-            ? 'pr.trailingStatic'
-            : 'pr.trailingClose';
-    const meters = [
-      ...meter('pr.dailyLoss', rs.dailyLossUsed, settings.dailyLossLimit),
-      ...meter(trailingKey, rs.trailingUsed, settings.trailingDrawdown),
-      ...meter('pr.target', rs.targetProgress, settings.profitTarget),
-    ];
-    const drawdown: Node[] = [];
-    if (settings.trailingDrawdown !== null) {
-      const peak = trailingPeak(settings, state);
-      const floor = trailingFloor(settings, state) ?? peak - settings.trailingDrawdown;
-      const currentDd = Math.max(0, peak - equity);
-      const buffer = equity - floor;
-      const noteKey =
-        mode === 'eod'
-          ? 'pr.drawdownNoteEod'
-          : mode === 'intraday'
-            ? 'pr.drawdownNoteIntraday'
-            : mode === 'static'
-              ? 'pr.drawdownNoteStatic'
-              : 'pr.drawdownNote';
-      drawdown.push(
-        el(
-          'dl',
-          { class: 'kv', style: 'margin-top:8px' },
-          ...kv('pr.ddPeak', fmtMoney(peak)),
-          ...kv('pr.ddFloor', fmtMoney(floor)),
-          ...kv('pr.ddCurrent', fmtMoney(currentDd), currentDd > 0 ? 'down' : ''),
-          ...kv('pr.ddBuffer', fmtMoney(buffer), buffer < 0 ? 'down' : ''),
-        ),
-        el('p', { class: 'muted small', 'data-i18n': noteKey }, t(noteKey)),
-      );
-    }
     this.ordersHeading.textContent = t('pr.orders');
-    this.rulesBox.replaceChildren(
-      ...(meters.length ? meters : [el('p', { class: 'muted' }, t('pr.noRules'))]),
-      ...drawdown,
-    );
     const working = workingOrders(state.trading);
     if (working.length === 0) {
       this.ordersBox.replaceChildren(el('p', { class: 'muted' }, t('pr.noOrders')));

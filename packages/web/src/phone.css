@@ -511,6 +511,25 @@ input[type='datetime-local']::-webkit-date-and-time-value {
     min-width: 44px;
     touch-action: manipulation;
   }
+  /* The glance strip stays one thin row. A 44px grip made the row ~49px and
+     pushed the open-panel chart under 240px (402×718 measured 230). 32×44 keeps
+     a touchable grip without spending that row on the candle pane. */
+  .rules-strip {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .rules-strip-grip,
+  .rules-strip-toggle {
+    height: 32px;
+    min-height: 32px;
+    min-width: 44px;
+  }
+  .rules-strip-toggle {
+    touch-action: manipulation;
+  }
+  .rules-strip-grip {
+    touch-action: none;
+  }
   .bottom .tabbar {
     flex-wrap: wrap;
     height: auto;
@@ -540,6 +559,49 @@ input[type='datetime-local']::-webkit-date-and-time-value {
     height: 44px;
     min-height: 44px;
     min-width: 44px;
+  }
+}
+
+/* Short screens (phone landscape, open fold): a full docked row costs ~37px and
+   the candle pane falls under 150px (874×352 measured 121). The metrics row is
+   also wide enough to cover Semi-auto and Indicators, and a second line covers
+   the OHLC legend. While docked, the strip is a narrow chip over the empty
+   middle of the chart head — out of flow, one line, no wrap. Timeframe stays
+   left, Semi-auto and Indicators stay right. The grip keeps touch-action: none. */
+@media (max-height: 560px) {
+  .rules-strip.docked.is-short-chip {
+    position: absolute;
+    top: 1px;
+    left: 50%;
+    width: max-content;
+    max-width: min(168px, calc(100% - 240px));
+    height: 28px;
+    transform: translateX(-50%);
+    z-index: 7;
+    overflow: hidden;
+    flex-wrap: nowrap;
+    padding: 0 4px 0 2px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+  }
+  .rules-strip.docked.is-short-chip .rules-strip-body {
+    display: none;
+  }
+  .rules-strip.docked.is-short-chip .rules-strip-grip,
+  .rules-strip.docked.is-short-chip .rules-strip-toggle {
+    height: 26px;
+    min-height: 26px;
+    min-width: 0;
+  }
+  .rules-strip.docked.is-short-chip .rules-strip-toggle {
+    max-width: 7.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 6px;
+  }
+  .rules-strip.docked.is-short-chip .rules-strip-grip {
+    touch-action: none;
   }
 }
 
