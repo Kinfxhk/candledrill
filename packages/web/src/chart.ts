@@ -225,6 +225,20 @@ export interface ChartClick {
   price: number | null;
 }
 
+/** OHLC legend in the active language. Same numbers, new labels, after a locale change. */
+export function ohlcLegendText(
+  bar: { open: number; high: number; low: number; close: number },
+  tick: number,
+): string {
+  const dp = tickDecimals(tick);
+  return t('v1.ohlc', {
+    o: bar.open.toFixed(dp),
+    h: bar.high.toFixed(dp),
+    l: bar.low.toFixed(dp),
+    c: bar.close.toFixed(dp),
+  });
+}
+
 /**
  * One price chart (candles + volume). Times are shifted by `timeShiftSeconds` for display
  * so the axis shows exchange-local time; the public API always uses real Unix seconds.
@@ -360,21 +374,23 @@ export class PriceChart {
   private readonly legend: HTMLElement;
   private renderLegend(b: { open: number; high: number; low: number; close: number } | null): void {
     const bar = b ?? this.lastOhlc;
+    this.shownOhlc = bar;
     if (!bar) {
       this.legend.textContent = '';
       return;
     }
-    const dp = tickDecimals(this.tick);
     const chg = bar.close - bar.open;
-    this.legend.textContent = t('v1.ohlc', {
-      o: bar.open.toFixed(dp),
-      h: bar.high.toFixed(dp),
-      l: bar.low.toFixed(dp),
-      c: bar.close.toFixed(dp),
-    });
+    this.legend.textContent = ohlcLegendText(bar, this.tick);
     this.legend.dataset.dir = chg > 0 ? 'up' : chg < 0 ? 'down' : '';
   }
   private lastOhlc: { open: number; high: number; low: number; close: number } | null = null;
+  /** Bar currently written in the legend (last bar, or the one under the crosshair). */
+  private shownOhlc: { open: number; high: number; low: number; close: number } | null = null;
+
+  /** Re-translate the legend from the bar already on screen. Does not wait for a crosshair move. */
+  refreshLegend(): void {
+    this.renderLegend(this.shownOhlc);
+  }
 
   setTickSize(tickSize: number): void {
     this.tick = tickSize;
