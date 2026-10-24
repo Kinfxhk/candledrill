@@ -1250,7 +1250,11 @@ export class PracticeView {
     const off = this.meta?.settings.utcOffsetMinutes ?? 0;
     if (!this.checkpoints.length) {
       this.checkpointList.replaceChildren(
-        el('li', { class: 'muted small' }, t('v1.checkpointNone')),
+        el(
+          'li',
+          { class: 'muted small', 'data-i18n': 'v1.checkpointNone' },
+          t('v1.checkpointNone'),
+        ),
       );
       return;
     }
@@ -1258,7 +1262,12 @@ export class PracticeView {
       ...[...this.checkpoints].reverse().map((cp) => {
         const go = el(
           'button',
-          { type: 'button', class: 'small', 'data-testid': `cp-go-${cp.n}` },
+          {
+            type: 'button',
+            class: 'small',
+            'data-i18n': 'v1.checkpointRestore',
+            'data-testid': `cp-go-${cp.n}`,
+          },
           t('v1.checkpointRestore'),
         );
         go.addEventListener('click', async () => {
@@ -1267,7 +1276,7 @@ export class PracticeView {
         });
         const del = el(
           'button',
-          { type: 'button', class: 'small ghost' },
+          { type: 'button', class: 'small ghost', 'data-i18n': 'v1.checkpointDelete' },
           t('v1.checkpointDelete'),
         );
         del.addEventListener('click', () => {
@@ -1838,6 +1847,7 @@ export class PracticeView {
     this.bottom?.setTabHidden('macro', this.blindHidden);
     this.macroPanel?.sync(this.blindHidden, getLang());
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);
+    for (const p of this.panes) p.chart.refreshLegend();
     this.onChanged();
   }
 

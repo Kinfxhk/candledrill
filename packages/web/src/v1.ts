@@ -4,7 +4,7 @@
 
 import { profileToSettings, type RuleProfile } from '@candledrill/core';
 import { BROWSER_BACKEND } from './api.js';
-import { getLang, t } from './i18n.js';
+import { getLang, onLocaleApplied, t } from './i18n.js';
 import { el, toast } from './format.js';
 import { ProfileManager } from './rules-view.js';
 import {
@@ -114,24 +114,32 @@ export function mountSettings(button: HTMLElement): void {
           return el(
             'label',
             { class: 'row' },
-            el('span', { class: 'key-name' }, t(KEY_LABELS[a])),
+            el('span', { class: 'key-name', 'data-i18n': KEY_LABELS[a] }, t(KEY_LABELS[a])),
             b,
           );
         }),
       );
     drawKeys();
-    const field = (label: string, ctl: HTMLElement) =>
-      el('label', { class: 'field' }, el('span', {}, label), ctl);
-    const row = (ctl: HTMLElement, label: string) =>
-      el('label', { class: 'row' }, ctl, el('span', {}, label));
+    const field = (key: MessageKey, ctl: HTMLElement) =>
+      el('label', { class: 'field' }, el('span', { 'data-i18n': key }, t(key)), ctl);
+    const row = (ctl: HTMLElement, key: MessageKey) =>
+      el('label', { class: 'row' }, ctl, el('span', { 'data-i18n': key }, t(key)));
     const form = el('form', { method: 'dialog' });
-    const reset = el('button', { type: 'button', class: 'ghost' }, t('v1.setReset'));
+    const reset = el(
+      'button',
+      { type: 'button', class: 'ghost', 'data-i18n': 'v1.setReset' },
+      t('v1.setReset'),
+    );
     reset.addEventListener('click', () => {
       saveSettings(DEFAULT_SETTINGS);
       render();
       toast(t('v1.setSaved'));
     });
-    const exp = el('button', { type: 'button', class: 'ghost' }, t('v1.setExport'));
+    const exp = el(
+      'button',
+      { type: 'button', class: 'ghost', 'data-i18n': 'v1.setExport' },
+      t('v1.setExport'),
+    );
     exp.addEventListener('click', () => {
       const a = el('a', {
         href: URL.createObjectURL(
@@ -144,7 +152,11 @@ export function mountSettings(button: HTMLElement): void {
       a.remove();
     });
     const file = el('input', { type: 'file', accept: '.json,application/json', hidden: '' });
-    const imp = el('button', { type: 'button', class: 'ghost' }, t('v1.setImport'));
+    const imp = el(
+      'button',
+      { type: 'button', class: 'ghost', 'data-i18n': 'v1.setImport' },
+      t('v1.setImport'),
+    );
     imp.addEventListener('click', () => file.click());
     file.addEventListener('change', async () => {
       const f = file.files?.[0];
@@ -155,53 +167,58 @@ export function mountSettings(button: HTMLElement): void {
     });
     const close = el(
       'button',
-      { type: 'submit', class: 'primary', 'data-testid': 'settings-save' },
+      {
+        type: 'submit',
+        class: 'primary',
+        'data-testid': 'settings-save',
+        'data-i18n': 'about.close',
+      },
       t('about.close'),
     );
     form.append(
-      el('h2', { id: 'settings-title' }, t('v1.settingsTitle')),
-      el('h3', {}, t('v1.setCandles')),
+      el('h2', { id: 'settings-title', 'data-i18n': 'v1.settingsTitle' }, t('v1.settingsTitle')),
+      el('h3', { 'data-i18n': 'v1.setCandles' }, t('v1.setCandles')),
       el(
         'div',
         { class: 'grid3' },
-        field(t('v1.setUp'), color('upColor', '--up')),
-        field(t('v1.setDown'), color('downColor', '--down')),
+        field('v1.setUp', color('upColor', '--up')),
+        field('v1.setDown', color('downColor', '--down')),
       ),
       el(
         'div',
         { class: 'row', style: 'margin-top:8px' },
-        row(check('grid', s.grid), t('v1.setGrid')),
-        row(check('volume', s.volume), t('v1.setVolume')),
+        row(check('grid', s.grid), 'v1.setGrid'),
+        row(check('volume', s.volume), 'v1.setVolume'),
       ),
-      el('h3', {}, t('v1.setTicket')),
+      el('h3', { 'data-i18n': 'v1.setTicket' }, t('v1.setTicket')),
       el(
         'div',
         { class: 'grid3' },
-        field(t('v1.setQtyPresets'), presets),
-        field(t('v1.setDefaultSl'), num('defaultSl', s.defaultSl)),
-        field(t('v1.setDefaultTp'), num('defaultTp', s.defaultTp)),
+        field('v1.setQtyPresets', presets),
+        field('v1.setDefaultSl', num('defaultSl', s.defaultSl)),
+        field('v1.setDefaultTp', num('defaultTp', s.defaultTp)),
       ),
       el(
         'div',
         { class: 'row', style: 'margin-top:8px' },
-        row(check('confirmFlatten', s.confirmFlatten), t('v1.setConfirm')),
+        row(check('confirmFlatten', s.confirmFlatten), 'v1.setConfirm'),
       ),
-      el('h3', {}, t('v1.setStops')),
+      el('h3', { 'data-i18n': 'v1.setStops' }, t('v1.setStops')),
       el(
         'div',
         { class: 'grid3' },
-        field(t('v1.setBreakEven'), numN('breakEvenTicks', s.breakEvenTicks)),
-        field(t('v1.setBreakEvenOffset'), numN('breakEvenOffset', s.breakEvenOffset || null)),
-        field(t('v1.setTrail'), numN('trailTicks', s.trailTicks)),
+        field('v1.setBreakEven', numN('breakEvenTicks', s.breakEvenTicks)),
+        field('v1.setBreakEvenOffset', numN('breakEvenOffset', s.breakEvenOffset || null)),
+        field('v1.setTrail', numN('trailTicks', s.trailTicks)),
       ),
-      el('p', { class: 'muted small' }, t('v1.setStopsNote')),
+      el('p', { class: 'muted small', 'data-i18n': 'v1.setStopsNote' }, t('v1.setStopsNote')),
       el(
         'div',
         { class: 'row', style: 'margin-top:8px' },
-        row(check('previewBracket', s.previewBracket), t('v1.setPreview')),
-        row(check('magnet', s.magnet), t('v1.setMagnet')),
+        row(check('previewBracket', s.previewBracket), 'v1.setPreview'),
+        row(check('magnet', s.magnet), 'v1.setMagnet'),
       ),
-      el('h3', {}, t('v1.setHotkeys')),
+      el('h3', { 'data-i18n': 'v1.setHotkeys' }, t('v1.setHotkeys')),
       keyTable,
       el(
         'div',
@@ -253,11 +270,17 @@ export function mountProfiles(
   const picker = el('select', { name: 'ruleProfile', 'data-testid': 'ns-profile' });
   const fill = () => {
     const keep = picker.value;
-    picker.replaceChildren(el('option', { value: '' }, t('v1.profileNone')));
+    picker.replaceChildren(
+      el('option', { value: '', 'data-i18n': 'v1.profileNone' }, t('v1.profileNone')),
+    );
     for (const p of readProfiles()) picker.append(el('option', { value: p.id }, p.name));
     picker.value = readProfiles().some((p) => p.id === keep) ? keep : '';
   };
   const manager = new ProfileManager(() => fill());
+  onLocaleApplied(() => {
+    fill();
+    manager.render();
+  });
   container.append(manager.el);
   fill();
   // Picking a profile fills the engine rule fields of the form (still editable).
@@ -306,7 +329,6 @@ const LONG_DISCLOSURE: Record<'en' | 'zh-Hant', string[]> = {
 };
 
 export function mountRecommendations(aboutDialog: HTMLElement): void {
-  const lang = getLang() === 'zh-Hant' || getLang() === 'zh-Hans' ? 'zh-Hant' : 'en';
   const link = el(
     'a',
     {
@@ -315,21 +337,29 @@ export function mountRecommendations(aboutDialog: HTMLElement): void {
       rel: 'noopener noreferrer sponsored',
       class: 'button',
       'data-testid': 'referral-link',
+      'data-i18n': 'v1.linksOpen',
     },
     t('v1.linksOpen'),
   );
+  const body = el('div', { 'data-testid': 'disclosure-body' });
+  const fillDisclosure = () => {
+    const lang = getLang() === 'zh-Hant' || getLang() === 'zh-Hans' ? 'zh-Hant' : 'en';
+    body.replaceChildren(...LONG_DISCLOSURE[lang].map((p) => el('p', { class: 'small' }, p)));
+  };
+  fillDisclosure();
+  onLocaleApplied(fillDisclosure);
   const details = el(
     'details',
     { class: 'disclosure', 'data-testid': 'disclosure' },
-    el('summary', {}, t('v1.linksMore')),
-    ...LONG_DISCLOSURE[lang].map((p) => el('p', { class: 'small' }, p)),
-    el('p', { class: 'muted small' }, t('v1.linksUpdated')),
+    el('summary', { 'data-i18n': 'v1.linksMore' }, t('v1.linksMore')),
+    body,
+    el('p', { class: 'muted small', 'data-i18n': 'v1.linksUpdated' }, t('v1.linksUpdated')),
   );
   const section = el(
     'section',
     { id: 'affiliate', class: 'recommend', 'data-testid': 'recommendations' },
-    el('h3', {}, t('v1.links')),
-    el('p', { class: 'small' }, t('v1.linksShort')),
+    el('h3', { 'data-i18n': 'v1.links' }, t('v1.links')),
+    el('p', { class: 'small', 'data-i18n': 'v1.linksShort' }, t('v1.linksShort')),
     el('div', { class: 'row' }, link),
     details,
   );
@@ -340,7 +370,12 @@ export function mountRecommendations(aboutDialog: HTMLElement): void {
 export function mountFooterLink(footer: HTMLElement, about: HTMLDialogElement): void {
   const a = el(
     'a',
-    { href: '#affiliate', class: 'footer-recommend', 'data-testid': 'footer-recommend' },
+    {
+      href: '#affiliate',
+      class: 'footer-recommend',
+      'data-testid': 'footer-recommend',
+      'data-i18n': 'v1.links',
+    },
     t('v1.links'),
   );
   a.addEventListener('click', (e) => {
@@ -351,15 +386,18 @@ export function mountFooterLink(footer: HTMLElement, about: HTMLDialogElement): 
   footer.append(a);
 }
 
+/** Browser-build notice. Two spans so `applyI18n` can refresh each sentence. */
+export function browserNotice(): HTMLElement {
+  return el(
+    'p',
+    { class: 'notice small', 'data-testid': 'browser-notice' },
+    el('span', { 'data-i18n': 'v1.browserBuild' }, t('v1.browserBuild')),
+    ' ',
+    el('span', { 'data-i18n': 'v1.browserBlind' }, t('v1.browserBlind')),
+  );
+}
+
 export function mountBrowserNotice(container: HTMLElement): void {
   if (!BROWSER_BACKEND) return;
-  container.prepend(
-    el(
-      'p',
-      { class: 'notice small', 'data-testid': 'browser-notice' },
-      t('v1.browserBuild'),
-      ' ',
-      t('v1.browserBlind'),
-    ),
-  );
+  container.prepend(browserNotice());
 }

@@ -6,6 +6,13 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-10-24
+
+### Fixed
+
+- **Language switch keeps one language.** Browser notice, rule-profile buttons and “No rule profile”, About and footer recommendations, the third-party heading, an open Settings dialog, empty save points, and the OHLC legend all follow the selected locale. The legend updates immediately; it no longer waits for the next crosshair move. Settings text updates while the dialog is open.
+- **README live demo links.** The Traditional Chinese and English openings link to https://kinfxhk.github.io/candledrill/ with a visible URL, then the screenshot, then the risk notice.
+
 ## [1.0.7] - 2026-10-23
 
 ### Fixed
