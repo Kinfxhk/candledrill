@@ -194,6 +194,71 @@ test('short landscape: the rules chip keeps the chart and leaves the head contro
   }
 });
 
+test('leaving a short window reclamps an expanded strip off the OHLC legend', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext({
+    viewport: { width: 420, height: 352 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await ctx.newPage();
+  await page.goto('/');
+  await generateDemo(page);
+  const form = page.locator('#new-session-form');
+  await form.locator('input[name=dailyLoss]').fill('1000');
+  await form.locator('input[name=trailing]').fill('5000');
+  await form.locator('input[name=target]').fill('3000');
+  await form.locator('button[type=submit]').click();
+  await expect(page.locator('#practice-root')).toBeVisible();
+  const strip = page.locator('.chart-col [data-testid=rules-strip]');
+  const legend = page.locator('.chart-body [data-testid=ohlc-legend]');
+  await expect(strip).toHaveClass(/is-short-chip/);
+  await expect(legend).not.toBeEmpty();
+  const before = await page.evaluate(() => {
+    const stripEl = document.querySelector('.chart-col [data-testid=rules-strip]')!;
+    const legendEl = document.querySelector('.chart-body [data-testid=ohlc-legend]')!;
+    const sr = stripEl.getBoundingClientRect();
+    const lr = legendEl.getBoundingClientRect();
+    return { sx: sr.x, sy: sr.y, sh: sr.height, lx: lr.x, ly: lr.y, lw: lr.width };
+  });
+  expect(before.lw).toBeGreaterThan(8);
+  // Just above the legend, sharing its x. A wrapped metrics row grows down onto it.
+  const grip = (await page.getByTestId('rules-strip-drag').boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    grip.x + grip.width / 2 + (before.lx - before.sx),
+    grip.y + grip.height / 2 + (before.ly - before.sh - 8 - before.sy),
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect(strip).toHaveClass(/floating/);
+  await expect(page.getByTestId('rules')).toBeHidden();
+  await page.setViewportSize({ width: 420, height: 720 });
+  await expect(page.getByTestId('rules')).toBeVisible();
+  const covered = await page.evaluate(() => {
+    const stripEl = document.querySelector('.chart-col [data-testid=rules-strip]');
+    const legendEl = document.querySelector('.chart-body [data-testid=ohlc-legend]');
+    if (!stripEl || !legendEl) return true;
+    const a = stripEl.getBoundingClientRect();
+    const b = legendEl.getBoundingClientRect();
+    const hits =
+      a.width > 1 &&
+      b.width > 1 &&
+      a.height > 1 &&
+      b.height > 1 &&
+      a.x < b.x + b.width &&
+      a.x + a.width > b.x &&
+      a.y < b.y + b.height &&
+      a.y + a.height > b.y;
+    const at = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    return hits || (!!at && (at === stripEl || stripEl.contains(at)));
+  });
+  expect(covered, 'expanded strip stays off the OHLC legend').toBe(false);
+  await ctx.close();
+});
+
 test('phone landscape: a status banner and a toast never push or cover the trade bar', async ({
   browser,
 }) => {

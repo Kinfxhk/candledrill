@@ -305,8 +305,10 @@ export class RulesStrip {
   }
 
   private readonly onResize = (): void => {
-    this.reclamp();
+    // Fold or expand before measuring. Reclamping the stale size docks a float
+    // the chip would still fit, or leaves an expanded strip on the OHLC legend.
     this.paintToggle();
+    this.reclamp();
   };
 
   destroy(): void {
