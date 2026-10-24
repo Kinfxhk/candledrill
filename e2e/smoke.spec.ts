@@ -68,16 +68,37 @@ test('replay and bracket order flow', async ({ page }) => {
   await page.locator('#lang-picker').selectOption('zh-Hant');
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hant');
 
-  // v1: ticket and position first so trading never needs a scroll; rule check, practice
-  // rules, save points and drawings follow.
+  // Rail keeps the ticket, position, save points and drawings. Practice rules are the
+  // strip above the chart; the full rule check is a bottom tab, not a side card.
   await expect(page.getByTestId('side').locator('h3')).toHaveText([
     '落單',
     '持倉',
-    '規則檢查',
-    '練習規則',
     '存檔點',
     '繪圖物件',
   ]);
+  await expect(page.getByTestId('tab-rulecheck')).toHaveText('規則檢查');
+  const strip = page.getByTestId('rules-strip');
+  await expect(strip).toBeVisible();
+  await expect(strip).toHaveAttribute('aria-label', '練習規則');
+  await expect(strip).toHaveClass(/docked/);
+  await expect(page.getByTestId('rules')).toContainText('這個練習沒有設定規則');
+  const beforeBox = (await strip.boundingBox())!;
+  const grip = page.getByTestId('rules-strip-drag');
+  const gripBox = (await grip.boundingBox())!;
+  const chart = (await page.locator('.chart-body').first().boundingBox())!;
+  await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(chart.x + chart.width * 0.72, chart.y + chart.height * 0.35, {
+    steps: 8,
+  });
+  await page.mouse.up();
+  await expect(strip).toHaveClass(/floating/);
+  const floated = (await strip.boundingBox())!;
+  expect(floated.x, 'drag moves the strip').toBeGreaterThan(beforeBox.x + 40);
+  expect(floated.y, 'drag moves the strip down').toBeGreaterThan(beforeBox.y + 40);
+  await grip.dblclick();
+  await expect(strip).toHaveClass(/docked/);
+  await expect(strip).not.toHaveClass(/floating/);
   await expect(page.getByTestId('macro-open')).toHaveText('半自動');
   await page.getByTestId('macro-open').click();
   await expect(page.getByTestId('tab-macro')).toHaveAttribute('aria-selected', 'true');
