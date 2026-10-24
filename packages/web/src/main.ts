@@ -22,6 +22,7 @@ import {
 } from './v1.js';
 import { sessionStatusText } from './labels.js';
 import { LibraryView } from './library.js';
+import { markCountdownPending } from './countdown.js';
 import { PracticeView } from './practice.js';
 import { el, fmtTime, fromLocalInput, toast } from './format.js';
 import { loadBackup, shouldRemind } from './reminder.js';
@@ -127,6 +128,8 @@ async function createSession(ds: DatasetRow, form: HTMLFormElement): Promise<voi
     });
     setSessionProfile(view.session.id, pickedProfile());
     noteChange();
+    // First open of this new session counts down, then Play. Reopening it does not.
+    markCountdownPending(view.session.id);
     await openSession(view.session.id);
   } catch (err) {
     toast((err as Error).message, 'error');
