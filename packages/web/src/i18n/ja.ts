@@ -391,6 +391,8 @@ export const ja: Record<MessageKey, string> = {
   'pr.slPrice': 'ストップ価格',
   'pr.tpPrice': 'テイクプロフィット価格',
   'pr.rules': '練習ルール',
+  'pr.rulesDrag': '練習ルールをドラッグ',
+  'pr.rulesToggle': '練習ルールの表示を切り替える',
   'pr.noRules': 'この練習にはルールが設定されていません。',
   'pr.dailyLoss': '使用済み日次損失',
   'pr.trailing': '使用済みトレーリング',

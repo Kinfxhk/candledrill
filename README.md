@@ -10,7 +10,7 @@
 
 <sub>所有截圖使用產生的 `SYNTH-` 示範資料，並非真實市價。</sub>
 
-> **v1.0.8** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> **v1.0.9** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 完整教學（v0.2 實測稿）：[docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -43,11 +43,11 @@ npm start
 
 ## 三種版面
 
-| 裝置                      | 版面                                                                                                                                                                                              |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 桌面（≥ 1200px）          | 圖表佔大部分畫面；右欄由上至下：落單、持倉、規則檢查、練習規則、存檔點、繪圖物件；底部面板平時收成一條分頁列。                                                                                    |
-| 平板橫放（900–1199px）    | 右欄收窄，仍與圖表並排。                                                                                                                                                                          |
-| 平板直放、手機（< 900px） | 圖表優先；右欄變側邊抽屜（按「面板」）；底部固定交易列：退後／播放（播放中變暫停）／下一根／+10，沽出／數量／買入／平倉。任何面板（抽屜、交易分頁、指標、畫圖工具）撳外面即收起，畫面不用左右掃。 |
+| 裝置                      | 版面                                                                                                                                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 桌面（≥ 1200px）          | 圖表佔大部分畫面；工具列下、圖表上有一條可收起可拖曳的練習規則細條（每日虧損、目標、追蹤）。右欄由上至下：落單、持倉、存檔點、繪圖物件。完整規則檢查在底部分頁，不再佔右欄大卡。底部面板平時收成一條分頁列。 |
+| 平板橫放（900–1199px）    | 右欄收窄，仍與圖表並排。                                                                                                                                                                                     |
+| 平板直放、手機（< 900px） | 圖表優先；右欄變側邊抽屜（按「面板」）；底部固定交易列：退後／播放（播放中變暫停）／下一根／+10，沽出／數量／買入／平倉。任何面板（抽屜、交易分頁、指標、畫圖工具）撳外面即收起，畫面不用左右掃。            |
 
 ![手機版：大圖表與底部交易列](docs/shot-phone.png)
 
@@ -108,9 +108,9 @@ npm start
 | 最多合約數、須於某時間前平倉、不可隔夜 | 按持倉期間計算，記錄違反時間                         |
 | 每日最多交易、最多連續虧損             | 按已平倉交易計算                                     |
 
-開新練習時選擇規則檔，表單會自動填入；練習時右欄 **規則檢查** 即時顯示每條規則「已達成／未觸及／未達成／已違反」及違反時間。評估規則只讀已揭示的成交與交易，**不改變成交**；獨立的 Python 驗證程式會重新計算每條規則。
+開新練習時選擇規則檔，表單會自動填入。練習中每日虧損、目標與追蹤回撤在圖表上方的細條；完整 **規則檢查**（已達成／未觸及／未達成／已違反，及違反時間）在底部分頁，練習時不再佔右欄大卡。規則檔仍在資料庫頁編輯。評估規則只讀已揭示的成交與交易，**不改變成交**；獨立的 Python 驗證程式會重新計算每條規則。
 
-![規則檢查卡：每條規則的狀態與進度](docs/shot-rules.png)
+![規則檢查：每條規則的狀態與進度（底部分頁）](docs/shot-rules.png)
 
 <sub>**規則檢查** — 合成 `SYNTH-` 示範資料。</sub>
 
@@ -273,7 +273,7 @@ Phone, tablet or desktop browser. No install, no sign-in. Your data stays in you
 
 <sub>All screenshots use generated `SYNTH-` demo data, not real market prices.</sub>
 
-> **v1.0.8** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v1.0.9** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 Traditional Chinese guide (v0.2 field notes): [docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -310,11 +310,11 @@ Open <http://127.0.0.1:4870/> on this machine. Data stays in `~/.candledrill/`. 
 
 ## Three layouts
 
-| Device                           | Layout                                                                                                                                                                                                                                                                         |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Desktop (≥ 1200px)               | Chart takes most of the screen; the rail holds, top to bottom: order ticket, position, rule check, practice rules, save points, drawings; the bottom panel folds to a tab strip.                                                                                               |
-| Tablet landscape (900–1199px)    | Narrower rail, still beside the chart.                                                                                                                                                                                                                                         |
-| Tablet portrait, phone (< 900px) | Chart first; the rail is a drawer (**Panel**); a sticky trade bar: back / play (shows pause while playing) / next / +10, sell / qty / buy / close. Any panel (drawer, bottom tabs, indicators, draw tools) closes when you tap outside it, and nothing needs a sideways swipe. |
+| Device                           | Layout                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Desktop (≥ 1200px)               | Chart takes most of the screen. A thin strip under the toolbar (above the chart) shows daily loss, target, and trailing; it collapses to a chip and can be dragged without covering OHLC or the order ticket. The rail holds, top to bottom: order ticket, position, save points, drawings. The full rule check is a bottom tab, not a side card. The bottom panel folds to a tab strip. |
+| Tablet landscape (900–1199px)    | Narrower rail, still beside the chart.                                                                                                                                                                                                                                                                                                                                                   |
+| Tablet portrait, phone (< 900px) | Chart first; the rail is a drawer (**Panel**); a sticky trade bar: back / play (shows pause while playing) / next / +10, sell / qty / buy / close. Any panel (drawer, bottom tabs, indicators, draw tools) closes when you tap outside it, and nothing needs a sideways swipe.                                                                                                           |
 
 ## What you can do
 
@@ -355,7 +355,7 @@ Create rules on the Library's **Rule profiles** card. CandleDrill **ships no fir
 | Max contracts, flat by a time, no overnight             | From the open position over time, with the time of a break           |
 | Max trades per day, max losing streak                   | From closed trades                                                   |
 
-Pick a profile when you start a session and the form fills in; the **Rule check** on the rail shows each rule as met / within limit / not yet / broken, with when. Evaluation rules read revealed fills and trades only and **never change fills**; an independent Python oracle recomputes every rule.
+Pick a profile when you start a session and the form fills in. During practice, daily loss, target, and trailing sit on a thin strip above the chart. The full **Rule check** (met / within limit / not yet / broken, with when) is a bottom tab, not a side card. Edit profiles on the Library card. Evaluation rules read revealed fills and trades only and **never change fills**; an independent Python oracle recomputes every rule.
 
 ### Review
 

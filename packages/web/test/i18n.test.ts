@@ -34,6 +34,7 @@ describe('i18n', () => {
       'src/summary.ts',
       'src/v1.ts',
       'src/rules-view.ts',
+      'src/rules-strip.ts',
       'src/settings.ts',
       'src/review-tab.ts',
     ];

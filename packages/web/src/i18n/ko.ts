@@ -388,6 +388,8 @@ export const ko: Record<MessageKey, string> = {
   'pr.slPrice': '스톱 가격',
   'pr.tpPrice': '테이크프로핏 가격',
   'pr.rules': '연습 규칙',
+  'pr.rulesDrag': '연습 규칙 드래그',
+  'pr.rulesToggle': '연습 규칙 표시 또는 숨기기',
   'pr.noRules': '이 연습에는 규칙이 설정되지 않았습니다.',
   'pr.dailyLoss': '사용된 일일 손실',
   'pr.trailing': '사용된 트레일링',

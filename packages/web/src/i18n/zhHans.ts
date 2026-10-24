@@ -382,6 +382,8 @@ export const zhHans: Record<MessageKey, string> = {
   'pr.slPrice': '止损价',
   'pr.tpPrice': '止盈价',
   'pr.rules': '练习规则',
+  'pr.rulesDrag': '拖动练习规则',
+  'pr.rulesToggle': '显示或收起练习规则',
   'pr.noRules': '这个练习没有设定规则。',
   'pr.dailyLoss': '每日亏损已用',
   'pr.trailing': '追踪回撤已用',

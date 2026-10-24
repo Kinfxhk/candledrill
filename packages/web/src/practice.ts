@@ -49,6 +49,7 @@ import { getLang, t, type MessageKey } from './i18n.js';
 import { statusReasonText } from './labels.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 import { RulesView } from './rules-view.js';
+import { RulesStrip } from './rules-strip.js';
 import { reviewTab } from './review-tab.js';
 import {
   getSettings,
@@ -185,6 +186,7 @@ export class PracticeView {
   private undo: SessionStateDto[] = [];
   private checkpoints: Checkpoint[] = [];
   private rulesView: RulesView | undefined;
+  private rulesStrip: RulesStrip | undefined;
   private unsubscribeSettings: (() => void) | undefined;
 
   constructor(private readonly onChanged: () => void = () => {}) {
@@ -279,6 +281,8 @@ export class PracticeView {
     this.undo = [];
     this.checkpoints = [];
     this.rulesView = undefined;
+    this.rulesStrip?.destroy();
+    this.rulesStrip = undefined;
     this.unsubscribeSettings?.();
     this.unsubscribeSettings = undefined;
     overlays.closeAll();
@@ -425,8 +429,11 @@ export class PracticeView {
       sheetBtn,
     );
     const charts = el('div', { class: 'charts', 'data-testid': 'charts' });
+    const chartCol = el('div', { class: 'chart-col' });
+    this.rulesStrip = new RulesStrip(chartCol);
+    chartCol.append(charts);
     const side = el('aside', { class: 'side', 'data-testid': 'side' });
-    const workspace = el('div', { class: 'workspace' }, charts, side);
+    const workspace = el('div', { class: 'workspace' }, chartCol, side);
     const bottom = el('div', { class: 'bottom', 'data-testid': 'bottom' });
     const summary = el('section', {
       class: 'completion-summary',
@@ -486,7 +493,6 @@ export class PracticeView {
       ticketChanged: () => this.decorate(),
       closeSheet: () => this.setSheet(false),
     });
-    this.side.extra.prepend(this.rulesView.el);
     this.side.extra.append(
       this.checkpointCard!,
       el(
@@ -520,6 +526,16 @@ export class PracticeView {
         panel.replaceChildren(this.side!.ordersSection);
       },
     };
+    // Full profile check used to be a side card. It stays available as a tab;
+    // profiles are still edited on the library card.
+    const rulesTab: BottomTab = {
+      key: 'v1.rulesPanel',
+      id: 'rulecheck',
+      persistent: true,
+      render: (panel) => {
+        panel.replaceChildren(this.rulesView!.el);
+      },
+    };
     const macroTab: BottomTab = {
       key: 'macro.title',
       id: 'macro',
@@ -534,6 +550,7 @@ export class PracticeView {
       [
         tradesTab,
         ordersTab,
+        rulesTab,
         macroTab,
         journalTab,
         statsTab,
@@ -1835,6 +1852,7 @@ export class PracticeView {
     // Ticket first: the chart's bracket preview reads the ticket's current last close.
     this.side?.render(this.meta.settings, this.state);
     this.decorate();
+    this.rulesStrip?.render(this.engineSettings(), this.state);
     this.rulesView?.render(this.engineSettings(), this.state, this.cursorTime);
     this.renderPnl();
     const back = this.els.back as HTMLButtonElement | undefined;
