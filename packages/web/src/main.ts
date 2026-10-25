@@ -24,7 +24,7 @@ import { sessionStatusText } from './labels.js';
 import { LibraryView } from './library.js';
 import { markCountdownPending } from './countdown.js';
 import { PracticeView } from './practice.js';
-import { el, fmtTime, fromLocalInput, toast } from './format.js';
+import { deleteIconButton, el, fmtTime, fromLocalInput, toast } from './format.js';
 import { loadBackup, shouldRemind } from './reminder.js';
 import {
   dismissForVersion,
@@ -243,7 +243,7 @@ async function renderSessions(): Promise<void> {
         t('lib.open'),
       );
       open.addEventListener('click', () => void openSession(s.id));
-      const del = el('button', { type: 'button', class: 'small ghost' }, t('lib.delete'));
+      const del = deleteIconButton(`${t('lib.delete')} ${s.name}`, `delete-session-${s.id}`);
       del.addEventListener('click', async () => {
         if (!confirm(t('lib.delete') + '?')) return;
         await sessionsApi.remove(s.id);

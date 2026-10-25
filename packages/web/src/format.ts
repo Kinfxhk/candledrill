@@ -74,6 +74,35 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return e;
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * Red ✕ used on the Library page. The visible control is the icon; `ariaLabel`
+ * is the accessible name (Delete / 刪除 plus the item name).
+ */
+export function deleteIconButton(ariaLabel: string, testId?: string): HTMLButtonElement {
+  const attrs: Record<string, string> = {
+    type: 'button',
+    class: 'icon-delete',
+    'aria-label': ariaLabel,
+  };
+  if (testId) attrs['data-testid'] = testId;
+  const btn = el('button', attrs);
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', 'M4 4 L20 20 M20 4 L4 20');
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '3');
+  path.setAttribute('stroke-linecap', 'round');
+  svg.append(path);
+  btn.append(svg);
+  return btn;
+}
+
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 export function toast(message: string, kind: 'info' | 'error' = 'info'): void {
   document.querySelector('.toast')?.remove();

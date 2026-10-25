@@ -5,7 +5,7 @@ import { formingSourceSeconds, pairedPracticeTimeframe } from '@candledrill/core
 import { api, ApiError, type DatasetRow } from './api.js';
 import { PriceChart } from './chart.js';
 import { t } from './i18n.js';
-import { el, fmtTime, tfLabel, toast } from './format.js';
+import { deleteIconButton, el, fmtTime, tfLabel, toast } from './format.js';
 
 /** Practice TF plus its forming source when the dataset is an exact forming pair. */
 function datasetTfLabel(seconds: number): string {
@@ -100,11 +100,7 @@ export class LibraryView {
     document.getElementById('dataset-empty')!.hidden = this.datasets.length > 0;
     this.list.replaceChildren(
       ...this.datasets.map((d) => {
-        const del = el(
-          'button',
-          { type: 'button', class: 'small ghost', 'aria-label': `${t('lib.delete')} ${d.name}` },
-          t('lib.delete'),
-        );
+        const del = deleteIconButton(`${t('lib.delete')} ${d.name}`, `delete-dataset-${d.id}`);
         del.addEventListener('click', async (ev) => {
           ev.stopPropagation();
           if (!confirm(t('lib.confirmDelete'))) return;
@@ -122,7 +118,7 @@ export class LibraryView {
           },
           el(
             'div',
-            { class: 'row' },
+            { class: 'row dataset-head' },
             el('span', { class: 'title' }, d.name),
             el(
               'span',
