@@ -109,6 +109,39 @@ button.small {
   padding: 2px 7px;
   font-size: 12px;
 }
+/* Library delete: red ✕, 44px hit target, icon centered. Not the gray ghost text button. */
+button.icon-delete {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: color-mix(in srgb, var(--down) 14%, transparent);
+  border-color: transparent;
+  color: var(--down);
+  border-radius: 8px;
+  touch-action: manipulation;
+}
+button.icon-delete svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+button.icon-delete:hover:not(:disabled),
+button.icon-delete:focus-visible {
+  background: color-mix(in srgb, var(--down) 24%, transparent);
+  border-color: transparent;
+  color: var(--down);
+}
+button.icon-delete:active:not(:disabled) {
+  background: color-mix(in srgb, var(--down) 36%, transparent);
+  border-color: transparent;
+}
 input,
 select {
   background: var(--bg);
@@ -315,6 +348,19 @@ table.data th.num {
 }
 .dataset-list .title {
   font-weight: 600;
+}
+/* Keep the ✕ on the title row. A wrapping row dropped the old text button onto the next line. */
+.dataset-list .dataset-head {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.dataset-list .dataset-head .title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dataset-list .dataset-head .badge,
+.dataset-list .dataset-head .icon-delete {
+  flex: none;
 }
 .preview-chart {
   height: 380px;

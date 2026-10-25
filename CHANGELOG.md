@@ -6,9 +6,19 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-10-25
+
+### Changed
+
+- **Library delete.** Dataset cards and practice-record rows use a red ✕ instead of the gray Delete text button. The hit area is 44×44; the accessible name is still Delete plus the item name. The confirm step is unchanged.
+
 ### Fixed
 
 - **Practice countdown.** Leaving Practice during 3→2→1 cancels the intro instead of starting Play in the background. Tab stays on Skip; Play, Step, and the order ticket under the overlay do not take focus.
+
+### Not in this version
+
+- Fill model stays v4. `FORMING_PARTS` and forming candles are unchanged.
 
 ## [1.0.10] - 2026-10-24
 
