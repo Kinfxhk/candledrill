@@ -6,6 +6,18 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.12] - 2026-10-25
+
+### Added
+
+- **Practice playback.** Previous bar (Down arrow) steps back one practice bar. The toolbar shows Playing, Paused, or Ended, with the speed while playing. Right-click a candle (long-press on a phone) and choose Replay from this bar, or jump to a time at or before the cursor: bars after that point stay hidden. The new key can be rebound in Settings.
+- **Stop and target on the chart.** After a position is open, drag the SL / TP marker to change that protective order's price. The marker shows the tick distance from the last close. Phones use a 44px target.
+
+### Not in this version
+
+- Fill model stays v4. `FORMING_PARTS` and forming candles are unchanged. Dragging a marker uses the existing modify-order path.
+- One-bar step-back and replay-from remember states from this open page only. A forward jump longer than 6000 source bars keeps the two ends, so one-bar step-back through that jump is unavailable; Back still undoes the whole jump. A history tail that is not a full prefix cannot step back one bar. Blind sessions keep step-back and replay-from off until reveal. Dragging does not create a bracket; the flat `SL?` / `TP?` preview is unchanged.
+
 ## [1.0.11] - 2026-10-25
 
 ### Changed

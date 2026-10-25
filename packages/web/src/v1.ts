@@ -21,6 +21,7 @@ import type { MessageKey } from './i18n.js';
 
 const KEY_LABELS: Record<HotkeyAction, MessageKey> = {
   step: 'pr.step',
+  barBack: 'pr.barBack',
   back: 'v1.rewind',
   play: 'pr.play',
   buy: 'pr.buy',
