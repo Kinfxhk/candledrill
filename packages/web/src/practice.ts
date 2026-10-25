@@ -9,7 +9,13 @@ import {
   BarAggregator,
   aggregateBars,
   bucketStart,
+  forgetTapeAfter,
   macroSignal,
+  noteTape,
+  practiceFrames,
+  previousPracticeCursor,
+  replayCursorForBarTime,
+  tapeAtOrBefore,
   practiceChartTimeframes,
   roundToTick,
   workingOrders,
@@ -186,6 +192,14 @@ export class PracticeView {
   static extraTabs: BottomTab[] = [];
   /** Engine states before each action, newest last (rewind). */
   private undo: SessionStateDto[] = [];
+  /**
+   * Engine state at each practice-bar cursor visited while this page is open.
+   * Step-back and "replay from here" restore one of these. They are not fills:
+   * each entry was produced by stepSession or by the server.
+   */
+  private tape = new Map<number, SessionStateDto>();
+  private barMenu: HTMLElement | undefined;
+  private barMenuCloser: ((ev: Event) => void) | undefined;
   private checkpoints: Checkpoint[] = [];
   private rulesView: RulesView | undefined;
   private rulesStrip: RulesStrip | undefined;
@@ -286,6 +300,8 @@ export class PracticeView {
     this.bottom = undefined;
     this.reviewingTradeId = undefined;
     this.undo = [];
+    this.tape.clear();
+    this.closeBarMenu();
     this.checkpoints = [];
     this.rulesView = undefined;
     this.rulesStrip?.destroy();
@@ -332,6 +348,10 @@ export class PracticeView {
     const back = btn('v1.rewind', '', 'btn-back');
     back.title = t('v1.rewindTitle');
     back.addEventListener('click', () => void this.rewind());
+    const barBack = btn('pr.barBack', '', 'btn-bar-back');
+    barBack.dataset.i18nTitle = 'pr.barBackTitle';
+    barBack.title = t('pr.barBackTitle');
+    barBack.addEventListener('click', () => void this.stepBackBar());
     const saveCp = btn('v1.checkpoint', 'ghost', 'btn-checkpoint');
     saveCp.addEventListener('click', () => this.addCheckpoint());
     this.pnlChip = el('span', { class: 'pnl-chip num', 'data-testid': 'pnl-chip' });
@@ -362,6 +382,12 @@ export class PracticeView {
     });
     const jumpBtn = btn('pr.go', '', 'btn-jump');
     const clock = el('span', { class: 'clock', 'data-testid': 'clock' });
+    const replayState = el('span', {
+      class: 'replay-state',
+      role: 'status',
+      'data-testid': 'replay-state',
+      'aria-live': 'polite',
+    });
     const split = btn('pr.split', '', 'btn-split');
     split.setAttribute('aria-pressed', 'false');
     const link = el('label', { class: 'row muted' });
@@ -413,6 +439,7 @@ export class PracticeView {
         'div',
         { class: 'replay', role: 'group', 'aria-label': t('pr.play') },
         back,
+        barBack,
         play,
         step,
         step10,
@@ -431,6 +458,7 @@ export class PracticeView {
       el('span', { class: 'sep tb-wide' }),
       el('span', { class: 'tb-wide row' }, split, link),
       el('span', { class: 'spacer' }),
+      replayState,
       clock,
       this.pnlChip!,
       sheetBtn,
@@ -483,10 +511,13 @@ export class PracticeView {
       jumpLabel,
       link,
       back,
+      barBack,
+      replayState,
       saveCp,
       sheetBtn,
       // Set while building the trade bar above; keep it (this literal replaces this.els).
       ...(this.els.tbPlay ? { tbPlay: this.els.tbPlay } : {}),
+      ...(this.els.tbBarBack ? { tbBarBack: this.els.tbBarBack } : {}),
     };
     split.addEventListener('click', () => this.toggleSplit());
     this.rulesView = new RulesView();
@@ -894,6 +925,10 @@ export class PracticeView {
     );
     chart.onDrawingDelete((id) => this.deleteDrawing(id));
     chart.onOrderLineDrag((orderId, price) => this.modifyOrderPrice(orderId, price));
+    chart.onBarContext((c) => {
+      if (c.time === null) return;
+      this.openBarMenu(c.clientX, c.clientY, c.time, pane.tf);
+    });
     // Crosshair always follows across charts; the time axis follows when "Link charts" is on.
     chart.onCrosshair((time) => {
       for (const o of this.panes)
@@ -1220,9 +1255,9 @@ export class PracticeView {
 
   // ---------------------------------------------------------------- rewind / save points
   private async restore(state: SessionStateDto): Promise<boolean> {
-    this.cancelPresent();
     if (!this.meta || this.inFlight) return false;
     const generation = this.generation;
+    this.cancelPresent();
     this.pause();
     this.inFlight = true;
     try {
@@ -1231,6 +1266,7 @@ export class PracticeView {
       this.claimView();
       this.bars = r.bars;
       this.applyView(r);
+      if (this.state) forgetTapeAfter(this.tape, this.state.cursor);
       this.resetCharts();
       return true;
     } catch (err) {
@@ -1246,6 +1282,129 @@ export class PracticeView {
     const prev = this.undo.pop();
     if (!prev) return toast(t('v1.rewindNone'));
     if (!(await this.restore(prev))) this.undo.push(prev);
+  }
+
+  /** Hide the latest practice bar and put the book back to the state that left it. */
+  async stepBackBar(): Promise<void> {
+    if (!this.meta || !this.state) return;
+    if (this.blindHidden) return toast(t('v1.rewindBlind'));
+    if (this.inFlight) return toast(t('pr.busy'));
+    if (!this.barsAligned()) return toast(t('pr.barBackNone'));
+    const prev = previousPracticeCursor(this.bars, this.state.cursor, this.meta.settings);
+    if (prev === null) return toast(t('pr.barBackNone'));
+    const snap = this.tape.get(prev);
+    if (!snap || snap.cursor >= this.state.cursor) return toast(t('pr.barBackNone'));
+    await this.restore(snap);
+  }
+
+  /**
+   * Move the cursor to the chart candle that contains `barTime` and hide everything after it.
+   * The book is a snapshot from this visit, not a new fill pass.
+   */
+  private async replayFromBar(barTime: number, barSeconds: number): Promise<void> {
+    if (!this.meta || !this.state) return;
+    if (this.blindHidden) return toast(t('v1.rewindBlind'));
+    if (this.inFlight) return toast(t('pr.busy'));
+    if (!this.barsAligned()) return toast(t('pr.replayMissing'));
+    const idx = replayCursorForBarTime(
+      this.bars,
+      this.state.cursor,
+      barTime,
+      barSeconds,
+      this.aggOpts(),
+    );
+    if (idx === null) return toast(t('pr.replayMissing'));
+    const opts = this.aggOpts();
+    const bucket = bucketStart(this.bars[idx]!.time, barSeconds, opts);
+    let snap = this.tape.get(idx) ?? null;
+    if (!snap) {
+      const near = tapeAtOrBefore(this.tape, idx);
+      if (
+        near &&
+        near.cursor < this.bars.length &&
+        bucketStart(this.bars[near.cursor]!.time, barSeconds, opts) === bucket
+      )
+        snap = near;
+    }
+    if (!snap) return toast(t('pr.replayMissing'));
+    if (snap.cursor === this.state.cursor) return toast(t('pr.replayHereNow'));
+    await this.restore(snap);
+  }
+
+  private barsAligned(): boolean {
+    return !!this.state && this.bars.length > 0 && this.bars.length - 1 === this.state.cursor;
+  }
+
+  /** Slice a multi-bar step into practice-bar states when the local replay matches the server. */
+  private recordAdvance(before: SessionStateDto, after: SessionStateDto): void {
+    if (!this.meta) return;
+    noteTape(this.tape, before);
+    const aligned =
+      this.bars.length - 1 === after.cursor &&
+      before.cursor >= 0 &&
+      before.cursor < this.bars.length &&
+      before.cursor < after.cursor;
+    if (aligned) {
+      const frames = practiceFrames(this.bars, this.meta.settings, before, after.cursor);
+      const last = frames.at(-1);
+      if (
+        last &&
+        last.cursor === after.cursor &&
+        last.status === after.status &&
+        last.trading.nextId === after.trading.nextId &&
+        last.trading.fills.length === after.trading.fills.length
+      ) {
+        for (const frame of frames) noteTape(this.tape, frame);
+      }
+    }
+    noteTape(this.tape, after);
+  }
+
+  private canStepBackBar(): boolean {
+    if (!this.state || !this.meta || this.blindHidden || !this.barsAligned()) return false;
+    const prev = previousPracticeCursor(this.bars, this.state.cursor, this.meta.settings);
+    return prev !== null && this.tape.has(prev);
+  }
+
+  private openBarMenu(clientX: number, clientY: number, time: number, barSeconds: number): void {
+    this.closeBarMenu();
+    if (this.intro || this.drawMode !== null || this.blindHidden) return;
+    const go = el(
+      'button',
+      {
+        type: 'button',
+        'data-testid': 'replay-from-here',
+        'data-i18n': 'pr.replayHere',
+      },
+      t('pr.replayHere'),
+    );
+    go.addEventListener('click', () => {
+      this.closeBarMenu();
+      void this.replayFromBar(time, barSeconds);
+    });
+    const menu = el('div', { class: 'bar-menu', role: 'menu', 'data-testid': 'bar-menu' }, go);
+    menu.style.left = `${Math.max(8, clientX)}px`;
+    menu.style.top = `${Math.max(8, clientY)}px`;
+    document.body.append(menu);
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8)
+      menu.style.left = `${Math.max(8, window.innerWidth - rect.width - 8)}px`;
+    if (rect.bottom > window.innerHeight - 8)
+      menu.style.top = `${Math.max(8, window.innerHeight - rect.height - 8)}px`;
+    this.barMenu = menu;
+    const closer = (ev: Event) => {
+      if (menu.contains(ev.target as Node)) return;
+      this.closeBarMenu();
+    };
+    this.barMenuCloser = closer;
+    setTimeout(() => document.addEventListener('pointerdown', closer, true), 0);
+  }
+
+  private closeBarMenu(): void {
+    if (this.barMenuCloser) document.removeEventListener('pointerdown', this.barMenuCloser, true);
+    this.barMenuCloser = undefined;
+    this.barMenu?.remove();
+    this.barMenu = undefined;
   }
 
   private checkpointList: HTMLElement | undefined;
@@ -1467,6 +1626,19 @@ export class PracticeView {
       '|◀',
     );
     back.addEventListener('click', () => void this.rewind());
+    const barBack = el(
+      'button',
+      {
+        type: 'button',
+        'aria-label': t('pr.barBackTitle'),
+        'data-i18n-aria': 'pr.barBackTitle',
+        'data-testid': 'tb-bar-back',
+        title: t('pr.barBackTitle'),
+      },
+      '◀|',
+    );
+    barBack.addEventListener('click', () => void this.stepBackBar());
+    this.els.tbBarBack = barBack;
     const next = el(
       'button',
       { type: 'button', 'aria-label': t('pr.step'), 'data-testid': 'tb-step' },
@@ -1493,7 +1665,7 @@ export class PracticeView {
     return el(
       'div',
       { class: 'trade-bar', 'data-testid': 'trade-bar' },
-      el('div', { class: 'tb-replay' }, back, playBtn, next, ten, speed),
+      el('div', { class: 'tb-replay' }, back, barBack, playBtn, next, ten, speed),
       el(
         'div',
         { class: 'tb-order' },
@@ -1524,6 +1696,7 @@ export class PracticeView {
     if (view.state.status !== 'active' && this.state?.status !== view.state.status) this.pause();
     this.state = view.state;
     this.cursorTime = view.cursorTime;
+    noteTape(this.tape, view.state);
     this.render();
   }
 
@@ -1581,6 +1754,7 @@ export class PracticeView {
       this.claimView();
       if (before && !this.blindHidden) this.pushUndoState(before);
       this.pushBars(r.revealed);
+      if (before) this.recordAdvance(before, r.state);
       this.applyView(r);
       if (generation !== this.generation) return;
       this.presentChart(r.revealed);
@@ -1670,7 +1844,6 @@ export class PracticeView {
   }
 
   private async jump(): Promise<void> {
-    this.flushPresent();
     if (!this.meta || this.inFlight) return;
     const generation = this.generation;
     const id = this.meta.id;
@@ -1679,6 +1852,15 @@ export class PracticeView {
       this.meta.settings.utcOffsetMinutes,
     );
     if (!Number.isFinite(time)) return;
+    // A time at or before the cursor replays from that bar (future hidden).
+    if (this.state && time <= this.cursorTime) {
+      this.cancelPresent();
+      const tf = this.meta.settings.practiceTimeframeSeconds ?? this.baseTf;
+      await this.replayFromBar(time, tf);
+      return;
+    }
+    this.flushPresent();
+    const before = this.state;
     this.pause();
     this.inFlight = true;
     try {
@@ -1690,6 +1872,7 @@ export class PracticeView {
       }
       this.claimView();
       this.appendBars(r.revealed);
+      if (before) this.recordAdvance(before, r.state);
       this.applyView(r);
       for (const p of this.panes) p.chart.scrollToEnd();
     } catch (err) {
@@ -1788,6 +1971,18 @@ export class PracticeView {
       tb.setAttribute('aria-pressed', String(this.playing));
       tb.classList.toggle('playing', this.playing);
     }
+    this.renderReplayState();
+  }
+
+  private renderReplayState(): void {
+    const node = this.els.replayState;
+    if (!node) return;
+    const ended = this.state?.status === 'finished';
+    const mode = this.playing ? 'playing' : ended ? 'ended' : 'paused';
+    node.dataset.state = mode;
+    node.textContent = this.playing
+      ? `${t('pr.replayStatePlaying')} · ${this.speed}×`
+      : t(mode === 'ended' ? 'pr.replayStateEnded' : 'pr.replayStatePaused');
   }
 
   // ---------------------------------------------------------------- render
@@ -1804,6 +1999,8 @@ export class PracticeView {
         title: `${o.role === 'entry' ? o.type : o.role === 'stop-loss' ? 'SL' : 'TP'} ${o.side === 'buy' ? '+' : '-'}${o.qty}`,
         dashed: true,
         orderId: o.id,
+        role: o.role,
+        reference: tr.lastClose,
       }));
     if (tr.position) {
       lines.push({
@@ -1870,7 +2067,11 @@ export class PracticeView {
       this.els.reveal!.hidden = true;
     } else rb.hidden = true;
     const ji = this.els.jumpInput as HTMLInputElement;
-    if (!ji.value || fromLocalInput(ji.value, off) <= this.cursorTime)
+    // Leave a focused field alone so a past time can be submitted as "replay from here".
+    if (
+      document.activeElement !== ji &&
+      (!ji.value || fromLocalInput(ji.value, off) <= this.cursorTime)
+    )
       ji.value = toLocalInput(this.cursorTime + 3600, off);
     this.els.summary?.setAttribute('aria-label', t('summary.title'));
     this.summary?.update(this.meta.settings, this.state, this.meta.id);
@@ -1899,6 +2100,15 @@ export class PracticeView {
     this.renderPnl();
     const back = this.els.back as HTMLButtonElement | undefined;
     if (back) back.disabled = this.blindHidden || this.undo.length === 0;
+    const allowBar = this.canStepBackBar();
+    const barBack = this.els.barBack as HTMLButtonElement | undefined;
+    if (barBack) barBack.disabled = !allowBar;
+    const tbBar = this.els.tbBarBack as HTMLButtonElement | undefined;
+    if (tbBar) {
+      tbBar.disabled = !allowBar;
+      tbBar.setAttribute('aria-label', t('pr.barBackTitle'));
+    }
+    this.renderReplayState();
     const cp = this.els.saveCp as HTMLButtonElement | undefined;
     if (cp) cp.hidden = this.blindHidden;
     const macroBlind = this.els.macroBlind;
@@ -1934,6 +2144,7 @@ export class PracticeView {
     const value = String(next);
     for (const sel of this.speedSelects) sel.value = value;
     rememberPlaybackSpeed(next);
+    this.renderReplayState();
   }
 
   private setSpeedIndex(delta: number): void {
@@ -1962,6 +2173,11 @@ export class PracticeView {
       return;
     }
     if (e.key === 'Escape') {
+      if (this.barMenu) {
+        e.preventDefault();
+        this.closeBarMenu();
+        return;
+      }
       if (this.drawMode !== null) this.setDrawMode(null);
       else for (const p of this.palettes) p.collapse();
       return;
@@ -1975,17 +2191,42 @@ export class PracticeView {
     const action = hotkeyAction(e.key, getSettings().keys);
     if (!action) return;
     e.preventDefault();
-    if (action === 'play') {
-      if (this.playing) this.pause();
-      else this.play();
-    } else if (action === 'step') void this.stepBars(e.shiftKey ? 10 : 1);
-    else if (action === 'back') void this.rewind();
-    else if (action === 'checkpoint') this.addCheckpoint();
-    else if (action === 'buy') void this.side?.submit('buy');
-    else if (action === 'sell') void this.side?.submit('sell');
-    else if (action === 'flatten') {
-      if (this.meta && this.state?.status !== 'finished') void this.flattenAll();
-    } else if (action === 'slower') this.setSpeedIndex(-1);
-    else if (action === 'faster') this.setSpeedIndex(1);
+    switch (action) {
+      case 'play':
+        if (this.playing) this.pause();
+        else this.play();
+        break;
+      case 'step':
+        void this.stepBars(e.shiftKey ? 10 : 1);
+        break;
+      case 'back':
+        void this.rewind();
+        break;
+      case 'barBack':
+        void this.stepBackBar();
+        break;
+      case 'checkpoint':
+        this.addCheckpoint();
+        break;
+      case 'buy':
+        void this.side?.submit('buy');
+        break;
+      case 'sell':
+        void this.side?.submit('sell');
+        break;
+      case 'flatten':
+        if (this.meta && this.state?.status !== 'finished') void this.flattenAll();
+        break;
+      case 'slower':
+        this.setSpeedIndex(-1);
+        break;
+      case 'faster':
+        this.setSpeedIndex(1);
+        break;
+      default: {
+        const unexpected: never = action;
+        return unexpected;
+      }
+    }
   }
 }

@@ -157,6 +157,18 @@ export const ko: Record<MessageKey, string> = {
   'pr.play': '재생',
   'pr.pause': '일시정지',
   'pr.step': '다음 봉',
+  'pr.barBack': '이전 봉',
+  'pr.barBackTitle': '연습 봉 하나 뒤로（↓）',
+  'pr.barBackNone': '이번 화면에 더 이전 연습 봉이 없습니다.',
+  'pr.replayHere': '이 봉부터 다시',
+  'pr.replayMissing':
+    '이 봉의 상태가 이번 화면에 없습니다. 앞으로 재생한 뒤, 지나온 봉에서 다시 재생할 수 있습니다.',
+  'pr.replayHereNow': '이미 이 봉입니다.',
+  'pr.replayStatePlaying': '재생 중',
+  'pr.replayStatePaused': '일시정지',
+  'pr.replayStateEnded': '끝',
+  'pr.dragStop': '손절 끌기',
+  'pr.dragTarget': '익절 끌기',
   'pr.step10': '+10',
   'pr.speed': '속도',
   'pr.jump': '이동',
@@ -520,5 +532,5 @@ export const ko: Record<MessageKey, string> = {
   'wd.fri': '금',
   'wd.sat': '토',
   shortcuts:
-    '단축키: 스페이스 재생／일시정지 · → 다음 봉 · Shift+→ +10 · [ 또는 - 감속 · ] 또는 = 가속 · B 매수 · S 매도 · F 전량 청산 · Esc 그리기 취소',
+    '단축키: 스페이스 재생／일시정지 · → 다음 봉 · ↓ 이전 봉 · Shift+→ +10 · [ 또는 - 감속 · ] 또는 = 가속 · B 매수 · S 매도 · F 전량 청산 · Esc 그리기 취소',
 };

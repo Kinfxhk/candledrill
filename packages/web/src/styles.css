@@ -794,6 +794,45 @@ svg.draw-overlay .order-handle {
   pointer-events: all;
   cursor: ns-resize;
 }
+svg.draw-overlay .bracket-marker,
+svg.draw-overlay .bracket-marker * {
+  pointer-events: all;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.replay-state {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: var(--h-sm, 28px);
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-2);
+  font-size: var(--fs-sm, 12px);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.replay-state[data-state='playing'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.bar-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r, 6px);
+  box-shadow: var(--shadow, 0 8px 24px rgb(0 0 0 / 28%));
+}
+.bar-menu button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
 svg.draw-overlay .del {
   pointer-events: all;
   cursor: pointer;

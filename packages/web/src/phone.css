@@ -389,6 +389,20 @@ input[type='datetime-local']::-webkit-date-and-time-value {
     white-space: nowrap;
     flex: 1 1 auto;
   }
+  .toolbar strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1 1 auto;
+  }
+  .toolbar .replay-state {
+    flex: 0 1 auto;
+    max-width: 7.5rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .toolbar .pnl-chip,
   .toolbar .sheet-toggle,
   .toolbar [data-testid='blind-badge'],
@@ -607,6 +621,20 @@ input[type='datetime-local']::-webkit-date-and-time-value {
   }
   .rules-strip.docked.is-short-chip .rules-strip-grip {
     touch-action: none;
+  }
+}
+
+/* Six 44px controls plus an 88px speed track have to fit a 375px phone.
+   A nested query does not win over the 6.5rem track in this file's parent media. */
+@media (max-width: 430px) {
+  .trade-bar .tb-replay {
+    gap: 4px;
+    grid-template-columns:
+      minmax(44px, 0.7fr) minmax(44px, 0.7fr) minmax(44px, 1fr) minmax(44px, 0.7fr)
+      minmax(44px, 0.7fr) minmax(88px, 1.2fr);
+  }
+  .trade-bar select.tb-speed {
+    min-width: 88px;
   }
 }
 

@@ -295,12 +295,12 @@ body.in-practice header.app select {
   display: grid;
   gap: var(--sp2);
 }
-/* Five tracks: back, play, next, +10, speed. Speed stays on this row so phone
-   landscape does not grow a third trade-bar row and lose the chart. */
+/* Six tracks: undo, previous practice bar, play, next, +10, speed. Speed stays
+   on this row so phone landscape does not grow a third trade-bar row. */
 .trade-bar .tb-replay {
   grid-template-columns:
-    minmax(44px, 0.65fr) minmax(52px, 1.15fr) minmax(44px, 0.65fr) minmax(48px, 0.75fr)
-    minmax(6.5rem, 1.35fr);
+    minmax(44px, 0.55fr) minmax(44px, 0.55fr) minmax(52px, 1fr) minmax(44px, 0.55fr)
+    minmax(44px, 0.65fr) minmax(6.5rem, 1.35fr);
 }
 .trade-bar .tb-order {
   grid-template-columns: repeat(4, minmax(0, 1fr));
