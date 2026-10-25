@@ -97,6 +97,10 @@ input[type='datetime-local']::-webkit-date-and-time-value {
     gap: 4px;
     align-items: stretch;
   }
+  /* The ✕ fills the action column; the mark stays centered in a ≥44px target. */
+  #session-table td:last-child button.icon-delete {
+    width: 100%;
+  }
 }
 
 /* ---------- header on phones: one row, nothing past the right edge */
@@ -355,7 +359,8 @@ input[type='datetime-local']::-webkit-date-and-time-value {
   min-width: 0;
 }
 #session-table td:last-child {
-  width: 112px;
+  /* Open plus a 44px ✕, with the cell's horizontal padding. */
+  width: 136px;
 }
 .library .left {
   min-width: 0;

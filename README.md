@@ -10,7 +10,7 @@
 
 <sub>所有截圖使用產生的 `SYNTH-` 示範資料，並非真實市價。</sub>
 
-> **v1.0.10** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> **v1.0.11** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 完整教學（v0.2 實測稿）：[docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -273,7 +273,7 @@ Phone, tablet or desktop browser. No install, no sign-in. Your data stays in you
 
 <sub>All screenshots use generated `SYNTH-` demo data, not real market prices.</sub>
 
-> **v1.0.10** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v1.0.11** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 Traditional Chinese guide (v0.2 field notes): [docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
