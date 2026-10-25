@@ -140,6 +140,7 @@ for (const [width, height] of PRACTICE_WIDTHS) {
       'tb-play',
       'tb-step',
       'tb-back',
+      'tb-bar-back',
     ] as const) {
       const box = (await page.getByTestId(id).boundingBox())!;
       expect(box.width, id).toBeGreaterThanOrEqual(44);

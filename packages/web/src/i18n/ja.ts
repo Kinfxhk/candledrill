@@ -160,6 +160,18 @@ export const ja: Record<MessageKey, string> = {
   'pr.play': '再生',
   'pr.pause': '一時停止',
   'pr.step': '次の足',
+  'pr.barBack': '前の足',
+  'pr.barBackTitle': '練習足を1本戻す（↓）',
+  'pr.barBackNone': 'この表示中に戻れる練習足はまだありません。',
+  'pr.replayHere': 'この足から再生',
+  'pr.replayMissing':
+    'この足の状態はこの表示では保存されていません。先に進めてから、通過した足に戻れます。',
+  'pr.replayHereNow': 'すでにこの足です。',
+  'pr.replayStatePlaying': '再生中',
+  'pr.replayStatePaused': '一時停止',
+  'pr.replayStateEnded': '終了',
+  'pr.dragStop': '損切りをドラッグ',
+  'pr.dragTarget': '利食いをドラッグ',
   'pr.step10': '+10',
   'pr.speed': '速度',
   'pr.jump': '移動',
@@ -524,5 +536,5 @@ export const ja: Record<MessageKey, string> = {
   'wd.fri': '金',
   'wd.sat': '土',
   shortcuts:
-    'ショートカット：スペース 再生／一時停止 · → 次の足 · Shift+→ +10 · [ または - 減速 · ] または = 加速 · B 買い · S 売り · F 全決済 · Esc 描画キャンセル',
+    'ショートカット：スペース 再生／一時停止 · → 次の足 · ↓ 前の足 · Shift+→ +10 · [ または - 減速 · ] または = 加速 · B 買い · S 売り · F 全決済 · Esc 描画キャンセル',
 };

@@ -37,7 +37,7 @@ describe('narrow viewport layout', () => {
     expect(bar).toMatch(/\.trade-bar select\.tb-speed/);
     expect(v1).toMatch(/@media \(max-width: 899px\) \{[\s\S]*\.toolbar \.replay,/);
     expect(practice).toContain("bindSpeedSelect('tb-speed')");
-    expect(practice).toMatch(/'tb-replay' \}, back, playBtn, next, ten, speed\)/);
+    expect(practice).toMatch(/'tb-replay' \}, back, barBack, playBtn, next, ten, speed\)/);
     expect(practice).not.toMatch(/private speed = 5/);
   });
 

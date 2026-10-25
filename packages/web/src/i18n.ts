@@ -166,6 +166,18 @@ const enBase = {
   'pr.play': 'Play',
   'pr.pause': 'Pause',
   'pr.step': 'Next bar',
+  'pr.barBack': 'Previous bar',
+  'pr.barBackTitle': 'Step back one practice bar (Down arrow)',
+  'pr.barBackNone': 'No earlier practice bar from this visit.',
+  'pr.replayHere': 'Replay from this bar',
+  'pr.replayMissing':
+    'That bar has no saved state from this visit. Play forward, then replay a bar you have passed.',
+  'pr.replayHereNow': 'Already on this bar.',
+  'pr.replayStatePlaying': 'Playing',
+  'pr.replayStatePaused': 'Paused',
+  'pr.replayStateEnded': 'Ended',
+  'pr.dragStop': 'Drag stop',
+  'pr.dragTarget': 'Drag target',
   'pr.step10': '+10',
   'pr.speed': 'Speed',
   'pr.jump': 'Jump to',
@@ -537,7 +549,7 @@ const enBase = {
   'wd.fri': 'Fri',
   'wd.sat': 'Sat',
   shortcuts:
-    'Keys: Space play/pause · → next bar · Shift+→ +10 · [ or - slower · ] or = faster · B buy · S sell · F flatten · Esc cancel drawing',
+    'Keys: Space play/pause · → next bar · ↓ previous bar · Shift+→ +10 · [ or - slower · ] or = faster · B buy · S sell · F flatten · Esc cancel drawing',
 } as const;
 
 export const en = { ...enBase, ...v1En };
@@ -695,6 +707,17 @@ const zhHantBase: Record<BaseKey, string> = {
   'pr.play': '播放',
   'pr.pause': '暫停',
   'pr.step': '下一根',
+  'pr.barBack': '上一根',
+  'pr.barBackTitle': '退回一根練習K線（↓）',
+  'pr.barBackNone': '這次開啟之後，沒有更早的練習K線可以退回。',
+  'pr.replayHere': '由此重播',
+  'pr.replayMissing': '這根K線在這次開啟裡沒有已存狀態。先向前播，就可以從經過的位置重播。',
+  'pr.replayHereNow': '已經在這根K線。',
+  'pr.replayStatePlaying': '播放中',
+  'pr.replayStatePaused': '已暫停',
+  'pr.replayStateEnded': '已播完',
+  'pr.dragStop': '拖曳止蝕',
+  'pr.dragTarget': '拖曳止賺',
   'pr.step10': '+10',
   'pr.speed': '速度',
   'pr.jump': '跳到',
@@ -1052,7 +1075,7 @@ const zhHantBase: Record<BaseKey, string> = {
   'wd.fri': '週五',
   'wd.sat': '週六',
   shortcuts:
-    '快捷鍵：空白鍵 播放／暫停 · → 下一根 · Shift+→ +10 · [ 或 - 減速 · ] 或 = 加速 · B 買入 · S 沽出 · F 平倉 · Esc 取消畫線',
+    '快捷鍵：空白鍵 播放／暫停 · → 下一根 · ↓ 上一根 · Shift+→ +10 · [ 或 - 減速 · ] 或 = 加速 · B 買入 · S 沽出 · F 平倉 · Esc 取消畫線',
 };
 
 export const zhHant: Record<MessageKey, string> = { ...zhHantBase, ...v1ZhHant };

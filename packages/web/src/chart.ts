@@ -111,6 +111,27 @@ export interface PriceLineSpec {
   dashed?: boolean;
   /** If set, the line gets a draggable handle on the price scale. */
   orderId?: number;
+  /** Protective orders get a labeled marker on the plot. Entry keeps the scale handle. */
+  role?: 'entry' | 'stop-loss' | 'take-profit' | 'flatten';
+  /** Price the marker's tick distance is measured from (last close). */
+  reference?: number;
+}
+
+/** Live label on a stop or target marker: side of the book and distance in ticks. */
+export function bracketMarkerLabel(
+  role: 'stop-loss' | 'take-profit',
+  price: number,
+  reference: number,
+  tick: number,
+): string {
+  const ticks = tick > 0 ? Math.round((price - reference) / tick) : 0;
+  const sign = ticks > 0 ? '+' : '';
+  return `${role === 'stop-loss' ? 'SL' : 'TP'} ${sign}${ticks}t`;
+}
+
+/** Hit box for a stop/target marker. Coarse pointers (and phones) use a 44px target. */
+export function bracketMarkerSize(coarse: boolean): { w: number; h: number } {
+  return coarse ? { w: 88, h: 44 } : { w: 72, h: 28 };
 }
 
 export interface MarkerSpec {
@@ -276,6 +297,10 @@ export class PriceChart {
     priceLine: IPriceLine;
     handle: SVGRectElement;
   } | null = null;
+  private barContextTimer: ReturnType<typeof setTimeout> | undefined;
+  private barHoldStart: { x: number; y: number } | null = null;
+  /** A long-press opened the bar menu; the click that follows must not set the ticket. */
+  private swallowClick = false;
   // Indicators
   private indicatorConfig?: PaneIndicatorConfig;
   private indicatorAgg?: AggregateOptions;
@@ -1108,11 +1133,16 @@ export class PriceChart {
     const g = svg('g', { 'clip-path': `url(#${clipId})` });
     g.append(...nodes);
     const orderGroup = svg('g', { class: 'order-handles' });
+    const coarse = this.coarsePointer();
     for (const spec of this.orderLineSpecs) {
       const orderId = spec.orderId;
       if (orderId === undefined) continue;
       const y = this.yOf(spec.price);
       if (y === null) continue;
+      if (spec.role === 'stop-loss' || spec.role === 'take-profit') {
+        orderGroup.append(this.bracketMarker(spec, orderId, y, plotW, coarse));
+        continue;
+      }
       const h = svg('rect', {
         x: w - 12,
         y: y - 5,
@@ -1212,7 +1242,10 @@ export class PriceChart {
       drag.priceLine.applyOptions({ price: p });
       if (drag.handle) {
         const y = this.yOf(p);
-        if (y !== null) drag.handle.setAttribute('y', String(y - 5));
+        if (y !== null) {
+          const height = Number(drag.handle.getAttribute('height') ?? 10);
+          drag.handle.setAttribute('y', String(y - height / 2));
+        }
       }
     };
     const up = async () => {
@@ -1304,6 +1337,120 @@ export class PriceChart {
     return clampPosition(n, this.tick);
   }
 
+  /** Right-click or a still long-press on a candle. Drawing handles are left alone. */
+  onBarContext(handler: (c: ChartClick & { clientX: number; clientY: number }) => void): void {
+    const emit = (clientX: number, clientY: number) => {
+      if (this.freehandMode) return;
+      const rect = this.container.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const plotW = rect.width - this.chart.priceScale('right').width();
+      if (x < 0 || y < 0 || x > plotW || y > rect.height) return;
+      const time = this.timeAt(x);
+      if (time === null) return;
+      const price = this.candles.coordinateToPrice(y);
+      handler({ time, price: price === null ? null : Number(price), clientX, clientY });
+    };
+    this.container.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const target = e.target as Element | null;
+      if (
+        target?.closest?.(
+          '.bracket-marker, .order-handle, .handle, .drawing-palette, .drawing-style-bar, .bar-menu',
+        )
+      )
+        return;
+      emit(e.clientX, e.clientY);
+    });
+    this.container.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      const target = e.target as Element | null;
+      if (
+        target?.closest?.(
+          '.bracket-marker, .order-handle, .handle, .del, .drawing-palette, .drawing-style-bar',
+        )
+      )
+        return;
+      this.barHoldStart = { x: e.clientX, y: e.clientY };
+      if (this.barContextTimer) clearTimeout(this.barContextTimer);
+      this.barContextTimer = setTimeout(() => {
+        this.barContextTimer = undefined;
+        const held = this.barHoldStart;
+        this.barHoldStart = null;
+        if (!held) return;
+        this.swallowClick = true;
+        emit(held.x, held.y);
+      }, 550);
+    });
+    this.container.addEventListener('pointermove', (e) => {
+      const start = this.barHoldStart;
+      if (!start || !this.barContextTimer) return;
+      if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) this.clearBarContextHold();
+    });
+    this.container.addEventListener('pointerup', () => this.clearBarContextHold());
+    this.container.addEventListener('pointercancel', () => this.clearBarContextHold());
+  }
+
+  private clearBarContextHold(): void {
+    if (this.barContextTimer) clearTimeout(this.barContextTimer);
+    this.barContextTimer = undefined;
+    this.barHoldStart = null;
+  }
+
+  private coarsePointer(): boolean {
+    return window.matchMedia?.('(pointer: coarse), (max-width: 899px)').matches ?? false;
+  }
+
+  private bracketMarker(
+    spec: PriceLineSpec,
+    orderId: number,
+    y: number,
+    plotW: number,
+    coarse: boolean,
+  ): SVGGElement {
+    const role = spec.role === 'take-profit' ? 'take-profit' : 'stop-loss';
+    const size = bracketMarkerSize(coarse);
+    const x = Math.max(4, plotW - size.w - 6);
+    const top = Math.max(2, y - size.h / 2);
+    const g = svg('g', {
+      class: 'bracket-marker',
+      'data-testid': role === 'stop-loss' ? 'bracket-stop' : 'bracket-target',
+      'data-role': role,
+      'data-order-id': String(orderId),
+    });
+    g.setAttribute('role', 'slider');
+    g.setAttribute('aria-orientation', 'vertical');
+    g.setAttribute('aria-label', t(role === 'stop-loss' ? 'pr.dragStop' : 'pr.dragTarget'));
+    const hit = svg('rect', {
+      x,
+      y: top,
+      width: size.w,
+      height: size.h,
+      rx: 6,
+      fill: spec.color,
+      stroke: this.theme.text,
+      'stroke-width': 1,
+      class: 'bracket-marker-hit',
+      'data-order-id': String(orderId),
+    });
+    const reference = spec.reference ?? spec.price;
+    const label = svg('text', {
+      x: x + size.w / 2,
+      y: top + size.h / 2,
+      'text-anchor': 'middle',
+      'dominant-baseline': 'central',
+      'font-size': coarse ? 13 : 11,
+    });
+    label.textContent = bracketMarkerLabel(role, spec.price, reference, this.tick);
+    g.append(hit, label);
+    g.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      this.startOrderDrag(ev, orderId);
+    });
+    return g;
+  }
+
   onClick(handler: (c: ChartClick) => void): void {
     // Native clicks (not the library's click events, which merge quick clicks into a
     // double-click): every click counts, a click that was really a pan (moved > 4 px) does not.
@@ -1358,9 +1505,17 @@ export class PriceChart {
     this.container.addEventListener(
       'click',
       (e) => {
+        if (this.swallowClick) {
+          this.swallowClick = false;
+          return;
+        }
         if (this.freehandMode) return;
         if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
-        if ((e.target as Element).closest?.('.handle, .del, .position-body, .drawing-style-bar'))
+        if (
+          (e.target as Element).closest?.(
+            '.handle, .del, .position-body, .drawing-style-bar, .bracket-marker, .order-handle',
+          )
+        )
           return;
         const rect = this.container.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -1745,6 +1900,7 @@ export class PriceChart {
   }
 
   destroy(): void {
+    this.clearBarContextHold();
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.overlay.remove();

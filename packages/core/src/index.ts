@@ -72,6 +72,18 @@ export {
 
 export { initialCursor, visibleBars, stepsUntil } from './replay.js';
 export {
+  forgetTapeAfter,
+  isPracticeClose,
+  MAX_FRAME_SOURCE_BARS,
+  noteTape,
+  practiceAggregateOptions,
+  practiceFrames,
+  previousPracticeCursor,
+  replayCursorForBarTime,
+  tapeAtOrBefore,
+  TAPE_CAP,
+} from './practice-cursor.js';
+export {
   ENGINE_VERSION,
   FILL_MODEL_VERSION,
   lossRuleBasisFor,

@@ -30,10 +30,20 @@ export interface UiSettings {
 }
 
 export type HotkeyAction =
-  'step' | 'back' | 'play' | 'buy' | 'sell' | 'flatten' | 'checkpoint' | 'slower' | 'faster';
+  | 'step'
+  | 'barBack'
+  | 'back'
+  | 'play'
+  | 'buy'
+  | 'sell'
+  | 'flatten'
+  | 'checkpoint'
+  | 'slower'
+  | 'faster';
 
 export const DEFAULT_KEYS: Record<HotkeyAction, string> = {
   step: 'arrowright',
+  barBack: 'arrowdown',
   back: 'arrowleft',
   play: ' ',
   buy: 'b',

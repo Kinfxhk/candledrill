@@ -10,7 +10,7 @@
 
 <sub>所有截圖使用產生的 `SYNTH-` 示範資料，並非真實市價。</sub>
 
-> **v1.0.11** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> **v1.0.12** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 完整教學（v0.2 實測稿）：[docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -47,7 +47,7 @@ npm start
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 桌面（≥ 1200px）          | 圖表佔大部分畫面；工具列下、圖表上有一條可收起可拖曳的練習規則細條（每日虧損、目標、追蹤）。右欄由上至下：落單、持倉、存檔點、繪圖物件。完整規則檢查在底部分頁，不再佔右欄大卡。底部面板平時收成一條分頁列。 |
 | 平板橫放（900–1199px）    | 右欄收窄，仍與圖表並排。                                                                                                                                                                                     |
-| 平板直放、手機（< 900px） | 圖表優先；右欄變側邊抽屜（按「面板」）；底部固定交易列：退後／播放（播放中變暫停）／下一根／+10，沽出／數量／買入／平倉。任何面板（抽屜、交易分頁、指標、畫圖工具）撳外面即收起，畫面不用左右掃。            |
+| 平板直放、手機（< 900px） | 圖表優先；右欄變側邊抽屜（按「面板」）；底部固定交易列：退後／上一根／播放（播放中變暫停）／下一根／+10，沽出／數量／買入／平倉。任何面板（抽屜、交易分頁、指標、畫圖工具）撳外面即收起，畫面不用左右掃。    |
 
 ![手機版：大圖表與底部交易列](docs/shot-phone.png)
 
@@ -61,10 +61,10 @@ npm start
 
 ### 回放手感
 
-- **逐根前進**、+10、播放（0.5×–120×／秒），**退後**一步（左方向鍵）撤銷上一個動作，連同其成交。
+- **逐根前進**、**上一根**（下方向鍵）、+10、播放（0.5×–120×／秒，工具列顯示播放中／已暫停），**退後**一步（左方向鍵）撤銷上一個動作，連同其成交。
 - 「下一根」以練習時框計。來源是練習時框的三分之一時（1 分鐘 3 根 20 秒、5 分鐘 3 根 100 秒、15 分鐘 3 根 5 分鐘），按一下就走完一根練習 K，市價單在下一根練習 K 開市成交。畫面會先逐段畫出 forming，再收棒。
 - **存檔點**：保存當下一刻，之後一鍵回到該處重練同一段。
-- **跳到**指定時間（非盲練）。
+- **跳到**指定時間，或在 K 線上右鍵（手機長按）選 **由此重播**（非盲練）。該點之後的 K 線會隱藏，方便從該處再練。上一根只用這次開啟裡已經走過的狀態。
 - 圖表：滾輪／雙指縮放、拖曳平移、雙擊價格軸重設；左上角顯示開高低收。
 - 退後與存檔點只能回到這個練習已發生過的狀態，伺服器（或瀏覽器版引擎）會按 K 線重新驗證，不能偽造成交；盲練揭曉前不能退後。
 
@@ -80,7 +80,7 @@ npm start
 
 - 市價／限價／觸價單，括號單（止蝕／止賺以跳計），數量快捷，一鍵平倉。
 - **落單前預覽**：圖上以虛線顯示按目前設定會落的止蝕與止賺（`SL?`／`TP?`）。
-- 圖上拖曳價格手柄改單；風險預覽預設展開（止蝕損失、佔權益百分比、淨回報 R）。
+- 圖上拖曳價格手柄改單。持倉後，止蝕／止賺是圖上可拖曳的標記（顯示與最後收市價的跳數距離）；未持倉的虛線 `SL?`／`TP?` 預覽不變。風險預覽預設展開（止蝕損失、佔權益百分比、淨回報 R）。
 - **止蝕管理**（設定內開啟）：浮盈達指定跳數後移至保本（可加跳數）、移動止蝕。每根 K 線收市後經正常「改單」移動止蝕單，只會收緊，不會放寬；成交規則不變。
 
 ### 繪圖工具
@@ -162,7 +162,7 @@ npm start
 
 K 線顏色、格線、成交量、數量快捷、預設止蝕／止賺、「全部平倉」前確認、止蝕管理、落單前預覽、磁吸，以及**全部快捷鍵可自訂**（按該格再按新鍵；撞鍵會自動對調）。可匯出／匯入。
 
-預設快捷鍵：`→` 下一根 · `Shift+→` +10 · `←` 退後 · `空白鍵` 播放／暫停 · `B` 買入 · `S` 沽出 · `F` 平倉 · `[` `]` 速度 · `P` 存檔點 · `Esc` 取消工具 · `Delete` 刪除選取繪圖。
+預設快捷鍵：`→` 下一根 · `↓` 上一根 · `Shift+→` +10 · `←` 退後 · `空白鍵` 播放／暫停 · `B` 買入 · `S` 沽出 · `F` 平倉 · `[` `]` 速度 · `P` 存檔點 · `Esc` 取消工具 · `Delete` 刪除選取繪圖。
 
 #### 練習規則的兩個時鐘
 
@@ -273,7 +273,7 @@ Phone, tablet or desktop browser. No install, no sign-in. Your data stays in you
 
 <sub>All screenshots use generated `SYNTH-` demo data, not real market prices.</sub>
 
-> **v1.0.11** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v1.0.12** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 Traditional Chinese guide (v0.2 field notes): [docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -314,16 +314,16 @@ Open <http://127.0.0.1:4870/> on this machine. Data stays in `~/.candledrill/`. 
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Desktop (≥ 1200px)               | Chart takes most of the screen. A thin strip under the toolbar (above the chart) shows daily loss, target, and trailing; it collapses to a chip and can be dragged without covering OHLC or the order ticket. The rail holds, top to bottom: order ticket, position, save points, drawings. The full rule check is a bottom tab, not a side card. The bottom panel folds to a tab strip. |
 | Tablet landscape (900–1199px)    | Narrower rail, still beside the chart.                                                                                                                                                                                                                                                                                                                                                   |
-| Tablet portrait, phone (< 900px) | Chart first; the rail is a drawer (**Panel**); a sticky trade bar: back / play (shows pause while playing) / next / +10, sell / qty / buy / close. Any panel (drawer, bottom tabs, indicators, draw tools) closes when you tap outside it, and nothing needs a sideways swipe.                                                                                                           |
+| Tablet portrait, phone (< 900px) | Chart first; the rail is a drawer (**Panel**); a sticky trade bar: back / previous bar / play (shows pause while playing) / next / +10, sell / qty / buy / close. Any panel (drawer, bottom tabs, indicators, draw tools) closes when you tap outside it, and nothing needs a sideways swipe.                                                                                            |
 
 ## What you can do
 
 ### Replay feel
 
-- **Step**, +10, play (0.5–120 bars/s), and **Back** (Left arrow) undoes the last action, fills included.
+- **Step**, **previous bar** (Down arrow), +10, play (0.5–120 bars/s, toolbar shows Playing / Paused), and **Back** (Left arrow) undoes the last action, fills included.
 - **Next bar** counts practice bars. With a source of practice/3 (three 20s bars in a 1m bar, three 100s bars in a 5m bar, three 5m bars in a 15m bar), one press completes a whole practice bar, so a market order fills at the next practice open. The candle paints each source bar before that close.
 - **Save points** keep a moment so you can return and drill the same stretch again.
-- **Jump to** a time (non-blind); **two charts** with linked crosshair and scroll, each with its own timeframe (1m → daily).
+- **Jump to** a time, or right-click a candle (long-press on a phone) and choose **Replay from this bar** (non-blind). Bars after that point stay hidden so you can drill again from there. Previous bar uses states from this visit only. **Two charts** keep a linked crosshair and scroll, each with its own timeframe (1m → daily).
 - Chart: wheel / pinch zoom, drag to pan, double-click the price scale to reset; OHLC legend top-left.
 - Back and save points only restore states this session has already been in. The server (or the browser engine) re-validates them against the bars, so fills cannot be invented; Back is off in a blind session until you reveal.
 
@@ -331,7 +331,7 @@ Open <http://127.0.0.1:4870/> on this machine. Data stays in `~/.candledrill/`. 
 
 - Market / limit / stop, brackets (SL / TP in ticks), quantity presets, flatten.
 - **Bracket preview**: dashed `SL?` / `TP?` lines show where the ticket's stop and target would go before you order.
-- Drag order handles on the chart to modify; risk preview open by default (stop loss, share of equity, net reward in R).
+- Drag order handles on the chart to modify. With a position open, the stop and target are labeled markers (tick distance from the last close); the flat `SL?` / `TP?` preview is unchanged. Risk preview stays open by default (stop loss, share of equity, net reward in R).
 - **Stop management** (Settings): break-even after N ticks in profit (optional offset) and a trailing stop. After each bar close the stop-loss order is moved through the normal modify path; it only ever tightens and the fill model is unchanged.
 
 ### Drawing tools
@@ -385,7 +385,7 @@ Simulated only — no broker. The manual ticket stays on the right. DSL and API:
 
 Candle colours, grid, volume, quantity presets, default SL / TP, confirm before Flatten all, stop management, bracket preview, magnet, and **every hotkey can be rebound** (click the cell, press a key; a clash swaps). Export / import.
 
-Default keys: `→` next bar · `Shift+→` +10 · `←` back · `Space` play / pause · `B` buy · `S` sell · `F` flatten · `[` `]` speed · `P` save point · `Esc` cancel tool · `Delete` delete selected drawing.
+Default keys: `→` next bar · `↓` previous bar · `Shift+→` +10 · `←` back · `Space` play / pause · `B` buy · `S` sell · `F` flatten · `[` `]` speed · `P` save point · `Esc` cancel tool · `Delete` delete selected drawing.
 
 #### The two practice clocks
 
