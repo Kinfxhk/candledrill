@@ -280,6 +280,37 @@ test('nothing scrolls sideways; header and form line up', async ({ browser }) =>
   await ctx.close();
 });
 
+test('the header keeps every control on screen down to 320px', async ({ browser }) => {
+  // The header is overflow: hidden, so a control pushed past the edge disappears with no
+  // scrollbar to reach it. 320px used to clip About (~27px) and 375px a sliver of it.
+  for (const width of [320, 360, 375]) {
+    const ctx = await browser.newContext({
+      viewport: { width, height: 640 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const page = await ctx.newPage();
+    await page.goto('/');
+    const past = await page.evaluate(() => {
+      const vw = innerWidth;
+      return [...document.querySelectorAll('header.app button, header.app select')]
+        .filter((e) => {
+          const r = e.getBoundingClientRect();
+          return r.width > 0 && r.right > vw + 0.5;
+        })
+        .map(
+          (e) =>
+            `${e.tagName.toLowerCase()}#${e.id} r=${Math.round(e.getBoundingClientRect().right)} vw=${vw}`,
+        );
+    });
+    expect(past, `header controls past the edge at ${width}px`).toEqual([]);
+    // About is the control that used to go missing; it must still open its dialog.
+    await page.locator('#about-open').click();
+    await expect(page.locator('#about-dialog')).toBeVisible();
+    await ctx.close();
+  }
+});
+
 test('play steps whole practice bars; folding semi-auto brings the trade bar back', async ({
   browser,
 }) => {
