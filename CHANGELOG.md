@@ -12,8 +12,10 @@ All notable changes to CandleDrill are documented here. The format follows
 
 - On 320–399px screens the header is one clipped row: the decorative brand mark
   and the wider gaps pushed the About button past the right edge, where
-  `overflow: hidden` hid it with no scrollbar to reach it. The mark now steps
-  aside below 400px so Language, theme, Settings and About all stay on screen.
+  `overflow: hidden` hid it with no scrollbar to reach it. Below 400px the mark
+  steps aside, gaps tighten, and the header wraps to a second row instead of
+  clipping, so Language, theme, Settings and About stay on screen whatever the
+  platform's font metrics.
 
 ## [1.0.12] - 2026-10-25
 
