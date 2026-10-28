@@ -269,7 +269,11 @@ input[type='datetime-local']::-webkit-date-and-time-value {
    About all land inside the edge. overflow: hidden on the header would otherwise clip
    About off-screen with no scrollbar to reach it. */
 @media (max-width: 399px) {
+  /* Wrap rather than shave pixels: Linux and WebKit fonts are a few px wider than macOS,
+     so a single clipped row put About back past the edge on CI. Wrapping only costs a
+     second row when the controls genuinely do not fit. */
   header.app {
+    flex-wrap: wrap;
     gap: 2px;
     padding-inline: 4px;
   }
