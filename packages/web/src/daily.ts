@@ -7,7 +7,7 @@ import { formingSourceSeconds, isSyntheticTimeframe } from '@candledrill/core';
 import { api, sessionsApi } from './api.js';
 import { EXAM, examSettings } from './exam.js';
 
-const STORE_KEY = 'candledrill.daily.v1';
+const STORE_KEY = 'candledrill.daily.v2';
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Fast instruments only: an hourly bar makes a one-day round feel like waiting. */

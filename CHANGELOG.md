@@ -6,6 +6,14 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.18] - 2026-10-29
+
+### Changed
+
+- The daily round now uses ten trading sessions instead of five, so a player who
+  is behind still has room to trade back to the target. Stored daily rounds from
+  the shorter version are ignored.
+
 ## [1.0.17] - 2026-10-29
 
 ### Changed
