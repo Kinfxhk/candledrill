@@ -2117,14 +2117,17 @@ export class PracticeView {
           rrr,
           lots: lots > 0 ? String(lots) : '—',
         });
-        recordBest(result);
-        showExamCard({
-          result,
-          best: readBest(),
-          submitted: readSubmitted(),
-          open: examOpen(),
-          onSubmit: () => {},
-        });
+        // A certificate needs the target, not just the engine's status.
+        if (result.tier !== null) {
+          recordBest(result);
+          showExamCard({
+            result,
+            best: readBest(),
+            submitted: readSubmitted(),
+            open: examOpen(),
+            onSubmit: () => {},
+          });
+        }
       }
     }
     const banner = this.els.banner!;

@@ -6,6 +6,13 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.19] - 2026-10-29
+
+### Fixed
+
+- A passing certificate now also requires `net >= 3,000`, so a stopped-out or
+  break-even session can never be labelled Pass.
+
 ## [1.0.18] - 2026-10-29
 
 ### Changed
