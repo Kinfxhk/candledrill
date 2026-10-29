@@ -16,7 +16,8 @@ const ENTRY = { token: 'entry.1153110697' } as const;
 
 export const EXAM = {
   startDate: '2026-09-01',
-  days: 5,
+  /** Ten sessions: a five-day round ended before a player behind could trade back. */
+  days: 10,
   maxQty: 5,
 } as const;
 
