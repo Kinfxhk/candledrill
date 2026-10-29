@@ -499,7 +499,7 @@ export const zhHans: Record<MessageKey, string> = {
   'update.current': '此次构建：{current}',
   'about.title': '关于 CandleDrill',
   'about.body':
-    'CandleDrill（K线操练场）是自由软件（AGPL-3.0-or-later），用历史或合成K线练习看图及交易管理。只在你的电脑运行，只绑定 127.0.0.1，不需要账户，亦不会传送任何使用数据。',
+    'CandleDrill（K线操练场）是自由软件（AGPL-3.0-or-later），用历史或合成K线练习看图及交易管理。只在你的浏览器内运行，所有数据存在你的装置，不需要账户，亦不会传送任何使用数据。',
   'about.notAffiliated':
     'CandleDrill 是独立开源项目，与任何交易平台、图表供应商、经纪、交易所或 prop firm 没有股权、代理、受雇或官方授权关系，亦不代表任何一方。本工具不内置任何公司的规则、参数或模板；规则档由用户自行提供，相关公司不会审核或影响本工具的功能、示范数据或规则判定。部分外部链接（包括推荐链接页）含联盟佣金，详见“推荐链接与风险披露”。此商业关系不影响代码、示范数据及规则判定。',
   'about.close': '关闭',

@@ -6,6 +6,16 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.23] - 2026-10-29
+
+### Fixed
+
+- The split-chart toggle is reachable on 1280-wide laptops again: it left the
+  `.tb-wide` group that folds away under 1365px, and only hides once the grid
+  itself collapses to one column at 1000px.
+- The About and library copy describe the browser build truthfully (data in this
+  browser / IndexedDB, not a 127.0.0.1 server or a SQLite file).
+
 ## [1.0.22] - 2026-10-29
 
 ### Changed
