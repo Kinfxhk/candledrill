@@ -6,6 +6,17 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.15] - 2026-10-29
+
+### Added
+
+- A daily round on the library page: the day string picks the seed and the
+  timeframe (1m, 5m or 15m), so everyone opening that day trades the same bars
+  under the campaign exam rules — 50,000 account, +3,000 target, 2,000 static
+  drawdown, five-contract cap. One scored attempt per day; later attempts stay
+  practice. `?daily=YYYY-MM-DD` opens a specific day and `?exam=1` still opens
+  today's round.
+
 ## [1.0.14] - 2026-10-29
 
 ### Added

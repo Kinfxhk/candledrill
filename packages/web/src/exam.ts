@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// One-week campaign exam. The rules and the data are frozen here so every entrant
-// gets the same bars; the whole feature is two modules plus a URL entry and is
-// meant to be deleted when the campaign closes.
+// Campaign exam: frozen rules, one certificate and one prefilled score submission.
+// The daily round in `daily.ts` supplies the frozen data; this module supplies the
+// rules, the tier and the form link. Delete both together when the campaign closes.
 
-import { api, sessionsApi, type SessionSettings } from './api.js';
+import type { SessionSettings } from './api.js';
 
 export const EXAM_VERSION = 'exam-v1';
 export const EXAM_ENDS_AT = Date.parse('2026-11-05T23:59:59+08:00');
@@ -22,10 +22,8 @@ const ENTRY = {
 } as const;
 
 export const EXAM = {
-  seed: 20_261_105,
   startDate: '2026-09-01',
   days: 5,
-  timeframeSeconds: 300,
   maxQty: 5,
 } as const;
 
@@ -37,18 +35,15 @@ export const EXAM_TIER_LABEL = {
 
 export type ExamTier = keyof typeof EXAM_TIER_LABEL;
 
-const SESSION_KEY = 'candledrill.exam.session.v1';
-const DATASET_KEY = 'candledrill.exam.dataset.v1';
 const SUBMITTED_KEY = 'candledrill.exam.submitted.v1';
 const BEST_KEY = 'candledrill.exam.best.v1';
-const SHOWN_KEY = 'candledrill.exam.shown.v1';
 
 export function examOpen(now: number = Date.now()): boolean {
   return now <= EXAM_ENDS_AT;
 }
 
 /** 50,000 · +3,000 target · 2,000 static drawdown · 5 contracts · 0.25 tick at $2. */
-export function examSettings(): Omit<SessionSettings, 'symbol' | 'blind'> {
+export function examSettings(timeframeSeconds: number): Omit<SessionSettings, 'symbol' | 'blind'> {
   return {
     tickSize: 0.25,
     pointValue: 2,
@@ -62,54 +57,8 @@ export function examSettings(): Omit<SessionSettings, 'symbol' | 'blind'> {
     utcOffsetMinutes: 0,
     dayStartMinutes: 480,
     anchorMinutes: 480,
-    practiceTimeframeSeconds: EXAM.timeframeSeconds,
+    practiceTimeframeSeconds: timeframeSeconds,
   };
-}
-
-/** The dataset id plus its first bar time: a session needs a start time. */
-async function examDataset(): Promise<{ id: number; firstTime: number | null }> {
-  const stored = Number(localStorage.getItem(DATASET_KEY));
-  if (stored > 0) {
-    const { datasets } = await api.datasets();
-    const row = datasets.find((dataset) => dataset.id === stored);
-    if (row !== undefined && row.firstTime !== null) {
-      return { id: row.id, firstTime: row.firstTime };
-    }
-  }
-  const { dataset } = await api.createSynthetic(EXAM.seed, EXAM.startDate, EXAM.days, {
-    timeframeSeconds: EXAM.timeframeSeconds,
-  });
-  localStorage.setItem(DATASET_KEY, String(dataset.id));
-  return { id: dataset.id, firstTime: dataset.firstTime };
-}
-
-/** Create (or reopen) the one exam session this browser owns. */
-export async function startExam(): Promise<number> {
-  const current = examSessionId();
-  if (current !== null) {
-    const { sessions } = await sessionsApi.list();
-    const row = sessions.find((session) => session.id === current);
-    if (row !== undefined && row.status === 'active') return current;
-  }
-  const dataset = await examDataset();
-  if (dataset.firstTime === null) throw new Error('exam dataset has no bars');
-  const view = await sessionsApi.create({
-    datasetId: dataset.id,
-    name: `${EXAM_VERSION} · 50K`,
-    startTime: dataset.firstTime,
-    settings: examSettings(),
-  });
-  localStorage.setItem(SESSION_KEY, String(view.session.id));
-  return view.session.id;
-}
-
-export function examSessionId(): number | null {
-  const stored = Number(localStorage.getItem(SESSION_KEY));
-  return stored > 0 ? stored : null;
-}
-
-export function isExamSession(id: number): boolean {
-  return examSessionId() === id;
 }
 
 export function examTier(maxDrawdownUsd: number, trades: number): ExamTier {
@@ -140,7 +89,7 @@ export function examResult(input: {
 }): ExamResult {
   const net = Math.round(input.net * 100) / 100;
   const maxDrawdownUsd = Math.round(input.maxDrawdownUsd * 100) / 100;
-  const code = `EXAM-v1-${fnv1a(`${EXAM.seed}:${net}:${maxDrawdownUsd}:${input.trades}`)
+  const code = `EXAM-v1-${fnv1a(`${EXAM_VERSION}:${net}:${maxDrawdownUsd}:${input.trades}`)
     .toString(16)
     .padStart(8, '0')
     .slice(0, 8)
@@ -228,13 +177,4 @@ export function recordBest(result: ExamResult): void {
   } catch {
     // Storage is optional.
   }
-}
-
-/** The card fires once per session, on the transition that ends it. */
-export function takeExamCardFor(sessionId: number, status: string): boolean {
-  if (status !== 'passed' || !isExamSession(sessionId)) return false;
-  const shown = localStorage.getItem(SHOWN_KEY);
-  if (shown === String(sessionId)) return false;
-  localStorage.setItem(SHOWN_KEY, String(sessionId));
-  return true;
 }

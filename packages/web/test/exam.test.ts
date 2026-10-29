@@ -13,7 +13,7 @@ import {
 
 describe('exam settings', () => {
   it('freezes the campaign rules', () => {
-    const s = examSettings();
+    const s = examSettings(300);
     expect(s.startingBalance).toBe(50_000);
     expect(s.profitTarget).toBe(3_000);
     expect(s.trailingDrawdown).toBe(2_000);
@@ -21,7 +21,7 @@ describe('exam settings', () => {
     expect(s.dailyLossLimit).toBeNull();
     expect(s.pointValue).toBe(2);
     expect(s.tickSize).toBe(0.25);
-    expect(s.practiceTimeframeSeconds).toBe(EXAM.timeframeSeconds);
+    expect(s.practiceTimeframeSeconds).toBe(300);
   });
 
   it('caps the exam at five contracts', () => {
