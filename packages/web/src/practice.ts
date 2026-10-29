@@ -2103,10 +2103,19 @@ export class PracticeView {
         at: Date.now(),
       });
       if (first && st === 'passed') {
+        const trades = this.state.trading.trades;
+        const lots = trades.reduce((most, trade) => Math.max(most, trade.qty), 0);
+        const rrr =
+          stats.avgWin !== null && stats.avgLoss !== null && stats.avgLoss < 0
+            ? Math.round((stats.avgWin / Math.abs(stats.avgLoss)) * 100) / 100
+            : null;
         const result = examResult({
           net: stats.netPnl,
           maxDrawdownUsd: stats.maxDrawdown,
           trades: stats.trades,
+          winRatePct: stats.winRate === null ? null : Math.round(stats.winRate * 1000) / 10,
+          rrr,
+          lots: lots > 0 ? String(lots) : '—',
         });
         recordBest(result);
         showExamCard({
