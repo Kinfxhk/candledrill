@@ -55,6 +55,21 @@ export function examSettings(timeframeSeconds: number): Omit<SessionSettings, 's
   };
 }
 
+/**
+ * The cap only applies to orders that add exposure: closing or reducing a position
+ * must always be allowed, or a 5-lot entry could never be flattened.
+ */
+export function examQtyAllowed(input: {
+  readonly positionQty: number;
+  readonly workingQty: number;
+  readonly side: 'buy' | 'sell';
+  readonly qty: number;
+}): boolean {
+  const adds = input.positionQty === 0 || input.positionQty > 0 === (input.side === 'buy');
+  if (!adds) return true;
+  return Math.abs(input.positionQty) + input.workingQty + input.qty <= 5;
+}
+
 export function examTier(net: number, maxDrawdownUsd: number, trades: number): ExamTier | null {
   if (!(net >= 3_000)) return null;
   return maxDrawdownUsd <= 1_000 && trades >= 10 ? 'distinction' : 'pass';

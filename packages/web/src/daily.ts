@@ -147,9 +147,18 @@ async function dailyDataset(
   return { id: dataset.id, firstTime: dataset.firstTime };
 }
 
+/** A past day can be resumed, but not started fresh after the fact. */
+export function dailyStartAllowed(day: string, today: string, hasEntry: boolean): boolean {
+  if (!isDailyDay(day)) return false;
+  if (day >= today) return true;
+  return hasEntry;
+}
+
 /** Create (or reopen) today's round. */
 export async function startDaily(day: string): Promise<number> {
-  if (!isDailyDay(day)) throw new Error('bad day');
+  if (!dailyStartAllowed(day, todayDay(), dailyEntry(day) !== null)) {
+    throw new Error('past round');
+  }
   const entry = dailyEntry(day);
   if (entry !== null) {
     const { sessions } = await sessionsApi.list();

@@ -6,6 +6,15 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.20] - 2026-10-29
+
+### Fixed
+
+- The five-contract cap no longer blocks exits: closing or reducing a position is
+  always allowed, adding exposure past five is refused.
+- A past daily round that was never opened cannot be started after the fact, so a
+  round cannot be farmed once its result is known.
+
 ## [1.0.19] - 2026-10-29
 
 ### Fixed
