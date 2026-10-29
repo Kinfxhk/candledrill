@@ -22,10 +22,7 @@ export const EXAM = {
 } as const;
 
 /** Must equal the option text in the campaign form, or the prefill is dropped. */
-export const EXAM_TIER_LABEL = {
-  pass: 'Pass 合格',
-  distinction: 'Distinction 優異（≥ 10 筆交易）',
-} as const;
+export const EXAM_TIER_LABEL = { pass: 'Pass 合格' } as const;
 
 export type ExamTier = keyof typeof EXAM_TIER_LABEL;
 
@@ -70,9 +67,8 @@ export function examQtyAllowed(input: {
   return Math.abs(input.positionQty) + input.workingQty + input.qty <= 5;
 }
 
-export function examTier(net: number, trades: number): ExamTier | null {
-  if (!(net >= 3_000)) return null;
-  return trades >= 10 ? 'distinction' : 'pass';
+export function examTier(net: number): ExamTier | null {
+  return net >= 3_000 ? 'pass' : null;
 }
 
 function fnv1a(text: string): number {
@@ -105,7 +101,7 @@ export function examResult(input: {
 }): ExamResult {
   const net = Math.round(input.net * 100) / 100;
   const maxDrawdownUsd = Math.round(input.maxDrawdownUsd * 100) / 100;
-  const tier = examTier(net, input.trades);
+  const tier = examTier(net);
   const code = `EXAM-v1-${fnv1a(`${EXAM_VERSION}:${net}:${maxDrawdownUsd}:${input.trades}`)
     .toString(16)
     .padStart(8, '0')
@@ -135,7 +131,7 @@ export function examToken(result: ExamResult): string {
   const fields = [
     'KFX1',
     'CD',
-    result.tier === 'distinction' ? 'DIST' : 'PASS',
+    'PASS',
     String(result.net),
     String(result.maxDrawdownUsd),
     String(result.trades),
@@ -205,12 +201,9 @@ export function readBest(): ExamResult | null {
 export function recordBest(result: ExamResult): void {
   const best = readBest();
   const better =
-    best === null
-      ? true
-      : result.tier !== best.tier
-        ? result.tier === 'distinction'
-        : result.maxDrawdownUsd < best.maxDrawdownUsd ||
-          (result.maxDrawdownUsd === best.maxDrawdownUsd && result.net > best.net);
+    best === null ||
+    result.maxDrawdownUsd < best.maxDrawdownUsd ||
+    (result.maxDrawdownUsd === best.maxDrawdownUsd && result.net > best.net);
   if (!better) return;
   try {
     localStorage.setItem(

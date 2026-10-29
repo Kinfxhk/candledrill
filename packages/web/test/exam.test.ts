@@ -48,10 +48,9 @@ describe('contract cap', () => {
 
 describe('exam tier', () => {
   it('needs both a small drawdown and a real sample of trades', () => {
-    expect(examTier(3_000, 10)).toBe('distinction');
-    expect(examTier(5_000, 25)).toBe('distinction');
-    expect(examTier(3_000, 9)).toBe('pass');
-    expect(examTier(2_999, 20)).toBeNull();
+    expect(examTier(3_000)).toBe('pass');
+    expect(examTier(9_999)).toBe('pass');
+    expect(examTier(2_999)).toBeNull();
   });
 });
 
@@ -75,7 +74,7 @@ describe('exam result', () => {
     expect(token.split('|').slice(0, 10)).toEqual([
       'KFX1',
       'CD',
-      'DIST',
+      'PASS',
       '3050',
       '900',
       '12',

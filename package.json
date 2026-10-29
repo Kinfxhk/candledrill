@@ -1,7 +1,7 @@
 {
   "name": "candledrill-monorepo",
   "private": true,
-  "version": "1.0.21",
+  "version": "1.0.22",
   "description": "CandleDrill (K線操練場): free, self-hosted candlestick replay practice tool. Educational only.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
