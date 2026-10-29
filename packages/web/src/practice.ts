@@ -58,16 +58,8 @@ import { getLang, t, type MessageKey } from './i18n.js';
 import { statusReasonText } from './labels.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
 import { showExamCard } from './exam-card.js';
-import {
-  EXAM,
-  examOpen,
-  examResult,
-  isExamSession,
-  readBest,
-  readSubmitted,
-  recordBest,
-  takeExamCardFor,
-} from './exam.js';
+import { EXAM, examOpen, examResult, readBest, readSubmitted, recordBest } from './exam.js';
+import { dailyResult, dailySessionDay, recordDailyResult } from './daily.js';
 import { RulesView } from './rules-view.js';
 import { RulesStrip } from './rules-strip.js';
 import { reviewTab } from './review-tab.js';
@@ -1203,7 +1195,7 @@ export class PracticeView {
     this.flushPresent();
     if (!this.meta) return;
     // Exam rule: the certificate claims 5 contracts, so the ticket has to hold it.
-    if (isExamSession(this.meta.id)) {
+    if (dailySessionDay(this.meta.id) !== null) {
       const open = Math.abs(this.state?.trading.position?.qty ?? 0);
       const working = this.state
         ? workingOrders(this.state.trading).reduce((total, order) => total + order.qty, 0)
@@ -2099,21 +2091,32 @@ export class PracticeView {
     this.els.summary?.setAttribute('aria-label', t('summary.title'));
     this.summary?.update(this.meta.settings, this.state, this.meta.id);
     const st = this.state.status;
-    if (takeExamCardFor(this.meta.id, st)) {
+    // One scored attempt per day; the certificate only for that first result.
+    const day = st === 'active' ? null : dailySessionDay(this.meta.id);
+    if (day !== null && dailyResult(day) === null) {
       const stats = sessionStats(this.engineSettings(), this.state);
-      const result = examResult({
+      const first = recordDailyResult(day, this.meta.id, {
+        status: st === 'passed' ? 'passed' : st === 'breached' ? 'breached' : 'finished',
         net: stats.netPnl,
-        maxDrawdownUsd: stats.maxDrawdown,
+        maxDrawdown: stats.maxDrawdown,
         trades: stats.trades,
+        at: Date.now(),
       });
-      recordBest(result);
-      showExamCard({
-        result,
-        best: readBest(),
-        submitted: readSubmitted(),
-        open: examOpen(),
-        onSubmit: () => {},
-      });
+      if (first && st === 'passed') {
+        const result = examResult({
+          net: stats.netPnl,
+          maxDrawdownUsd: stats.maxDrawdown,
+          trades: stats.trades,
+        });
+        recordBest(result);
+        showExamCard({
+          result,
+          best: readBest(),
+          submitted: readSubmitted(),
+          open: examOpen(),
+          onSubmit: () => {},
+        });
+      }
     }
     const banner = this.els.banner!;
     banner.className = `status-banner ${st === 'active' ? '' : `show ${st}`}`;
