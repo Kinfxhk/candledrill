@@ -119,7 +119,7 @@ export function showExamCard(input: {
       el(
         'p',
         { class: 'exam-best' },
-        `${t('exam.best')}: ${EXAM_TIER_LABEL[best.tier]} · ${money(best.net)}`,
+        `${t('exam.best')}: ${best.tier === null ? '—' : EXAM_TIER_LABEL[best.tier]} · ${money(best.net)}`,
       ),
     );
   overlay.append(
