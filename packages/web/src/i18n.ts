@@ -111,7 +111,7 @@ const enBase = {
   'lib.blindHidden': 'blind',
   'lib.blindRevealed': 'blind · revealed',
   'lib.dataNote':
-    'Everything is stored in one SQLite file on this computer (see README, "Your data"). Back it up with the button above or by copying the file while CandleDrill is stopped.',
+    'Everything stays on this device: the web build keeps it in this browser, a self-hosted build keeps one SQLite file. Back it up with the button above.',
   'remind.text':
     'You have not made a backup for a while. A backup is one file you can keep anywhere.',
   'remind.backup': 'Back up now',
@@ -525,7 +525,7 @@ const enBase = {
   'about.title': 'About CandleDrill',
 
   'about.body':
-    'CandleDrill (K線操練場) is free software (AGPL-3.0-or-later) for practising chart reading and trade management on historical or synthetic bars. It runs only on your computer, binds to 127.0.0.1, has no accounts and sends no telemetry.',
+    'CandleDrill (K線操練場) is free software (AGPL-3.0-or-later) for practising chart reading and trade management on historical or synthetic bars. It runs entirely in this browser tab, keeps its data on your device, has no accounts and sends no telemetry.',
   'about.notAffiliated':
     'CandleDrill is an independent open-source project. It has no equity, agency, employment or official-authorisation relationship with any trading platform, charting vendor, broker, exchange or prop firm, and does not represent any of them. It ships no firm rules, parameters or templates; rule profiles are entered by users, and no firm reviews or influences the software, demo data or rule evaluation. Some external links (including the recommendations page) are affiliate links; see Recommendations and risk disclosure. That commercial relationship does not affect the code, demo data or rule evaluation.',
   'about.close': 'Close',
@@ -684,7 +684,7 @@ const zhHantBase: Record<BaseKey, string> = {
   'lib.blindHidden': '盲練',
   'lib.blindRevealed': '盲練・已揭曉',
   'lib.dataNote':
-    '全部資料存放在這部電腦上的一個 SQLite 檔案（見 README「你的資料」）。可以用上面的按鈕備份，或在 CandleDrill 停止時複製該檔案。',
+    '所有資料都留在這部裝置：網頁版存在這個瀏覽器，自建版本則是一個 SQLite 檔。用上面的按鈕備份。',
   'remind.text': '你有一段時間沒有備份了。備份只是一個檔案，可以放在任何地方。',
   'remind.backup': '立即備份',
   'remind.dismiss': '稍後提醒',
@@ -1086,7 +1086,7 @@ const zhHantBase: Record<BaseKey, string> = {
   'about.title': '關於 CandleDrill',
 
   'about.body':
-    'CandleDrill（K線操練場）是自由軟件（AGPL-3.0-or-later），用歷史或合成K線練習看圖及交易管理。只在你的電腦運行，只綁定 127.0.0.1，不需要帳戶，亦不會傳送任何使用數據。',
+    'CandleDrill（K線操練場）是自由軟件（AGPL-3.0-or-later），用歷史或合成K線練習看圖及交易管理。只在你的瀏覽器內運行，所有資料存在你的裝置，不需要帳戶，亦不會傳送任何使用數據。',
   'about.notAffiliated':
     'CandleDrill 是獨立開源項目，與任何交易平台、圖表供應商、經紀、交易所或 prop firm 沒有股權、代理、受僱或官方授權關係，亦不代表任何一方。本工具不內置任何公司的規則、參數或範本；規則檔由使用者自行提供，相關公司不會審核或影響本工具的功能、示範數據或規則判定。部分外部連結（包括推薦連結頁）含聯盟佣金，詳見「推薦連結與風險披露」。此商業關係不影響程式碼、示範數據及規則判定。',
   'about.close': '關閉',

@@ -955,3 +955,11 @@ body.in-practice header.app select {
     height: auto;
   }
 }
+
+/* The split toggle is a feature, not chrome: it stays until the grid itself
+   collapses to one column at 1000px. Jump/link keep folding at 1365px. */
+@media (max-width: 1000px) {
+  .tb-split {
+    display: none !important;
+  }
+}
