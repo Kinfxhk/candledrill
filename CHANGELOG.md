@@ -6,6 +6,15 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.22] - 2026-10-29
+
+### Changed
+
+- The target is the only gate: the Distinction tier and its ten-trade requirement
+  are gone.
+- A breach or a manual end no longer uses the day's scored attempt; only a pass
+  records a result.
+
 ## [1.0.21] - 2026-10-29
 
 ### Changed

@@ -2100,7 +2100,8 @@ export class PracticeView {
     this.summary?.update(this.meta.settings, this.state, this.meta.id);
     const st = this.state.status;
     // One scored attempt per day; the certificate only for that first result.
-    const day = st === 'active' ? null : dailySessionDay(this.meta.id);
+    // Only a pass uses the day's attempt; a breach, manual end or running out stays practice.
+    const day = st === 'passed' ? dailySessionDay(this.meta.id) : null;
     if (day !== null && dailyResult(day) === null) {
       const stats = sessionStats(this.engineSettings(), this.state);
       const first = recordDailyResult(day, this.meta.id, {

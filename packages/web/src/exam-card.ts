@@ -41,13 +41,7 @@ export function showExamCard(input: {
     'div',
     { class: 'exam-cert' },
     el('p', { class: 'exam-kicker' }, `Exam 50K · ${EXAM_VERSION}`),
-    el(
-      'h2',
-      { class: 'exam-heading' },
-      input.result.tier === 'distinction'
-        ? `${t('exam.cert')} · ${t('exam.distinction')}`
-        : t('exam.cert'),
-    ),
+    el('h2', { class: 'exam-heading' }, t('exam.cert')),
     el('p', { class: 'exam-code' }, input.result.code),
     el(
       'dl',
