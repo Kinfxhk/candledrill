@@ -2,6 +2,27 @@
 import type { BaseKey as MessageKey } from '../i18n.js';
 
 export const ja: Record<MessageKey, string> = {
+  'exam.title': '試験 · 50K',
+  'exam.note':
+    '口座 50,000 · 目標 +3,000 · 静的ドローダウン 2,000 · 1 回 5 枚まで。全員が同じ固定データ。',
+  'exam.start': '試験を開始',
+  'exam.cert': '模擬試験 合格',
+  'exam.distinction': '優秀',
+  'exam.submit': '成績を提出',
+  'exam.skip': 'スキップ',
+  'exam.submitted': '提出済み',
+  'exam.ended': 'キャンペーン終了',
+  'exam.once':
+    '提出は一人一回のみ。納得いくまで練習し、最良の結果を提出してください。変更はできません。',
+  'exam.best': '現在のベスト',
+  'exam.legal':
+    'ブラウザ上で計算された自己申告の成績で、検証されていません。prop firm とは無関係で、公式評価や出金証明ではありません。',
+  'exam.privacy':
+    'メールアドレスは本キャンペーンの成績集計・連絡・賞品手配にのみ使用します。他の宣伝には使わず、販売もせず、12 か月保存し、kinfxhk@gmail.com への連絡で削除します。',
+  'exam.net': '純損益',
+  'exam.maxDd': '最大ドローダウン',
+  'exam.trades': '取引数',
+  'exam.maxQty': '1 回の枚数上限',
   'pr.viewChart': 'チャートで表示',
   'pr.returnLive': '現在の足に戻る',
   'pr.reviewingTrade': '取引 #{id} を表示中',

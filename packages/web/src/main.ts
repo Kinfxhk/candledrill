@@ -35,6 +35,7 @@ import {
   type UpdateInfo,
   type UpdatePrefs,
 } from './updates.js';
+import { examOpen, startExam } from './exam.js';
 
 const PREFS_KEY = 'candledrill.prefs';
 interface Prefs {
@@ -425,8 +426,13 @@ try {
   if (typeof health.releaseVersion === 'string') currentRelease = health.releaseVersion;
   await library.reload();
   // Resume the last practice session (state is persisted server-side in SQLite).
+  let handledExam = false;
+  if (examOpen() && new URLSearchParams(location.search).has('exam')) {
+    await openSession(await startExam());
+    handledExam = true;
+  }
   const last = Number(localStorage.getItem('candledrill.lastSession'));
-  if (last > 0) {
+  if (!handledExam && last > 0) {
     const { sessions } = await sessionsApi.list();
     if (sessions.some((s) => s.id === last)) await openSession(last);
   }

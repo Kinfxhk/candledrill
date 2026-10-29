@@ -2,6 +2,25 @@
 import type { BaseKey as MessageKey } from '../i18n.js';
 
 export const zhHans: Record<MessageKey, string> = {
+  'exam.title': '考试 · 50K',
+  'exam.note': '账户 50,000 · 目标 +3,000 · 静态回撤 2,000 · 每次最多 5 张。所有人同一条冻结数据。',
+  'exam.start': '开始考试',
+  'exam.cert': '模拟考试合格',
+  'exam.distinction': '优异',
+  'exam.submit': '提交成绩',
+  'exam.skip': '跳过',
+  'exam.submitted': '已提交',
+  'exam.ended': '活动已结束',
+  'exam.once': '每人只可提交一次 —— 玩到你满意，再交最好的一次。提交后不能更改。',
+  'exam.best': '你目前最佳',
+  'exam.legal':
+    '由你的浏览器计算，属自报成绩、未经核实。与任何 prop firm 无关，不是官方评估或出金证明。',
+  'exam.privacy':
+    '你的 email 只用于本次活动：成绩统计、联络及奖品安排。不作其他推广、不出售，保留 12 个月，可电邮 kinfxhk@gmail.com 要求删除。',
+  'exam.net': '净利',
+  'exam.maxDd': '最大回撤',
+  'exam.trades': '交易数',
+  'exam.maxQty': '每次张数上限',
   'pr.viewChart': '在图表查看',
   'pr.returnLive': '返回当前K线',
   'pr.reviewingTrade': '正在查看交易 #{id}',

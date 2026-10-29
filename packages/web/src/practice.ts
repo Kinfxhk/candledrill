@@ -18,6 +18,7 @@ import {
   tapeAtOrBefore,
   practiceChartTimeframes,
   roundToTick,
+  sessionStats,
   workingOrders,
   type Bar,
   type OrderChange,
@@ -56,6 +57,17 @@ import type { SessionCountdown } from './countdown.js';
 import { getLang, t, type MessageKey } from './i18n.js';
 import { statusReasonText } from './labels.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
+import { showExamCard } from './exam-card.js';
+import {
+  EXAM,
+  examOpen,
+  examResult,
+  isExamSession,
+  readBest,
+  readSubmitted,
+  recordBest,
+  takeExamCardFor,
+} from './exam.js';
 import { RulesView } from './rules-view.js';
 import { RulesStrip } from './rules-strip.js';
 import { reviewTab } from './review-tab.js';
@@ -1190,6 +1202,17 @@ export class PracticeView {
   async placeOrder(req: OrderRequest): Promise<void> {
     this.flushPresent();
     if (!this.meta) return;
+    // Exam rule: the certificate claims 5 contracts, so the ticket has to hold it.
+    if (isExamSession(this.meta.id)) {
+      const open = Math.abs(this.state?.trading.position?.qty ?? 0);
+      const working = this.state
+        ? workingOrders(this.state.trading).reduce((total, order) => total + order.qty, 0)
+        : 0;
+      if (open + working + req.qty > EXAM.maxQty) {
+        toast(`${t('exam.maxQty')} ${EXAM.maxQty}`, 'error');
+        return;
+      }
+    }
     if (this.inFlight) {
       toast(t('pr.busy'));
       return;
@@ -2076,6 +2099,22 @@ export class PracticeView {
     this.els.summary?.setAttribute('aria-label', t('summary.title'));
     this.summary?.update(this.meta.settings, this.state, this.meta.id);
     const st = this.state.status;
+    if (takeExamCardFor(this.meta.id, st)) {
+      const stats = sessionStats(this.engineSettings(), this.state);
+      const result = examResult({
+        net: stats.netPnl,
+        maxDrawdownUsd: stats.maxDrawdown,
+        trades: stats.trades,
+      });
+      recordBest(result);
+      showExamCard({
+        result,
+        best: readBest(),
+        submitted: readSubmitted(),
+        open: examOpen(),
+        onSubmit: () => {},
+      });
+    }
     const banner = this.els.banner!;
     banner.className = `status-banner ${st === 'active' ? '' : `show ${st}`}`;
     banner.textContent =

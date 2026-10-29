@@ -9,6 +9,27 @@ import { v1En, v1Ja, v1Ko, v1ZhHans, v1ZhHant } from './i18n/v1.js';
 export type Lang = 'en' | 'zh-Hant' | 'zh-Hans' | 'ja' | 'ko';
 
 const enBase = {
+  'exam.title': 'Exam · 50K',
+  'exam.note':
+    '50,000 account · +3,000 target · 2,000 static drawdown · 5 contracts max. Everyone trades the same frozen data.',
+  'exam.start': 'Start the exam',
+  'exam.cert': 'Simulated exam passed',
+  'exam.distinction': 'Distinction',
+  'exam.submit': 'Submit score',
+  'exam.skip': 'Skip',
+  'exam.submitted': 'Already submitted',
+  'exam.ended': 'Campaign closed',
+  'exam.once':
+    'One submission only — play until you are happy, then submit your best run. It cannot be changed.',
+  'exam.best': 'Your best so far',
+  'exam.legal':
+    'Computed in your browser, self-reported and unverified. Not affiliated with any prop firm; not an official evaluation or payout proof.',
+  'exam.privacy':
+    'Your email is used only for this campaign: score statistics, contact and prizes. No other marketing, never sold, kept 12 months, deleted on request to kinfxhk@gmail.com.',
+  'exam.net': 'Net P&L',
+  'exam.maxDd': 'Max drawdown',
+  'exam.trades': 'Trades',
+  'exam.maxQty': 'Contracts per entry',
   'pr.viewChart': 'View on chart',
   'pr.returnLive': 'Return to current bar',
   'pr.reviewingTrade': 'Viewing trade #{id}',
@@ -557,6 +578,25 @@ export type MessageKey = keyof typeof en;
 export type BaseKey = keyof typeof enBase;
 
 const zhHantBase: Record<BaseKey, string> = {
+  'exam.title': '考試 · 50K',
+  'exam.note': '賬戶 50,000 · 目標 +3,000 · 靜態回撤 2,000 · 每次最多 5 張。所有人同一條凍結數據。',
+  'exam.start': '開始考試',
+  'exam.cert': '模擬考試合格',
+  'exam.distinction': '優異',
+  'exam.submit': '提交成績',
+  'exam.skip': '跳過',
+  'exam.submitted': '已提交',
+  'exam.ended': '活動已結束',
+  'exam.once': '每人只可提交一次 —— 玩到你滿意，再交最好的一次。提交後不能更改。',
+  'exam.best': '你目前最佳',
+  'exam.legal':
+    '由你的瀏覽器計算，屬自報成績、未經核實。與任何 prop firm 無關，不是官方評核或出金證明。',
+  'exam.privacy':
+    '你的 email 只用於本次活動：成績統計、聯絡及獎品安排。不作其他推廣、不出售，保留 12 個月，可電郵 kinfxhk@gmail.com 要求刪除。',
+  'exam.net': '淨利',
+  'exam.maxDd': '最大回撤',
+  'exam.trades': '交易數',
+  'exam.maxQty': '每次張數上限',
   'pr.viewChart': '在圖表查看',
   'pr.returnLive': '返回目前K線',
   'pr.reviewingTrade': '正在查看交易 #{id}',
