@@ -1,6 +1,6 @@
 {
   "name": "@candledrill/core",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "private": true,
   "description": "CandleDrill core engine: pure, deterministic functions (no I/O).",
   "license": "AGPL-3.0-or-later",
