@@ -9,6 +9,7 @@ import {
   examSettings,
   examSubmitUrl,
   examTier,
+  examTokenValid,
 } from '../src/exam.js';
 
 describe('exam settings', () => {
@@ -38,7 +39,7 @@ describe('exam tier', () => {
 });
 
 describe('exam result', () => {
-  it('is deterministic and prefills the form', () => {
+  it('is deterministic and sends one checksummed code', () => {
     const input = {
       net: 3_050,
       maxDrawdownUsd: 900,
@@ -52,16 +53,23 @@ describe('exam result', () => {
     expect(result.code).toMatch(/^EXAM-v1-[0-9A-F]{8}$/);
     const url = new URL(examSubmitUrl(result));
     expect(url.origin + url.pathname).toBe(EXAM_FORM_URL);
-    const values = [...url.searchParams.values()];
-    expect(values).toContain('CandleDrill');
-    expect(values).toContain('Distinction 優異（回撤 ≤ 1,000 且 ≥ 10 筆交易）');
-    expect(values).toContain('3050');
-    expect(values).toContain('900');
-    expect(values).toContain('12');
-    expect(values).toContain('58.3');
-    expect(values).toContain('1.8');
-    expect(values).toContain('5');
-    expect(url.searchParams.has('entry.867628570')).toBe(false); // email stays manual
+    expect([...url.searchParams.keys()]).toEqual(['usp', 'entry.1153110697']);
+    const token = url.searchParams.get('entry.1153110697') ?? '';
+    expect(token.split('|').slice(0, 10)).toEqual([
+      'KFX1',
+      'CD',
+      'DIST',
+      '3050',
+      '900',
+      '12',
+      '58.3',
+      '1.8',
+      '5',
+      result.code,
+    ]);
+    expect(examTokenValid(token)).toBe(true);
+    const fields = token.split('|');
+    expect(examTokenValid([...fields.slice(0, 8), '99', ...fields.slice(9)].join('|'))).toBe(false);
   });
 });
 

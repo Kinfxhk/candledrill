@@ -9,20 +9,10 @@ import type { SessionSettings } from './api.js';
 export const EXAM_VERSION = 'exam-v1';
 export const EXAM_ENDS_AT = Date.parse('2026-11-05T23:59:59+08:00');
 export const EXAM_FORM_URL =
-  'https://docs.google.com/forms/d/e/1FAIpQLSdM3UNvQ1_4iEuUCvARbI5aKzycAU1r3MFD58pVvuA_BeDeoQ/viewform';
+  'https://docs.google.com/forms/d/e/1FAIpQLSc15qDeKCZd-J7jGPQu6LF_45DY9VBS1U-QUU3qCJTNllZSbQ/viewform';
 
 /** Prefilled answer ids from that form. Change the form, change these. */
-const ENTRY = {
-  tool: 'entry.1388880711',
-  tier: 'entry.281015303',
-  net: 'entry.92678115',
-  maxDd: 'entry.3454493',
-  trades: 'entry.816234682',
-  winRate: 'entry.542397379',
-  rrr: 'entry.85917777',
-  lots: 'entry.652454272',
-  code: 'entry.973341008',
-} as const;
+const ENTRY = { token: 'entry.1153110697' } as const;
 
 export const EXAM = {
   startDate: '2026-09-01',
@@ -115,19 +105,42 @@ export function examResult(input: {
   };
 }
 
-/** One prefilled link; the respondent only types their email. */
+function checksum(text: string): string {
+  return fnv1a(text).toString(36).toUpperCase().padStart(6, '0').slice(0, 6);
+}
+
+/**
+ * One pipe-delimited line so nothing on the form is a number a player can retype.
+ * KFX1|tool|tier|net|maxDD|trades|winRate|rrr|lots|code|checksum
+ */
+export function examToken(result: ExamResult): string {
+  const fields = [
+    'KFX1',
+    'CD',
+    result.tier === 'distinction' ? 'DIST' : 'PASS',
+    String(result.net),
+    String(result.maxDrawdownUsd),
+    String(result.trades),
+    result.winRatePct === null ? '-' : String(result.winRatePct),
+    result.rrr === null ? '-' : String(result.rrr),
+    result.lots,
+    result.code,
+  ];
+  return [...fields, checksum(fields.join('|'))].join('|');
+}
+
+/** True when the code still matches its own checksum. */
+export function examTokenValid(token: string): boolean {
+  const parts = token.split('|');
+  if (parts.length !== 11 || parts[0] !== 'KFX1') return false;
+  return checksum(parts.slice(0, 10).join('|')) === parts[10];
+}
+
+/** One prefilled link: the score travels as a checksummed code, the player types email only. */
 export function examSubmitUrl(result: ExamResult): string {
   const params = new URLSearchParams({
     usp: 'pp_url',
-    [ENTRY.tool]: 'CandleDrill',
-    [ENTRY.tier]: EXAM_TIER_LABEL[result.tier],
-    [ENTRY.net]: String(result.net),
-    [ENTRY.maxDd]: String(result.maxDrawdownUsd),
-    [ENTRY.trades]: String(result.trades),
-    [ENTRY.winRate]: result.winRatePct === null ? '—' : String(result.winRatePct),
-    [ENTRY.rrr]: result.rrr === null ? '—' : String(result.rrr),
-    [ENTRY.lots]: result.lots,
-    [ENTRY.code]: result.code,
+    [ENTRY.token]: examToken(result),
   });
   return `${EXAM_FORM_URL}?${params.toString()}`;
 }

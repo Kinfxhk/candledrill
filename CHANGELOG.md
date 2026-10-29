@@ -6,6 +6,13 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.17] - 2026-10-29
+
+### Changed
+
+- The submitted score is one checksummed code (`KFX1|…`) rather than editable
+  number fields; the form only asks for email, the code and consent.
+
 ## [1.0.16] - 2026-10-29
 
 ### Added
