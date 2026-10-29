@@ -1359,3 +1359,94 @@ a#tv-attr-logo svg {
     animation: none;
   }
 }
+
+/* Campaign exam card. Temporary: deleted with the exam module. */
+.exam-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  padding: 18px;
+  overflow-y: auto;
+  background: rgb(0 0 0 / 62%);
+}
+.exam-cert {
+  width: min(430px, 92vw);
+  padding: 22px;
+  border: 1px solid var(--line, #2c3644);
+  border-radius: 14px;
+  background: var(--panel, #171c25);
+  box-shadow: var(--shadow);
+}
+.exam-kicker {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.exam-heading {
+  margin: 6px 0 2px;
+  font-size: 22px;
+  color: var(--accent, #f2a93b);
+}
+.exam-code {
+  margin: 0 0 14px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  opacity: 0.75;
+}
+.exam-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.exam-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--line, #2c3644);
+}
+.exam-row dt,
+.exam-row dd {
+  margin: 0;
+}
+.exam-row dd {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.exam-legal,
+.exam-note,
+.exam-best,
+.exam-privacy {
+  max-width: 430px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  opacity: 0.8;
+}
+.exam-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.exam-ready {
+  animation: exam-glow 900ms ease-out 1;
+}
+@keyframes exam-glow {
+  from {
+    box-shadow: 0 0 0 0 rgb(242 169 59 / 55%);
+  }
+  to {
+    box-shadow: 0 0 0 10px rgb(242 169 59 / 0%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .exam-ready {
+    animation: none;
+  }
+}

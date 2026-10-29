@@ -6,6 +6,18 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.14] - 2026-10-29
+
+### Added
+
+- A one-week campaign exam behind `?exam=1`: one frozen synthetic series
+  (5 days of 5-minute bars, fixed seed), a 50,000 account, a +3,000 target, a
+  2,000 static max drawdown and a five-contract cap enforced at the ticket.
+  Reaching the target shows a simulated certificate with a Distinction tier
+  (max drawdown ≤ 1,000 and at least 10 closed trades), counts down without
+  navigating away, and offers one prefilled score submission. Closing the
+  campaign disables the entry; the module is removed after 2026-11-05.
+
 ## [1.0.13] - 2026-10-28
 
 ### Fixed
