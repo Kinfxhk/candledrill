@@ -9,16 +9,19 @@ import type { SessionSettings } from './api.js';
 export const EXAM_VERSION = 'exam-v1';
 export const EXAM_ENDS_AT = Date.parse('2026-11-05T23:59:59+08:00');
 export const EXAM_FORM_URL =
-  'https://docs.google.com/forms/d/e/1FAIpQLSd5lt961M8uiH8CviqyIksoaWcx_wEGbMBxLRxQrLtICIYXQw/viewform';
+  'https://docs.google.com/forms/d/e/1FAIpQLSdM3UNvQ1_4iEuUCvARbI5aKzycAU1r3MFD58pVvuA_BeDeoQ/viewform';
 
 /** Prefilled answer ids from that form. Change the form, change these. */
 const ENTRY = {
-  tool: 'entry.561917348',
-  tier: 'entry.1707438033',
-  net: 'entry.337949414',
-  maxDd: 'entry.412360479',
-  trades: 'entry.459475028',
-  code: 'entry.723542441',
+  tool: 'entry.1388880711',
+  tier: 'entry.281015303',
+  net: 'entry.92678115',
+  maxDd: 'entry.3454493',
+  trades: 'entry.816234682',
+  winRate: 'entry.542397379',
+  rrr: 'entry.85917777',
+  lots: 'entry.652454272',
+  code: 'entry.973341008',
 } as const;
 
 export const EXAM = {
@@ -79,6 +82,9 @@ export type ExamResult = {
   readonly net: number;
   readonly maxDrawdownUsd: number;
   readonly trades: number;
+  readonly winRatePct: number | null;
+  readonly rrr: number | null;
+  readonly lots: string;
   readonly code: string;
 };
 
@@ -86,6 +92,9 @@ export function examResult(input: {
   readonly net: number;
   readonly maxDrawdownUsd: number;
   readonly trades: number;
+  readonly winRatePct?: number | null;
+  readonly rrr?: number | null;
+  readonly lots?: string;
 }): ExamResult {
   const net = Math.round(input.net * 100) / 100;
   const maxDrawdownUsd = Math.round(input.maxDrawdownUsd * 100) / 100;
@@ -99,6 +108,9 @@ export function examResult(input: {
     net,
     maxDrawdownUsd,
     trades: input.trades,
+    winRatePct: input.winRatePct ?? null,
+    rrr: input.rrr ?? null,
+    lots: input.lots ?? '—',
     code,
   };
 }
@@ -112,6 +124,9 @@ export function examSubmitUrl(result: ExamResult): string {
     [ENTRY.net]: String(result.net),
     [ENTRY.maxDd]: String(result.maxDrawdownUsd),
     [ENTRY.trades]: String(result.trades),
+    [ENTRY.winRate]: result.winRatePct === null ? '—' : String(result.winRatePct),
+    [ENTRY.rrr]: result.rrr === null ? '—' : String(result.rrr),
+    [ENTRY.lots]: result.lots,
     [ENTRY.code]: result.code,
   });
   return `${EXAM_FORM_URL}?${params.toString()}`;

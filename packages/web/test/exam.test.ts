@@ -39,8 +39,16 @@ describe('exam tier', () => {
 
 describe('exam result', () => {
   it('is deterministic and prefills the form', () => {
-    const result = examResult({ net: 3_050, maxDrawdownUsd: 900, trades: 12 });
-    expect(result).toEqual(examResult({ net: 3_050, maxDrawdownUsd: 900, trades: 12 }));
+    const input = {
+      net: 3_050,
+      maxDrawdownUsd: 900,
+      trades: 12,
+      winRatePct: 58.3,
+      rrr: 1.8,
+      lots: '5',
+    };
+    const result = examResult(input);
+    expect(result).toEqual(examResult(input));
     expect(result.code).toMatch(/^EXAM-v1-[0-9A-F]{8}$/);
     const url = new URL(examSubmitUrl(result));
     expect(url.origin + url.pathname).toBe(EXAM_FORM_URL);
@@ -50,6 +58,9 @@ describe('exam result', () => {
     expect(values).toContain('3050');
     expect(values).toContain('900');
     expect(values).toContain('12');
+    expect(values).toContain('58.3');
+    expect(values).toContain('1.8');
+    expect(values).toContain('5');
     expect(url.searchParams.has('entry.867628570')).toBe(false); // email stays manual
   });
 });

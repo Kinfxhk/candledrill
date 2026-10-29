@@ -6,6 +6,14 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.16] - 2026-10-29
+
+### Added
+
+- The certificate submission also sends the largest trade size, win rate and
+  reward-to-risk (average win over average loss), alongside net P&L, max
+  drawdown and trade count.
+
 ## [1.0.15] - 2026-10-29
 
 ### Added
