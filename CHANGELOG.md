@@ -6,6 +6,13 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.21] - 2026-10-29
+
+### Changed
+
+- Distinction needs the target and ten closed trades only; the drawdown cap is a
+  ranking input, not a qualifying gate.
+
 ## [1.0.20] - 2026-10-29
 
 ### Fixed

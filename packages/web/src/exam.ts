@@ -24,7 +24,7 @@ export const EXAM = {
 /** Must equal the option text in the campaign form, or the prefill is dropped. */
 export const EXAM_TIER_LABEL = {
   pass: 'Pass 合格',
-  distinction: 'Distinction 優異（回撤 ≤ 1,000 且 ≥ 10 筆交易）',
+  distinction: 'Distinction 優異（≥ 10 筆交易）',
 } as const;
 
 export type ExamTier = keyof typeof EXAM_TIER_LABEL;
@@ -70,9 +70,9 @@ export function examQtyAllowed(input: {
   return Math.abs(input.positionQty) + input.workingQty + input.qty <= 5;
 }
 
-export function examTier(net: number, maxDrawdownUsd: number, trades: number): ExamTier | null {
+export function examTier(net: number, trades: number): ExamTier | null {
   if (!(net >= 3_000)) return null;
-  return maxDrawdownUsd <= 1_000 && trades >= 10 ? 'distinction' : 'pass';
+  return trades >= 10 ? 'distinction' : 'pass';
 }
 
 function fnv1a(text: string): number {
@@ -105,7 +105,7 @@ export function examResult(input: {
 }): ExamResult {
   const net = Math.round(input.net * 100) / 100;
   const maxDrawdownUsd = Math.round(input.maxDrawdownUsd * 100) / 100;
-  const tier = examTier(net, maxDrawdownUsd, input.trades);
+  const tier = examTier(net, input.trades);
   const code = `EXAM-v1-${fnv1a(`${EXAM_VERSION}:${net}:${maxDrawdownUsd}:${input.trades}`)
     .toString(16)
     .padStart(8, '0')
