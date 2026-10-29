@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   dailySeed,
   dailySourceSeconds,
+  dailyStartAllowed,
   dailyTimeframe,
   isDailyDay,
   todayDay,
@@ -36,6 +37,14 @@ describe('daily round identity', () => {
       if (practice === 900) expect(source).toBe(300);
       else expect(source).toBe(practice);
     }
+  });
+
+  it('refuses to start a past round that was never opened', () => {
+    expect(dailyStartAllowed('2026-10-29', '2026-10-29', false)).toBe(true);
+    expect(dailyStartAllowed('2026-10-30', '2026-10-29', false)).toBe(true);
+    expect(dailyStartAllowed('2026-10-28', '2026-10-29', false)).toBe(false);
+    expect(dailyStartAllowed('2026-10-28', '2026-10-29', true)).toBe(true);
+    expect(dailyStartAllowed('not-a-day', '2026-10-29', true)).toBe(false);
   });
 
   it('rejects a day that is not a real calendar date', () => {

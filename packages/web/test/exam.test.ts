@@ -5,6 +5,7 @@ import {
   EXAM_ENDS_AT,
   EXAM_FORM_URL,
   examOpen,
+  examQtyAllowed,
   examResult,
   examSettings,
   examSubmitUrl,
@@ -27,6 +28,21 @@ describe('exam settings', () => {
 
   it('caps the exam at five contracts', () => {
     expect(EXAM.maxQty).toBe(5);
+  });
+});
+
+describe('contract cap', () => {
+  it('blocks adding exposure past five and always allows exits', () => {
+    expect(examQtyAllowed({ positionQty: 0, workingQty: 0, side: 'buy', qty: 5 })).toBe(true);
+    expect(examQtyAllowed({ positionQty: 0, workingQty: 0, side: 'buy', qty: 6 })).toBe(false);
+    expect(examQtyAllowed({ positionQty: 4, workingQty: 0, side: 'buy', qty: 2 })).toBe(false);
+    expect(examQtyAllowed({ positionQty: 1, workingQty: 4, side: 'buy', qty: 1 })).toBe(false);
+    // closing a full long is not extra exposure
+    expect(examQtyAllowed({ positionQty: 5, workingQty: 0, side: 'sell', qty: 5 })).toBe(true);
+    // reducing a short is not extra exposure either
+    expect(examQtyAllowed({ positionQty: -5, workingQty: 0, side: 'buy', qty: 5 })).toBe(true);
+    // but adding to a short is capped
+    expect(examQtyAllowed({ positionQty: -5, workingQty: 0, side: 'sell', qty: 1 })).toBe(false);
   });
 });
 
