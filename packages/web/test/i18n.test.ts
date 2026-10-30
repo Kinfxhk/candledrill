@@ -58,7 +58,17 @@ describe('i18n', () => {
   });
 
   it('keeps the risk notice in every language', () => {
+    for (const dict of Object.values(dicts)) {
+      expect(dict['footer.notice']).toMatch(/CME/);
+      expect(dict['footer.notice']).toMatch(/Nasdaq/);
+      expect(dict['about.notAffiliated']).toMatch(/CME/);
+      expect(dict['lib.sampleNote']).toContain('PRACTICE-TECHIDX-24H');
+      expect(dict['lib.sampleNote']).not.toMatch(/globex/i);
+      expect(dict['footer.notice']).not.toMatch(/globex/i);
+    }
     expect(en['footer.notice']).toMatch(/Not investment advice/);
+    expect(en['footer.notice']).toMatch(/not index-licensed/);
+    expect(en['lib.sampleNote']).toMatch(/near-24h session-like/);
     expect(zhHant['footer.notice']).toMatch(/不構成投資建議/);
     expect(zhHans['footer.notice']).toMatch(/不构成投资建议/);
     expect(ja['footer.notice']).toMatch(/投資助言ではありません/);
