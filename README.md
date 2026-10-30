@@ -16,7 +16,7 @@
 
 ## 風險聲明
 
-CandleDrill 是**教育與練習工具**。**不構成投資建議**，不提供交易訊號，**模擬或練習成績不能預示真實交易結果**。期貨、外匯等槓桿商品可能損失超過本金。以 K 棒為單位的模擬，無法還原一根棒內真實的價格先後順序。若資料源是練習時框的三分之一（1 分鐘←20 秒、5 分鐘←100 秒、15 分鐘←300 秒），圖表會用它更新 forming K；**成交仍只在練習時框收棒時發生**（見 [docs/FILL-MODEL.md](docs/FILL-MODEL.md)）。只有已收市的練習時框、且那個間距本身不是 forming 來源時，不會在棒內編造路徑。
+CandleDrill 是**教育與練習工具**。**不構成投資建議**，不提供交易訊號，**模擬或練習成績不能預示真實交易結果**。內置示範與公開樣本只作合成練習：並非指數授權數據，亦非交易所、CME 或 Nasdaq 數據，與任何交易所或指數供應商無關聯。期貨、外匯等槓桿商品可能損失超過本金。以 K 棒為單位的模擬，無法還原一根棒內真實的價格先後順序。若資料源是練習時框的三分之一（1 分鐘←20 秒、5 分鐘←100 秒、15 分鐘←300 秒），圖表會用它更新 forming K；**成交仍只在練習時框收棒時發生**（見 [docs/FILL-MODEL.md](docs/FILL-MODEL.md)）。只有已收市的練習時框、且那個間距本身不是 forming 來源時，不會在棒內編造路徑。
 
 ## 開始使用
 
@@ -181,7 +181,7 @@ K 線顏色、格線、成交量、數量快捷、預設止蝕／止賺、「全
 ## 練習資料
 
 - **一鍵示範：** 先選練習時框（預設 1 分鐘），**產生示範數據** 會按該時框的三分之一產生合成 K（1 分鐘←20 秒、5 分鐘←100 秒、15 分鐘←5 分鐘；1 小時與日線同樣，`SYNTH-…`）。圖表選單不另開秒級時框。forming 隨來源更新，成交跟練習時框收棒。相同種子 → 相同 K 線。
-- **較長的 Globex 風格樣本（僅合成）：** [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)，匯入 `SYNTH-NQ-GLOBEX_1min.csv`，代號 **`PRACTICE-NQ-GLOBEX`**，跳動 **`0.25`**，UTC 偏移 **`-300`**。
+- **較長的近 24 小時時段風格樣本（僅合成）：** [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)，匯入 `SYNTH-TECHIDX-24H_1min.csv`，代號 **`PRACTICE-TECHIDX-24H`**，跳動 **`0.25`**，UTC 偏移 **`-300`**。並非指數授權數據，亦非交易所、CME 或 Nasdaq 數據。
 - 或 **匯入 CSV**：只匯入你有權使用的資料。CandleDrill **不附帶**真實市場資料。
 
 ## 為何選擇 CandleDrill
@@ -281,7 +281,10 @@ Traditional Chinese guide (v0.2 field notes): [docs/guide.zh-Hant.md](docs/guide
 
 CandleDrill is an **educational practice tool**. It is **not investment advice**,
 it gives no trading signals, and **simulated or practice results do not predict
-real trading results**. Trading futures, forex and other leveraged products can
+real trading results**. Built-in demo data and the published practice samples are
+**synthetic practice only**: not index-licensed, and not exchange, CME, or Nasdaq
+data. CandleDrill is **not affiliated** with any exchange or index provider.
+Trading futures, forex and other leveraged products can
 lose more than your deposit. Bar-based simulation cannot know the true order of
 prices inside a bar. If the data source is one third of the practice timeframe (1m←20s, 5m←100s, 15m←300s), the chart uses those bars to update a forming candle; **fills still occur only on practice-timeframe closes** (see [docs/FILL-MODEL.md](docs/FILL-MODEL.md)). A file whose spacing is already a practice timeframe and not a forming source does not grow a made-up path inside the bar.
 
@@ -404,7 +407,7 @@ Older session files still import: `anchorMinutes` copies `dayStartMinutes`, and 
 ## Practice data
 
 - **One-click demo:** Pick a practice timeframe (default 1 minute), then **Generate demo data** builds synthetic bars at one third of that timeframe (1m←20s, 5m←100s, 15m←5m, 1h←20m, 1D←8h, `SYNTH-…`). 1m–1h use the 08:00–16:30 session. 1D uses a full day so the three 8h bars can form the daily candle. The chart menu does not add a seconds timeframe. Forming updates from the source; fills still follow practice-timeframe closes. Same seed → same bars.
-- **Longer Globex-like sample (synthetic only):** [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples) — import `SYNTH-NQ-GLOBEX_1min.csv` as symbol **`PRACTICE-NQ-GLOBEX`**, tick size **`0.25`**, UTC offset **`-300`**.
+- **Longer near-24h session-like sample (synthetic only):** [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples) — import `SYNTH-TECHIDX-24H_1min.csv` as symbol **`PRACTICE-TECHIDX-24H`**, tick size **`0.25`**, UTC offset **`-300`**. Not index-licensed, and not exchange, CME, or Nasdaq data.
 - Or **Import CSV** of data you are entitled to use. CandleDrill ships **no real market data**.
 
 ## Why CandleDrill

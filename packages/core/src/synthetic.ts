@@ -14,6 +14,7 @@
 // (three 8h prints, then the daily close). Passing `calendar` leaves it unchanged.
 
 import { createRng } from './rng.js';
+import { publicGeneratorSuffix } from './sample-ids.js';
 import { DAY_SECONDS } from './aggregate.js';
 import {
   FORMING_PARTS,
@@ -86,7 +87,10 @@ export interface SyntheticOptions {
   /** Number of calendar days to cover (weekends/closed days produce no bars). */
   readonly days: number;
   readonly calendar?: SessionCalendar;
-  /** Name suffix; the symbol becomes "SYNTH-<name>". Default "DEMO". */
+  /**
+   * Name suffix; the symbol becomes "SYNTH-<name>". Default "DEMO".
+   * A retired suffix is rewritten to the public id. The price path does not use this string.
+   */
   readonly name?: string;
   readonly tickSize?: number;
   readonly startPrice?: number;
@@ -141,7 +145,7 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
   const gapVol = options.sessionGapVolatility ?? 0.004;
   const missingP = options.missingBarProbability ?? 0;
   const baseVolume = options.baseVolume ?? 400;
-  const name = options.name ?? 'DEMO';
+  const requestedName = options.name ?? 'DEMO';
 
   assertTickSize(tickSize);
   checkRange('startPrice', startPrice, tickSize * 10, 1e9);
@@ -154,9 +158,10 @@ export function generateSyntheticBars(options: SyntheticOptions): SyntheticDatas
       `timeframeSeconds must be a positive divisor of 60 or a practice timeframe divided by ${FORMING_PARTS}, got ${timeframeSeconds}`,
     );
   }
-  if (!/^[A-Z0-9_-]{1,24}$/.test(name)) {
+  if (!/^[A-Z0-9_-]{1,24}$/.test(requestedName)) {
     throw new RangeError('name must be 1-24 chars of A-Z, 0-9, "_" or "-"');
   }
+  const name = publicGeneratorSuffix(requestedName);
 
   const spans = expandSessions(calendar, options.startDate, options.days);
   const totalMinutes = spans.reduce((n, s) => n + s.minutes, 0);

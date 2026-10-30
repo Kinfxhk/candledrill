@@ -13,6 +13,13 @@ PARTICULAR PURPOSE.
 CandleDrill is an educational practice tool. It is not investment advice.
 Simulated or practice results do not predict real trading results.
 
+Built-in demo bars and the published practice samples are synthetic practice
+data only. They are not index-licensed, not exchange, CME, or Nasdaq market
+data, and CandleDrill is not affiliated with, endorsed by, or sponsored by any
+exchange or index provider. Public sample ids are trademark-neutral
+(`SYNTH-IDX1`, `SYNTH-IDX2`, `SYNTH-METAL1`, `SYNTH-BTC`,
+`SYNTH-TECHIDX-24H` / `PRACTICE-TECHIDX-24H`).
+
 CandleDrill is an independent open-source project. It has no equity, agency,
 employment or official-authorisation relationship with FX Replay, Forex Tester,
 TradeZella, TradingView, NinjaTrader, or any broker, exchange, data vendor or
