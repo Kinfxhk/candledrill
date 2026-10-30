@@ -5,7 +5,8 @@
 // like a data dump (CSV/Parquet/SQLite etc.) or if required notice files are missing.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 
 const FORBIDDEN_EXT =
   /\.(csv|tsv|parquet|feather|arrow|h5|hdf5|db|sqlite|sqlite3|scid|dly|bcd|hcc|tick|ticks)$/i;
@@ -28,9 +29,45 @@ for (const required of ['LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'README.m
 if (existsSync('README.md')) {
   const readme = readFileSync('README.md', 'utf8');
   if (!readme.includes('not investment advice')) problems.push('README.md lacks the risk notice');
+  if (!readme.includes('not index-licensed'))
+    problems.push('README.md lacks the not-index-licensed disclaimer');
+  if (!readme.includes('PRACTICE-TECHIDX-24H') || !readme.includes('SYNTH-TECHIDX-24H_1min.csv'))
+    problems.push('README.md lacks the public near-24h sample id');
+  if (!readme.includes('near-24h session-like'))
+    problems.push('README.md lacks the neutral near-24h session wording');
   if (!readme.includes('https://buymeacoffee.com/kinfxhk'))
     problems.push('README.md lacks Support link');
 }
+
+function walk(dir) {
+  if (!existsSync(dir)) return [];
+  const out = [];
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) out.push(...walk(p));
+    else if (/\.(md|html|ts)$/.test(name)) out.push(p);
+  }
+  return out;
+}
+
+/** User-visible copy must not market retired sample ids or a venue brand. */
+const PUBLIC_COPY = [
+  'README.md',
+  'NOTICE',
+  'CHANGELOG.md',
+  'packages/web/index.html',
+  'packages/web/src/i18n.ts',
+  ...walk('docs'),
+  ...walk('packages/web/src/i18n'),
+];
+const RETIRED_PUBLIC_ID = /globex|SYNTH-NQ|SYNTH-ES\b|SYNTH-GC\b|PRACTICE-NQ|NQ-GLOBEX|NQ_GLOBEX/i;
+for (const f of PUBLIC_COPY) {
+  if (!existsSync(f)) continue;
+  const text = readFileSync(f, 'utf8');
+  if (RETIRED_PUBLIC_ID.test(text))
+    problems.push(`${f} still shows a retired sample id or venue brand`);
+}
+
 if (existsSync('THIRD_PARTY_NOTICES.md')) {
   const tp = readFileSync('THIRD_PARTY_NOTICES.md', 'utf8');
   if (!tp.includes('lightweight-charts'))

@@ -33,6 +33,14 @@ export {
   type SyntheticOptions,
   type SyntheticDataset,
 } from './synthetic.js';
+export {
+  canonicalSampleId,
+  publicGeneratorSuffix,
+  suggestSampleImport,
+  PUBLIC_SAMPLE_IDS,
+  RETIRED_SAMPLE_ID_ALIASES,
+  type SampleImportSuggestion,
+} from './sample-ids.js';
 
 export {
   importCsv,
@@ -215,9 +223,12 @@ export {
 
 export const CANDLEDRILL_RISK_NOTICE_EN =
   'CandleDrill is an educational practice tool. It is not investment advice. ' +
-  'Simulated or practice results do not predict real trading results.';
+  'Simulated or practice results do not predict real trading results. ' +
+  'Demo data and practice samples are synthetic only: not index-licensed, and not exchange, CME, or Nasdaq data. ' +
+  'CandleDrill is not affiliated with any exchange or index provider.';
 export const CANDLEDRILL_RISK_NOTICE_ZH_HANT =
-  'CandleDrill（K線操練場）只作教育及練習用途，並不構成任何投資建議。模擬或練習成績不能預示真實交易結果。';
+  'CandleDrill（K線操練場）只作教育及練習用途，並不構成任何投資建議。模擬或練習成績不能預示真實交易結果。' +
+  '示範數據及練習樣本只是合成數據，並非指數授權數據，亦非交易所、CME 或 Nasdaq 數據，與任何交易所或指數供應商無關聯。';
 
 export {
   WEEK_SECONDS,

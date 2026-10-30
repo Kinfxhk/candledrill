@@ -6,6 +6,15 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Public synthetic sample ids are trademark-neutral. The longer practice file is
+  `SYNTH-TECHIDX-24H_1min.csv`, imported as `PRACTICE-TECHIDX-24H`. Retired ids
+  stay in an internal alias map and are not shown in the UI.
+- Risk copy states that demo and sample bars are synthetic practice only: not
+  index-licensed, not exchange, CME, or Nasdaq data, and not affiliated with any
+  exchange or index provider.
+
 ## [1.0.23] - 2026-10-29
 
 ### Fixed
@@ -447,7 +456,7 @@ Phone usability fixes from real-device testing. The fill model is unchanged (v4)
   drawing delete tooltips (create-time `t()` alone left them stuck in the old language).
 - README **Synthetic data** points at the separate MIT samples repo
   [`Kinfxhk/candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)
-  for a longer Globex-like practice CSV. Import with symbol `PRACTICE-NQ-GLOBEX` (not
+  for a longer near-24h session-like practice CSV. Import with symbol `PRACTICE-TECHIDX-24H` (not
   `SYNTH-`, which is reserved for the built-in generator), tick `0.25`, UTC offset `-300`.
   This app still ships **no market data**; sample CSVs stay out of this repo.
 
