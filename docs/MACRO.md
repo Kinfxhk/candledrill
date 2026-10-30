@@ -89,10 +89,11 @@ is why the result card says so, and why a hidden blind session is rejected.
 
 Built-in `SYNTH-` data is a short generated series. ORB checks in the test suite use a
 fixed session-shaped fixture (30 one-minute bars inside the window, then a close break).
-A longer Globex-like CSV lives in
+A longer near-24h session-like CSV lives in
 [`candledrill-synth-samples`](https://github.com/Kinfxhk/candledrill-synth-samples)
-(`PRACTICE-NQ-GLOBEX`) and is not vendored here. Import it yourself if you want a full
-session open on the chart.
+(`PRACTICE-TECHIDX-24H`, file `SYNTH-TECHIDX-24H_1min.csv`) and is not vendored here.
+It is synthetic practice data only: not index-licensed, and not exchange, CME, or
+Nasdaq data. Import it yourself if you want a full session open on the chart.
 
 ## Watch
 

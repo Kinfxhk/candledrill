@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // CSV import dialog: local preview + column mapping; the server re-parses and validates.
 
-import { guessMapping, parseCsv, type CsvMapping, type CsvImportReport } from '@candledrill/core';
+import {
+  guessMapping,
+  parseCsv,
+  suggestSampleImport,
+  type CsvMapping,
+  type CsvImportReport,
+} from '@candledrill/core';
 import { api, ApiError, type DatasetRow } from './api.js';
 import { t, type MessageKey } from './i18n.js';
 import { el, fmtTime, toast } from './format.js';
@@ -87,10 +93,14 @@ export function setupImporter(onImported: (ds: DatasetRow) => void): () => void 
     if (!file) return;
     text = await file.text();
     const base = file.name.replace(/\.[^.]+$/, '');
+    const suggestion = suggestSampleImport(base);
     const nameEl = field('name') as HTMLInputElement;
     const symEl = field('symbol') as HTMLInputElement;
-    if (!nameEl.value) nameEl.value = base.slice(0, 80);
-    if (!symEl.value) symEl.value = base.replace(/[^A-Za-z0-9._-]/g, '').slice(0, 32) || 'DATA';
+    if (!nameEl.value) nameEl.value = (suggestion?.datasetName ?? base).slice(0, 80);
+    if (!symEl.value) {
+      const raw = suggestion?.symbol ?? suggestion?.datasetName ?? base;
+      symEl.value = raw.replace(/[^A-Za-z0-9._-]/g, '').slice(0, 32) || 'DATA';
+    }
     result.replaceChildren();
     refreshPreview();
   });

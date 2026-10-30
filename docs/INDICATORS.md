@@ -52,9 +52,11 @@ These are educational overlays, not trade recommendations.
 
 Opening-range levels need a trading-day boundary (`day start` on the session, plus the UTC
 offset). The built-in `SYNTH-` series is a short continuous sample and may not show a clean
-session open. For a Globex-shaped practice file, import
-[`PRACTICE-NQ-GLOBEX`](https://github.com/Kinfxhk/candledrill-synth-samples)
-as described in the README. That file is not shipped in this repository.
+session open. For a near-24h session-like practice file, import
+[`PRACTICE-TECHIDX-24H`](https://github.com/Kinfxhk/candledrill-synth-samples)
+(`SYNTH-TECHIDX-24H_1min.csv`) as described in the README. That file is synthetic
+practice data only: not index-licensed, and not exchange, CME, or Nasdaq data.
+It is not shipped in this repository.
 
 ## Out of scope
 

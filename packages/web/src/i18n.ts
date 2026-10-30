@@ -81,6 +81,8 @@ const enBase = {
   'lib.empty': 'No datasets yet. Generate synthetic demo data or import your own CSV.',
   'lib.demo': 'Generate demo data',
   'lib.demoBusy': 'Demo data is still generating.',
+  'lib.sampleNote':
+    'Synthetic practice only. Longer near-24h session-like sample: import as PRACTICE-TECHIDX-24H.',
   'lib.practiceTf': 'Practice timeframe',
   'lib.import': 'Import CSV',
   'lib.delete': 'Delete',
@@ -527,12 +529,12 @@ const enBase = {
   'about.body':
     'CandleDrill (K線操練場) is free software (AGPL-3.0-or-later) for practising chart reading and trade management on historical or synthetic bars. It runs entirely in this browser tab, keeps its data on your device, has no accounts and sends no telemetry.',
   'about.notAffiliated':
-    'CandleDrill is an independent open-source project. It has no equity, agency, employment or official-authorisation relationship with any trading platform, charting vendor, broker, exchange or prop firm, and does not represent any of them. It ships no firm rules, parameters or templates; rule profiles are entered by users, and no firm reviews or influences the software, demo data or rule evaluation. Some external links (including the recommendations page) are affiliate links; see Recommendations and risk disclosure. That commercial relationship does not affect the code, demo data or rule evaluation.',
+    'CandleDrill is an independent open-source project. It has no equity, agency, employment or official-authorisation relationship with any trading platform, charting vendor, broker, exchange or prop firm, and does not represent any of them. It ships no firm rules, parameters or templates; rule profiles are entered by users, and no firm reviews or influences the software, demo data or rule evaluation. Some external links (including the recommendations page) are affiliate links; see Recommendations and risk disclosure. That commercial relationship does not affect the code, demo data or rule evaluation. Demo data and practice samples are synthetic only: not index-licensed, and not exchange, CME, or Nasdaq data.',
   'about.close': 'Close',
   'about.thirdParty': 'Third-party notice',
   'about.source': 'Source code (AGPL-3.0-or-later):',
   'footer.notice':
-    'Educational practice tool only. Not investment advice. Practice results do not predict real results.',
+    'Synthetic practice only. Not investment advice, not index-licensed data, and not exchange, CME, or Nasdaq data. Not affiliated with any exchange or index provider. Practice results do not predict real results.',
   'footer.license': 'AGPL-3.0-or-later · No telemetry',
   'err.network': 'Local server not reachable. Is CandleDrill running?',
   'x.stopLoss': 'Stop-loss',
@@ -657,6 +659,7 @@ const zhHantBase: Record<BaseKey, string> = {
   'lib.empty': '暫時未有數據集。可以產生合成示範數據，或者匯入自己的 CSV。',
   'lib.demo': '產生示範數據',
   'lib.demoBusy': '正在產生示範數據，請稍候。',
+  'lib.sampleNote': '只作合成練習。較長的近 24 小時時段風格樣本：匯入代號 PRACTICE-TECHIDX-24H。',
   'lib.practiceTf': '練習時框',
   'lib.import': '匯入 CSV',
   'lib.delete': '刪除',
@@ -1088,11 +1091,12 @@ const zhHantBase: Record<BaseKey, string> = {
   'about.body':
     'CandleDrill（K線操練場）是自由軟件（AGPL-3.0-or-later），用歷史或合成K線練習看圖及交易管理。只在你的瀏覽器內運行，所有資料存在你的裝置，不需要帳戶，亦不會傳送任何使用數據。',
   'about.notAffiliated':
-    'CandleDrill 是獨立開源項目，與任何交易平台、圖表供應商、經紀、交易所或 prop firm 沒有股權、代理、受僱或官方授權關係，亦不代表任何一方。本工具不內置任何公司的規則、參數或範本；規則檔由使用者自行提供，相關公司不會審核或影響本工具的功能、示範數據或規則判定。部分外部連結（包括推薦連結頁）含聯盟佣金，詳見「推薦連結與風險披露」。此商業關係不影響程式碼、示範數據及規則判定。',
+    'CandleDrill 是獨立開源項目，與任何交易平台、圖表供應商、經紀、交易所或 prop firm 沒有股權、代理、受僱或官方授權關係，亦不代表任何一方。本工具不內置任何公司的規則、參數或範本；規則檔由使用者自行提供，相關公司不會審核或影響本工具的功能、示範數據或規則判定。部分外部連結（包括推薦連結頁）含聯盟佣金，詳見「推薦連結與風險披露」。此商業關係不影響程式碼、示範數據及規則判定。示範數據及練習樣本只是合成數據，並非指數授權數據，亦非交易所、CME 或 Nasdaq 數據。',
   'about.close': '關閉',
   'about.thirdParty': '第三方聲明',
   'about.source': '原始碼（AGPL-3.0-or-later）：',
-  'footer.notice': '只作教育及練習用途，並不構成投資建議；練習成績不能預示真實交易結果。',
+  'footer.notice':
+    '只作合成練習，並不構成投資建議。並非指數授權數據，亦非交易所、CME 或 Nasdaq 數據，與任何交易所或指數供應商無關聯。練習成績不能預示真實交易結果。',
   'footer.license': 'AGPL-3.0-or-later · 不收集任何數據',
   'err.network': '連接不到本地伺服器。CandleDrill 是否正在運行？',
   'x.stopLoss': '止蝕',
