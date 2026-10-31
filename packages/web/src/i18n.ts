@@ -25,7 +25,7 @@ const enBase = {
   'exam.legal':
     'Computed in your browser, self-reported and unverified. Not affiliated with any prop firm; not an official evaluation or payout proof.',
   'exam.privacy':
-    'Your email is used only for this campaign: score statistics, contact and prizes. No other marketing, never sold, kept 12 months, deleted on request to kinfxhk@gmail.com.',
+    'Your email is used only for this campaign: score statistics, contact and prizes. No other marketing, never sold, kept 12 months, deleted on request to kinfxhk+candledrill@gmail.com.',
   'exam.net': 'Net P&L',
   'exam.maxDd': 'Max drawdown',
   'exam.trades': 'Trades',
@@ -604,7 +604,7 @@ const zhHantBase: Record<BaseKey, string> = {
   'exam.legal':
     '由你的瀏覽器計算，屬自報成績、未經核實。與任何 prop firm 無關，不是官方評核或出金證明。',
   'exam.privacy':
-    '你的 email 只用於本次活動：成績統計、聯絡及獎品安排。不作其他推廣、不出售，保留 12 個月，可電郵 kinfxhk@gmail.com 要求刪除。',
+    '你的 email 只用於本次活動：成績統計、聯絡及獎品安排。不作其他推廣、不出售，保留 12 個月，可電郵 kinfxhk+candledrill@gmail.com 要求刪除。',
   'exam.net': '淨利',
   'exam.maxDd': '最大回撤',
   'exam.trades': '交易數',

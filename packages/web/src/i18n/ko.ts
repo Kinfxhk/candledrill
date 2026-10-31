@@ -18,7 +18,7 @@ export const ko: Record<MessageKey, string> = {
   'exam.legal':
     '브라우저에서 계산된 자기 신고 성적이며 검증되지 않았습니다. 어떤 prop firm과도 무관하며 공식 평가나 출금 증명이 아닙니다.',
   'exam.privacy':
-    '이메일은 이 캠페인의 성적 집계, 연락, 상품 안내에만 사용합니다. 다른 홍보에 쓰지 않고 판매하지 않으며 12개월 보관 후 kinfxhk@gmail.com 요청 시 삭제합니다.',
+    '이메일은 이 캠페인의 성적 집계, 연락, 상품 안내에만 사용합니다. 다른 홍보에 쓰지 않고 판매하지 않으며 12개월 보관 후 kinfxhk+candledrill@gmail.com 요청 시 삭제합니다.',
   'exam.net': '순손익',
   'exam.maxDd': '최대 드로다운',
   'exam.trades': '거래 수',

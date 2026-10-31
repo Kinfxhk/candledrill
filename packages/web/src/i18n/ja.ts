@@ -18,7 +18,7 @@ export const ja: Record<MessageKey, string> = {
   'exam.legal':
     'ブラウザ上で計算された自己申告の成績で、検証されていません。prop firm とは無関係で、公式評価や出金証明ではありません。',
   'exam.privacy':
-    'メールアドレスは本キャンペーンの成績集計・連絡・賞品手配にのみ使用します。他の宣伝には使わず、販売もせず、12 か月保存し、kinfxhk@gmail.com への連絡で削除します。',
+    'メールアドレスは本キャンペーンの成績集計・連絡・賞品手配にのみ使用します。他の宣伝には使わず、販売もせず、12 か月保存し、kinfxhk+candledrill@gmail.com への連絡で削除します。',
   'exam.net': '純損益',
   'exam.maxDd': '最大ドローダウン',
   'exam.trades': '取引数',

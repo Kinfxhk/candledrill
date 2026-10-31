@@ -16,7 +16,7 @@ export const zhHans: Record<MessageKey, string> = {
   'exam.legal':
     '由你的浏览器计算，属自报成绩、未经核实。与任何 prop firm 无关，不是官方评估或出金证明。',
   'exam.privacy':
-    '你的 email 只用于本次活动：成绩统计、联络及奖品安排。不作其他推广、不出售，保留 12 个月，可电邮 kinfxhk@gmail.com 要求删除。',
+    '你的 email 只用于本次活动：成绩统计、联络及奖品安排。不作其他推广、不出售，保留 12 个月，可电邮 kinfxhk+candledrill@gmail.com 要求删除。',
   'exam.net': '净利',
   'exam.maxDd': '最大回撤',
   'exam.trades': '交易数',
