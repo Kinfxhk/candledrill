@@ -46,7 +46,7 @@ describe('semi-auto copy', () => {
     setLang('zh-Hant');
     expect(macroReadiness([]).text).toBe('就緒 — 可以回測或邊播邊跟');
     expect(macroReadiness(['macro.needName', 'macro.needQty', 'macro.needStop']).text).toBe(
-      '未就緒 — 仲欠：名稱／數量／止蝕',
+      '未就緒 — 還欠：名稱／數量／止蝕',
     );
     setLang('en');
     expect(macroReadiness([]).ready).toBe(true);
