@@ -35,9 +35,6 @@ import {
   type UpdateInfo,
   type UpdatePrefs,
 } from './updates.js';
-import { examOpen } from './exam.js';
-import { mountDailyCard } from './daily-card.js';
-import { isDailyDay, startDaily, todayDay } from './daily.js';
 
 const PREFS_KEY = 'candledrill.prefs';
 interface Prefs {
@@ -289,11 +286,6 @@ const library = new LibraryView(
   () => prefs.blind,
 );
 
-const dailyCard = mountDailyCard({
-  root: document.querySelector('#view-library .left')!,
-  open: (sessionId) => void openSession(sessionId),
-});
-
 const sessionForm = document.getElementById('new-session-form') as HTMLFormElement;
 const pickedProfile = mountProfiles(document.querySelector('#view-library .left')!, sessionForm);
 mountSettings(document.getElementById('settings-open')!);
@@ -306,7 +298,6 @@ mountBrowserNotice(document.querySelector('#view-library .left')!);
 
 function showView(name: 'library' | 'practice'): void {
   if (name === 'library') {
-    dailyCard.refresh();
     // The intro timer must not start Play after this tab is hidden.
     practice.cancelIntro();
     void renderSessions();
@@ -434,15 +425,8 @@ try {
   if (typeof health.releaseVersion === 'string') currentRelease = health.releaseVersion;
   await library.reload();
   // Resume the last practice session (state is persisted server-side in SQLite).
-  let handledExam = false;
-  const params = new URLSearchParams(location.search);
-  const askedDay = params.get('daily') ?? (params.has('exam') ? todayDay() : null);
-  if (examOpen() && askedDay !== null) {
-    await openSession(await startDaily(isDailyDay(askedDay) ? askedDay : todayDay()));
-    handledExam = true;
-  }
   const last = Number(localStorage.getItem('candledrill.lastSession'));
-  if (!handledExam && last > 0) {
+  if (last > 0) {
     const { sessions } = await sessionsApi.list();
     if (sessions.some((s) => s.id === last)) await openSession(last);
   }

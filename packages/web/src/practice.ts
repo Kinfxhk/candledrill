@@ -18,7 +18,6 @@ import {
   tapeAtOrBefore,
   practiceChartTimeframes,
   roundToTick,
-  sessionStats,
   workingOrders,
   type Bar,
   type OrderChange,
@@ -57,17 +56,6 @@ import type { SessionCountdown } from './countdown.js';
 import { getLang, t, type MessageKey } from './i18n.js';
 import { statusReasonText } from './labels.js';
 import { el, fmtMoney, fmtTime, fromLocalInput, tfLabel, toLocalInput, toast } from './format.js';
-import { showExamCard } from './exam-card.js';
-import {
-  EXAM,
-  examOpen,
-  examQtyAllowed,
-  examResult,
-  readBest,
-  readSubmitted,
-  recordBest,
-} from './exam.js';
-import { dailyResult, dailySessionDay, recordDailyResult } from './daily.js';
 import { RulesView } from './rules-view.js';
 import { RulesStrip } from './rules-strip.js';
 import { reviewTab } from './review-tab.js';
@@ -1203,17 +1191,6 @@ export class PracticeView {
   async placeOrder(req: OrderRequest): Promise<void> {
     this.flushPresent();
     if (!this.meta) return;
-    // Exam rule: the certificate claims 5 contracts, so the ticket has to hold it.
-    if (dailySessionDay(this.meta.id) !== null) {
-      const positionQty = this.state?.trading.position?.qty ?? 0;
-      const workingQty = this.state
-        ? workingOrders(this.state.trading).reduce((total, order) => total + order.qty, 0)
-        : 0;
-      if (!examQtyAllowed({ positionQty, workingQty, side: req.side, qty: req.qty })) {
-        toast(`${t('exam.maxQty')} ${EXAM.maxQty}`, 'error');
-        return;
-      }
-    }
     if (this.inFlight) {
       toast(t('pr.busy'));
       return;
@@ -2100,46 +2077,6 @@ export class PracticeView {
     this.els.summary?.setAttribute('aria-label', t('summary.title'));
     this.summary?.update(this.meta.settings, this.state, this.meta.id);
     const st = this.state.status;
-    // One scored attempt per day; the certificate only for that first result.
-    // Only a pass uses the day's attempt; a breach, manual end or running out stays practice.
-    const day = st === 'passed' ? dailySessionDay(this.meta.id) : null;
-    if (day !== null && dailyResult(day) === null) {
-      const stats = sessionStats(this.engineSettings(), this.state);
-      const first = recordDailyResult(day, this.meta.id, {
-        status: st === 'passed' ? 'passed' : st === 'breached' ? 'breached' : 'finished',
-        net: stats.netPnl,
-        maxDrawdown: stats.maxDrawdown,
-        trades: stats.trades,
-        at: Date.now(),
-      });
-      if (first && st === 'passed') {
-        const trades = this.state.trading.trades;
-        const lots = trades.reduce((most, trade) => Math.max(most, trade.qty), 0);
-        const rrr =
-          stats.avgWin !== null && stats.avgLoss !== null && stats.avgLoss < 0
-            ? Math.round((stats.avgWin / Math.abs(stats.avgLoss)) * 100) / 100
-            : null;
-        const result = examResult({
-          net: stats.netPnl,
-          maxDrawdownUsd: stats.maxDrawdown,
-          trades: stats.trades,
-          winRatePct: stats.winRate === null ? null : Math.round(stats.winRate * 1000) / 10,
-          rrr,
-          lots: lots > 0 ? String(lots) : '—',
-        });
-        // A certificate needs the target, not just the engine's status.
-        if (result.tier !== null) {
-          recordBest(result);
-          showExamCard({
-            result,
-            best: readBest(),
-            submitted: readSubmitted(),
-            open: examOpen(),
-            onSubmit: () => {},
-          });
-        }
-      }
-    }
     const banner = this.els.banner!;
     banner.className = `status-banner ${st === 'active' ? '' : `show ${st}`}`;
     banner.textContent =

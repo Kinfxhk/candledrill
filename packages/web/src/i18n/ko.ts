@@ -2,37 +2,6 @@
 import type { BaseKey as MessageKey } from '../i18n.js';
 
 export const ko: Record<MessageKey, string> = {
-  'exam.title': '시험 · 50K',
-  'exam.note':
-    '계좌 50,000 · 목표 +3,000 · 정적 드로다운 2,000 · 1회 5계약까지. 모두 같은 고정 데이터.',
-  'exam.start': '시험 시작',
-  'exam.cert': '모의 시험 합격',
-  'exam.distinction': '우수',
-  'exam.submit': '성적 제출',
-  'exam.skip': '건너뛰기',
-  'exam.submitted': '제출 완료',
-  'exam.ended': '캠페인 종료',
-  'exam.once':
-    '제출은 1인 1회만 가능합니다. 만족할 때까지 연습한 뒤 최고 기록을 제출하세요. 변경할 수 없습니다.',
-  'exam.best': '현재 최고 기록',
-  'exam.legal':
-    '브라우저에서 계산된 자기 신고 성적이며 검증되지 않았습니다. 어떤 prop firm과도 무관하며 공식 평가나 출금 증명이 아닙니다.',
-  'exam.privacy':
-    '이메일은 이 캠페인의 성적 집계, 연락, 상품 안내에만 사용합니다. 다른 홍보에 쓰지 않고 판매하지 않으며 12개월 보관 후 kinfxhk+candledrill@gmail.com 요청 시 삭제합니다.',
-  'exam.net': '순손익',
-  'exam.maxDd': '최대 드로다운',
-  'exam.trades': '거래 수',
-  'exam.maxQty': '1회 계약 상한',
-  'daily.title': '데일리 라운드',
-  'daily.date': '날짜',
-  'daily.timeframe': '주기',
-  'daily.result': '오늘 기록',
-  'daily.fresh': '아직 안 함',
-  'daily.start': '오늘 라운드 시작',
-  'daily.played': '오늘 완료',
-  'daily.pass': '합격',
-  'daily.breach': '위반',
-  'daily.unfinished': '미완료',
   'pr.viewChart': '차트에서 보기',
   'pr.returnLive': '현재 봉으로 돌아가기',
   'pr.reviewingTrade': '거래 #{id} 보는 중',

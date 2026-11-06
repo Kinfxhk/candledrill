@@ -6,7 +6,12 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.24] - 2026-11-06
+
 ### Changed
+
+- Remove the one-week campaign exam, daily entry, certificate, score submission
+  and campaign-only contract cap after the campaign ended on 2026-11-05.
 
 - Public synthetic sample ids are trademark-neutral. The longer practice file is
   `SYNTH-TECHIDX-24H_1min.csv`, imported as `PRACTICE-TECHIDX-24H`. Retired ids
