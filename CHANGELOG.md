@@ -6,6 +6,14 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+### Docs
+
+- README status lines say v1.0.24, matching `package.json` and the About “This build” string.
+- `docs/FILL-MODEL.md` says fill model v4. Daily loss still uses closing equity; trailing
+  drawdown follows the session mode.
+- The Traditional Chinese guide’s semi-auto link targets the README heading, and its v1.0
+  note matches the current right-hand column.
+
 ## [1.0.24] - 2026-11-06
 
 ### Changed

@@ -5,24 +5,24 @@ and close, so the order of prices inside it is unknown. This page lists the rule
 CandleDrill uses, so every practice result can be explained and reproduced. It is not
 a model of a real exchange.
 
-Current versions: **engine 0.2.0, fill model v3.** Both appear in every HTML report, in
+Current versions: **engine 0.2.0, fill model v4.** Both appear in every HTML report, in
 session JSON exports (`simulationPolicy`) and at `GET /api/health`. The fill model
 version changes whenever a rule that can change a fill price, a fill time or a rule
 outcome changes.
 
-| Policy key          | Value                       | Meaning                                                                                        |
-| ------------------- | --------------------------- | ---------------------------------------------------------------------------------------------- |
-| `fillTiming`        | `next-bar-or-later`         | An order can only fill on a bar revealed after the bar it was placed on.                       |
-| `sameBarPolicy`     | `stop-first`                | If one bar touches both the stop-loss and the take-profit, the stop-loss fills first.          |
-| `limitPolicy`       | `touch`                     | A limit order fills when the bar touches its price (not only when it trades through).          |
-| `gapPolicy`         | `fill-at-open`              | An order already crossed when it becomes active fills at the bar open, never outside the bar.  |
-| `bracketReference`  | `absolute-price`            | Stop-loss and take-profit are absolute prices.                                                 |
-| `bracketModify`     | `atomic-revalidate`         | An edit re-checks the whole bracket and is applied in full or rejected. Every edit is logged.  |
-| `ruleEvaluation`    | `bar-close`                 | Practice rules are checked at each bar close.                                                  |
-| `profitTargetBasis` | `net-after-exit-costs`      | The profit target counts only after estimated exit commission and slippage.                    |
-| `lossRuleBasis`     | `closing-equity`            | The daily loss limit and trailing drawdown use mark-to-market closing equity.                  |
-| `endOfDataPolicy`   | `keep-open`                 | At the end of the data an open position stays open, valued at the last close.                  |
-| `riskBasis`         | `all-entry-fills-with-stop` | R uses the stop-loss risk of every entry fill. It is N/A when any entry fill had no stop-loss. |
+| Policy key          | Value                       | Meaning                                                                                                          |
+| ------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `fillTiming`        | `next-bar-or-later`         | An order can only fill on a bar revealed after the bar it was placed on.                                         |
+| `sameBarPolicy`     | `stop-first`                | If one bar touches both the stop-loss and the take-profit, the stop-loss fills first.                            |
+| `limitPolicy`       | `touch`                     | A limit order fills when the bar touches its price (not only when it trades through).                            |
+| `gapPolicy`         | `fill-at-open`              | An order already crossed when it becomes active fills at the bar open, never outside the bar.                    |
+| `bracketReference`  | `absolute-price`            | Stop-loss and take-profit are absolute prices.                                                                   |
+| `bracketModify`     | `atomic-revalidate`         | An edit re-checks the whole bracket and is applied in full or rejected. Every edit is logged.                    |
+| `ruleEvaluation`    | `bar-close`                 | Practice rules are checked at each bar close.                                                                    |
+| `profitTargetBasis` | `net-after-exit-costs`      | The profit target counts only after estimated exit commission and slippage.                                      |
+| `lossRuleBasis`     | `closing-equity`            | Default. Daily loss, and trailing mode `close`, use closing equity. Other trailing modes record their own basis. |
+| `endOfDataPolicy`   | `keep-open`                 | At the end of the data an open position stays open, valued at the last close.                                    |
+| `riskBasis`         | `all-entry-fills-with-stop` | R uses the stop-loss risk of every entry fill. It is N/A when any entry fill had no stop-loss.                   |
 
 ## Order fills
 
@@ -74,15 +74,22 @@ high.
 
 ## Practice rules
 
-- Rules are evaluated at each bar close. Intrabar breaches are not detected.
+- Rules are evaluated at each bar close. A touch inside a still-forming bar does not
+  close the position immediately.
 - **Profit target:** the target is reached when
   `equity − estimated exit costs − starting balance ≥ target`. The estimated exit costs
   are the commission plus the adverse slippage for the open quantity. The position is
   then closed at that close with exactly those costs, so the realized result of a
   passed session is never below the target.
-- **Daily loss limit / trailing drawdown:** compared against mark-to-market closing
-  equity, before exit costs. On a breach the position is closed at the close, with
-  costs.
+- **Daily loss limit:** compared against mark-to-market closing equity, before exit
+  costs. On a breach the position is closed at that close, with costs. The trailing
+  mode does not change this rule.
+- **Trailing drawdown** (`trailingDrawdownMode`, default `close`): `close` uses the same
+  closing-equity check and closes at the close. `eod` updates the peak only at the
+  trading-day boundary and also closes at the close. `static` is a fixed floor (starting
+  balance minus the amount) measured on closing equity. `intraday` takes the peak from
+  the favourable high or low; a breach uses the adverse high or low, and the position
+  closes at that price. The session export stores that choice as `lossRuleBasis`.
 
 ## End of data
 
