@@ -400,12 +400,17 @@ input[type='datetime-local']::-webkit-date-and-time-value {
   .toolbar {
     flex-wrap: nowrap;
   }
+  /* Date then time, two lines. Ellipsis turned "2026-01-05 16:29" into "2026-01…"
+     and a phone has no way to reveal the rest. 6.6rem fits the date; the time wraps. */
   .toolbar .clock {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
+    min-width: 6.6rem;
+    max-width: 8.5rem;
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+    line-height: 1.15;
+    text-align: end;
   }
   .toolbar strong {
     min-width: 0;
@@ -599,6 +604,43 @@ input[type='datetime-local']::-webkit-date-and-time-value {
     height: 44px;
     min-height: 44px;
     min-width: 44px;
+  }
+}
+
+/* Portrait phones: trailing floor and buffer-to-breach wrap inside the strip.
+   nowrap painted them past a 390px window (scrollWidth ~606) and over the
+   chevron, so a click scrolled the strip off the left instead of collapsing.
+   Clip anything still sticking out so it cannot widen the page. Short
+   landscape (max-height: 560px) keeps the chip and is not this block. */
+@media (max-width: 899px) and (min-height: 561px) {
+  .rules-strip.docked:not(.is-short-chip) {
+    min-width: 0;
+    max-width: 100%;
+    overflow: clip;
+  }
+  .rules-strip.docked:not(.is-short-chip) .rules-strip-body {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .rules-strip.docked:not(.is-short-chip) .rules-metric {
+    flex-wrap: wrap;
+    white-space: normal;
+    min-width: 0;
+    max-width: 100%;
+    row-gap: 1px;
+  }
+  .rules-strip.docked:not(.is-short-chip) .rules-metric > .k,
+  .rules-strip.docked:not(.is-short-chip) .rules-metric > .v {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .rules-strip.docked:not(.is-short-chip) .rules-metric > .fact {
+    flex: 1 1 100%;
+  }
+  .rules-strip.docked:not(.is-short-chip) .rules-strip-toggle {
+    position: relative;
+    z-index: 1;
+    background: color-mix(in srgb, var(--panel) 94%, transparent);
   }
 }
 

@@ -6,6 +6,14 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-11
+
+### Fixed
+
+- Responsive layout: phone rules strip wraps (trailing floor and breach buffer readable on 390px);
+  rules-strip toggle collapses instead of shifting off-screen; tablet order ticket keeps Flatten
+  reachable; phone clock wraps instead of ellipsizing.
+
 ## [1.4.0] - 2026-11-11
 
 ### Added

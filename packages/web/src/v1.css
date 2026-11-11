@@ -774,6 +774,32 @@ body.in-practice header.app select {
     display: none;
   }
 }
+/* 1024×768: the ticket is taller than the rail, so Flatten sat just past the fold
+   while Buy/Sell stayed visible. Pin both rows to the rail's visible bottom
+   (Flatten alone would cover Buy/Sell). A thin scrollbar is the affordance
+   for the position card still below. */
+@media (min-width: 900px) and (max-width: 1199px) and (max-height: 820px) {
+  .side {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  [data-testid='order-ticket'] > :nth-last-child(2) {
+    position: sticky;
+    bottom: 46px;
+    z-index: 2;
+    padding-top: 4px;
+    background: var(--panel);
+  }
+  [data-testid='order-ticket'] > :last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    margin-top: 0;
+    padding: 4px 0 0;
+    background: var(--panel);
+  }
+}
+
 /* Short landscape screens: drop the volume margin and tighten chart heads. */
 @media (max-height: 820px) and (min-width: 900px) {
   .chart-cell .chart-head {
