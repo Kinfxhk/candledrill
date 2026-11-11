@@ -669,3 +669,20 @@ input[type='datetime-local']::-webkit-date-and-time-value {
     display: none;
   }
 }
+
+@media (max-width: 700px) {
+  .dash-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cal-cell {
+    width: 64px;
+  }
+  .journal-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .journal-filters input[type='search'] {
+    min-width: 0;
+    width: 100%;
+  }
+}

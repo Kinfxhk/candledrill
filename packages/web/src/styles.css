@@ -857,6 +857,95 @@ table.data.compact th {
   margin: 8px 0 4px;
 }
 
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.dash-stat {
+  border: 1px solid var(--border);
+  border-radius: var(--r, 6px);
+  padding: 6px 8px;
+  min-width: 0;
+}
+.dash-stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.dash-stat strong {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.journal-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: end;
+  margin: 8px 0;
+}
+.journal-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.journal-filters input,
+.journal-filters select {
+  min-width: 0;
+}
+.journal-filters input[type='search'] {
+  min-width: 160px;
+}
+.cal-board {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+.cal-month h5 {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.cal-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cal-cell {
+  display: flex;
+  width: 72px;
+  min-height: 40px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px;
+}
+.cal-cell.up {
+  background: color-mix(in srgb, var(--up) 22%, transparent);
+}
+.cal-cell.down {
+  background: color-mix(in srgb, var(--down) 22%, transparent);
+}
+.cal-cell .cal-pnl {
+  font-variant-numeric: tabular-nums;
+}
+.journal-editor input,
+.journal-editor select {
+  max-width: 140px;
+}
+.journal-editor input[data-testid^='note-'],
+.journal-editor input[data-testid^='plan-note-'] {
+  max-width: 220px;
+}
+
 .completion-summary {
   flex-shrink: 0;
   max-height: 35vh;

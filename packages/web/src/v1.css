@@ -743,6 +743,10 @@ body.in-practice header.app select {
   fill: var(--muted);
   font-size: 9px;
 }
+.journal-dash .review-svg,
+.journal-results .review-svg {
+  max-width: 360px;
+}
 
 /* Tablet landscape (900–1199): narrow rail, chart gets the height. */
 @media (min-width: 900px) and (max-width: 1199px) {

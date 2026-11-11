@@ -6,6 +6,12 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-11
+
+### Added
+
+- Trade journal review fields (setup, market condition, emotion, plan followed, plan note), a statistics dashboard (win rate, profit factor, expectancy, per-trade Sharpe, aggregations, daily P&L calendar) and trade search. Older sessions that only stored tags and notes still load.
+
 ## [1.2.0] - 2026-11-11
 
 ### Added

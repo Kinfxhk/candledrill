@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import Database from 'better-sqlite3';
-import type { Bar, DatasetMeta } from '@candledrill/core';
+import type { Bar, DatasetMeta, JournalEntry } from '@candledrill/core';
 
 export type Db = Database.Database;
 
@@ -217,7 +217,7 @@ export interface SessionRow<S = unknown, T = unknown> {
   readonly settings: S;
   readonly state: T;
   readonly drawings: unknown[];
-  readonly journal: Record<string, { tags: string[]; note: string }>;
+  readonly journal: Record<string, JournalEntry>;
   readonly createdAt: string;
   readonly updatedAt: string;
 }

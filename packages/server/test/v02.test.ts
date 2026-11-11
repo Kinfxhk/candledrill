@@ -757,6 +757,33 @@ describe('journal, MAE/MFE and grouping', () => {
     expect((await put(1, { tags: [], note: 'two\nlines\tok' })).statusCode).toBe(200);
     // Clearing both removes the entry.
     expect((await put(1, { tags: [], note: '' })).json().journal).toEqual({});
+    const rich = await put(1, {
+      tags: ['orb'],
+      note: 'planned',
+      setup: 'ORB',
+      marketCondition: 'trend',
+      emotion: 'disciplined',
+      planFollowed: false,
+      planNote: 'moved stop',
+    });
+    expect(rich.statusCode).toBe(200);
+    expect(rich.json().journal['1']).toEqual({
+      tags: ['orb'],
+      note: 'planned',
+      setup: 'ORB',
+      marketCondition: 'trend',
+      emotion: 'disciplined',
+      planFollowed: false,
+      planNote: 'moved stop',
+    });
+    expect((await put(1, { tags: [], note: '', setup: 'x'.repeat(81) })).statusCode).toBe(400);
+    expect((await put(1, { tags: [], note: '', planFollowed: 'yes' })).statusCode).toBe(400);
+    expect((await put(1, { tags: [], note: '', setup: 'ORB' })).json().journal['1']).toEqual({
+      tags: [],
+      note: '',
+      setup: 'ORB',
+    });
+    expect((await put(1, { tags: [], note: '' })).json().journal).toEqual({});
   });
 
   it('restores a backup made by v0.1 (schema 3) and upgrades it', async () => {

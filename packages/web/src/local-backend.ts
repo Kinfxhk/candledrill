@@ -23,11 +23,11 @@ import {
   generateSyntheticBars,
   groupTrades,
   importCsv,
-  journalEntryIssues,
+  journalEntryBlank,
   journalIssues,
+  prepareJournalEntry,
   jumpSession,
   normalizeSettings,
-  normalizeTags,
   parseSessionFile,
   pickBlindParams,
   pickBlindStartIndex,
@@ -47,6 +47,7 @@ import {
   visibleBars,
   type Bar,
   type DatasetMeta,
+  type JournalEntry,
   type SessionSettings,
   type SessionState,
 } from '@candledrill/core';
@@ -90,7 +91,7 @@ interface SessionRecord {
   settings: StoredSettings;
   state: SessionState;
   drawings: unknown[];
-  journal: Record<string, { tags: string[]; note: string }>;
+  journal: Record<string, JournalEntry>;
   createdAt: string;
   updatedAt: string;
 }
@@ -706,14 +707,10 @@ export class LocalBackend {
         const tradeId = Number(m[1]);
         const { row } = await this.load(id);
         if (!row.state.trading.trades.some((t) => t.id === tradeId)) fail(404, 'trade not found');
-        const entry = {
-          tags: normalizeTags((b.tags as string[]) ?? []),
-          note: String(b.note ?? '').trim(),
-        };
-        const issues = journalEntryIssues(entry);
+        const { entry, issues } = prepareJournalEntry(b);
         if (issues.length) fail(400, issues.join('; '));
         const journal = { ...row.journal };
-        if (entry.tags.length === 0 && entry.note === '') delete journal[String(tradeId)];
+        if (journalEntryBlank(entry)) delete journal[String(tradeId)];
         else journal[String(tradeId)] = entry;
         await this.save(row, { journal });
         return ok({ journal });

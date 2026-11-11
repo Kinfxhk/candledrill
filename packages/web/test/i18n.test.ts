@@ -36,6 +36,7 @@ describe('i18n', () => {
       'src/rules-strip.ts',
       'src/settings.ts',
       'src/review-tab.ts',
+      'src/journal-view.ts',
     ];
     const used = new Set<string>();
     for (const f of files) {

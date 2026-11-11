@@ -7,6 +7,7 @@ import type {
   CsvImportReport,
   Excursion,
   GroupRow,
+  JournalEntry,
   OrderChange,
   OrderRequest,
   SessionState,
@@ -246,16 +247,28 @@ export const sessionsApi = {
   }) => request<SessionViewDto>('POST', '/api/sessions', body),
   journal: (id: number) =>
     request<{
-      journal: Record<string, { tags: string[]; note: string }>;
+      journal: Record<string, JournalEntry>;
       excursions: Excursion[];
       byHour: GroupRow[];
       byWeekday: GroupRow[];
     }>('GET', `/api/sessions/${id}/journal`),
-  saveJournal: (id: number, tradeId: number, tags: string[], note: string) =>
-    request<{ journal: Record<string, { tags: string[]; note: string }> }>(
+  saveJournal: (
+    id: number,
+    tradeId: number,
+    entry: {
+      tags: string[];
+      note: string;
+      setup?: string;
+      marketCondition?: string;
+      emotion?: string;
+      planFollowed?: boolean;
+      planNote?: string;
+    },
+  ) =>
+    request<{ journal: Record<string, JournalEntry> }>(
       'PUT',
       `/api/sessions/${id}/journal/${tradeId}`,
-      { tags, note },
+      entry,
     ),
   reveal: (id: number) => request<SessionViewDto>('POST', `/api/sessions/${id}/reveal`, {}),
   importFile: (file: string, datasetId?: number) =>

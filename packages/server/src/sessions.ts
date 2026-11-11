@@ -10,11 +10,13 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import {
   BLIND_SYMBOL,
   groupTrades,
-  journalEntryIssues,
+  journalEntryBlank,
   journalIssues,
-  normalizeTags,
+  prepareJournalEntry,
   tradeExcursions,
+  MAX_JOURNAL_LABEL,
   MAX_NOTE_LENGTH,
+  MAX_PLAN_NOTE_LENGTH,
   MAX_TAGS,
   MAX_TAG_LENGTH,
   blindIssues,
@@ -880,7 +882,18 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
     },
   );
 
-  app.put<{ Params: { id: number; tradeId: number }; Body: { tags: string[]; note: string } }>(
+  app.put<{
+    Params: { id: number; tradeId: number };
+    Body: {
+      tags: string[];
+      note: string;
+      setup?: string;
+      marketCondition?: string;
+      emotion?: string;
+      planFollowed?: boolean;
+      planNote?: string;
+    };
+  }>(
     '/api/sessions/:id/journal/:tradeId',
     {
       schema: {
@@ -903,6 +916,11 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
               items: { type: 'string', maxLength: MAX_TAG_LENGTH * 4 },
             },
             note: { type: 'string', maxLength: MAX_NOTE_LENGTH },
+            setup: { type: 'string', maxLength: MAX_JOURNAL_LABEL },
+            marketCondition: { type: 'string', maxLength: MAX_JOURNAL_LABEL },
+            emotion: { type: 'string', maxLength: MAX_JOURNAL_LABEL },
+            planFollowed: { type: 'boolean' },
+            planNote: { type: 'string', maxLength: MAX_PLAN_NOTE_LENGTH },
           },
         },
       },
@@ -913,12 +931,11 @@ export function registerSessionRoutes(app: FastifyInstance, deps: SessionRouteDe
       const { row } = loaded;
       if (!row.state.trading.trades.some((t) => t.id === req.params.tradeId))
         return reply.code(404).send({ error: 'trade not found' });
-      const entry = { tags: normalizeTags(req.body.tags), note: req.body.note.trim() };
-      const issues = journalEntryIssues(entry);
+      const { entry, issues } = prepareJournalEntry(req.body);
       if (issues.length) return reply.code(400).send({ error: issues.join('; ') });
       const journal = { ...row.journal };
       const key = String(req.params.tradeId);
-      if (entry.tags.length === 0 && entry.note === '') delete journal[key];
+      if (journalEntryBlank(entry)) delete journal[key];
       else journal[key] = entry;
       updateSessionJournal(db, row.id, journal, now().toISOString());
       return { journal };

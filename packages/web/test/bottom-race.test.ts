@@ -83,7 +83,10 @@ const bars: Bar[] = [0, 1].map((i) => ({
 const state = createSession(bars, settings, bars[1]!.time);
 const withTrades = {
   ...state,
-  trading: { ...state.trading, trades: [{ id: 1, side: 'long', netPnl: 0, rMultiple: null }] },
+  trading: {
+    ...state.trading,
+    trades: [{ id: 1, side: 'long', netPnl: 0, rMultiple: null, openTime: 1000, closeTime: 1060 }],
+  },
 } as unknown as typeof state;
 const stats: BottomTab = {
   id: 'stats',
@@ -92,6 +95,16 @@ const stats: BottomTab = {
     panel.replaceChildren('stats content');
   },
 };
+function find(root: Element, testid: string): Element | undefined {
+  if (root.attrs['data-testid'] === testid) return root;
+  for (const child of root.children) {
+    if (child instanceof Element) {
+      const hit = find(child, testid);
+      if (hit) return hit;
+    }
+  }
+  return undefined;
+}
 function fixture() {
   const root = new Element(true);
   const bottom = new BottomPanel(root as unknown as HTMLElement, [journalTab, stats]);
@@ -145,8 +158,7 @@ describe('journal response ownership', () => {
     old.resolve(result('stale note'));
     await flush();
     expect(f.panel().children).toEqual(currentContents);
-    const row = (f.panel().children[0] as Element).children[1] as Element;
-    expect(((row.children[7] as Element).children[0] as Element).attrs.value).toBe('current note');
+    expect(find(f.panel(), 'note-1')?.attrs.value).toBe('current note');
   });
 
   it('keeps the no-trades view after a session switch', async () => {
@@ -178,6 +190,6 @@ describe('journal response ownership', () => {
     expect((f.panel().children[0] as Element).children).toEqual(['current failure']);
     f.bottom.render(settings, withTrades, 1);
     await flush();
-    expect((f.panel().children[0] as Element).attrs['data-testid']).toBe('journal-table');
+    expect(find(f.panel(), 'journal-table')?.attrs['data-testid']).toBe('journal-table');
   });
 });
