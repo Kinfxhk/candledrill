@@ -1,6 +1,6 @@
 # CandleDrill（K線操練場）
 
-免費、開網址即用、無需帳戶的 **K 線回放練習**：逐根前進（看不到未來）→ 模擬下單 → 檢討。
+免費、開網址即用、無需帳戶的 **K 線回放**，加上供 prop 風格練習的 **連續模擬市場**：逐根前進（看不到未來）或即時模擬下單 → 檢討。
 
 ▶ 線上版，開網址即玩：[https://kinfxhk.github.io/candledrill/](https://kinfxhk.github.io/candledrill/)
 
@@ -76,6 +76,15 @@ npm start
 
 <sub>**多時框** — 同一時刻在兩張圖練習，不偷看未來。合成 `SYNTH-` 示範資料。</sub>
 
+### 連續模擬市場
+
+回放以外的第二種練習。工具列可切到 **即時模擬**（Live sim）。它與逐根回放並存，不取代回放。
+
+- **合成，會編造棒內路徑。** 每一根回放尚未走出的 K 線，用確定性的 tick 路徑走過高、低、收。同一根、同一個種子，路徑相同。回放**從不**編造棒內先後；這個模式會。畫面標 **SYNTHETIC**。不是真實市價，也不是任何交易所的報價。
+- **逐 tick 成交：** 市價、限價、觸價、括號單（含滑價）在 tick 上成交，不等練習時框收棒。
+- **規則即時觸發：** 每日虧損、追蹤回撤、盈利目標在 tick 上計算，不必等到收棒。
+- 這裡的成交只留在這個畫面，不會寫回回放練習。盲練隱藏數據集時不能開（下一根 K 的高低收不可用）。
+
 ### 下單
 
 - 市價／限價／觸價單，括號單（止蝕／止賺以跳計），數量快捷，一鍵平倉。
@@ -116,7 +125,10 @@ npm start
 
 ### 檢討
 
-- 交易、成交、交易日誌（標籤與筆記）、統計、CSV／HTML／練習檔匯出。
+- 交易、成交、交易日誌、統計、CSV／HTML／練習檔匯出。
+- **每筆檢討欄位：** 策略、市況、情緒、是否按計劃、計劃與執行。舊練習若只有標籤與筆記，仍可開啟。
+- **統計面板：** 勝率、盈利因子、每筆期望值、夏普比率（每筆），以及按標籤、策略、市況、情緒、開倉時段、開倉星期彙總。
+- **每日盈虧**日曆，以及搜尋／篩選（標籤、筆記、策略、方向、結果、日期）。
 - **檢討**分頁：按已平倉交易的權益曲線、R 分佈、**Monte Carlo**（同一批交易打亂次序，顯示最大回撤百分位及觸及回撤上限的比例；屬模擬，並非預測）。
 
 ![檢討分頁：權益曲線、R 分佈、Monte Carlo](docs/shot-review.png)
@@ -133,7 +145,7 @@ npm start
 
 ### 技術指標
 
-可搜尋目錄：SMA／EMA（任意週期）、布林通道、盤中 VWAP、開盤區間（ORB）、唐奇安、RSI、MACD、ATR、隨機指標、ADX，以及肯特納、一目均衡表、超級趨勢等，目錄共 37 項（含成交量）——只根據**已揭示**的 K 棒計算。完整清單與公式見 [docs/INDICATORS.md](docs/INDICATORS.md)。設定留在本瀏覽器。
+可搜尋目錄約 **36** 項技術指標（連成交量直方圖共 37 項），只根據**已揭示**的 K 棒計算。原有：SMA／EMA（任意週期）、布林通道、盤中 VWAP、開盤區間（ORB）、唐奇安、RSI、MACD、ATR、隨機指標、ADX。新增包括：肯特納、一目均衡表、超級趨勢、CCI、OBV、蔡金資金流（CMF）、拋物線 SAR、威廉指標、之字轉折、動量震盪（Awesome Oscillator）、包絡線、DEMA、TEMA、WMA、赫爾均線、動量、ROC、阿隆、VWAP 偏差帶、標準誤帶、多空力道（Balance of Power）、KDJ、VWMA、價格通道、艾達射線。完整清單與公式見 [docs/INDICATORS.md](docs/INDICATORS.md)。設定留在本瀏覽器。
 
 ![指標面板：已啟用 SMA 9/20/50 與 RSI](docs/shot-indicators.png)
 
@@ -205,7 +217,7 @@ docker compose up --build    # http://127.0.0.1:4870/
 <details>
 <summary>成交方式（簡述）</summary>
 
-訂單只會在下單**之後**揭示的 K 棒上成交。市價 → 下一根開盤 ± 滑價。限價／停損若跳空穿過 → 以開盤成交（停損再加滑價）。同一根棒同時觸及 SL 與 TP 時，**先停損**。完整規則：[docs/FILL-MODEL.md](docs/FILL-MODEL.md)。
+訂單只會在下單**之後**揭示的 K 棒上成交。市價 → 下一根開盤 ± 滑價。限價／停損若跳空穿過 → 以開盤成交（停損再加滑價）。同一根棒同時觸及 SL 與 TP 時，**先停損**。完整規則：[docs/FILL-MODEL.md](docs/FILL-MODEL.md)。這是回放的成交。連續模擬市場在 tick 上成交，並會編造棒內路徑（見上方）。
 
 </details>
 
@@ -244,7 +256,7 @@ CandleDrill 免費，也會持續免費。若這個工具對你有幫助：https
 
 # CandleDrill (English)
 
-Free, open a URL, no account: **candlestick replay practice**. Step without seeing the future → place simulated orders → review.
+Free, open a URL, no account: **candlestick replay** plus a **live simulation market** for prop-style practice. Step without seeing the future, or trade the synthetic live market → place simulated orders → review.
 
 ▶ Try it online: [https://kinfxhk.github.io/candledrill/](https://kinfxhk.github.io/candledrill/)
 
@@ -311,6 +323,15 @@ Open <http://127.0.0.1:4870/> on this machine. Data stays in `~/.candledrill/`. 
 - Chart: wheel / pinch zoom, drag to pan, double-click the price scale to reset; OHLC legend top-left.
 - Back and save points only restore states this session has already been in. The server (or the browser engine) re-validates them against the bars, so fills cannot be invented; Back is off in a blind session until you reveal.
 
+### Live sim
+
+A second practice mode beside bar replay. The toolbar switches to **Live sim**. It runs alongside replay and does not replace it.
+
+- **Synthetic: it invents an intra-bar path.** Each bar the replay has not stepped is walked by a deterministic tick path through high, low and close. The same bar and seed always yield the same ticks. Replay never invents that order; this mode does. The screen is marked **SYNTHETIC**. It is not a real market price and not an exchange feed.
+- **Tick-level fills:** market, limit, stop and bracket orders (with slippage) fill on a tick, not on the practice-timeframe close.
+- **Rules fire in real time:** daily loss, trailing drawdown and profit target are evaluated on each tick, not at bar close.
+- Fills stay on this screen and are not written back into the replay session. Live sim is unavailable while a blind session hides the dataset (the next bar's OHLC is not available).
+
 ### Orders
 
 - Market / limit / stop, brackets (SL / TP in ticks), quantity presets, flatten.
@@ -343,7 +364,10 @@ Pick a profile when you start a session and the form fills in. During practice, 
 
 ### Review
 
-- Trades, fills, journal (tags and notes), statistics, CSV / HTML / session-file export.
+- Trades, fills, journal, statistics, CSV / HTML / session-file export.
+- **Per-trade review fields:** setup, market condition, emotion, whether the plan was followed, and a plan-vs-execution note. Older sessions that only stored tags and notes still load.
+- **Statistics dashboard:** win rate, profit factor, expectancy, per-trade Sharpe, and aggregations by tag, setup, market condition, emotion, hour opened and weekday opened.
+- A **daily P&L** calendar, plus search and filters (tags, notes, setup, side, result, dates).
 - **Review** tab: equity by closed trade, R distribution, and a **Monte Carlo** that reorders the same trades (max-drawdown percentiles and the share of runs that hit the drawdown limit; a simulation, not a forecast).
 
 ### Blind practice
@@ -352,7 +376,7 @@ Hide the real symbol, shift dates and prices so you cannot recognise the chart. 
 
 ### Indicators
 
-Searchable catalog: SMA / EMA (any periods), Bollinger, session VWAP, opening range (ORB), Donchian, RSI, MACD, ATR, Stochastic, ADX, plus Keltner, Ichimoku, SuperTrend and the rest — 37 entries including volume — computed only on bars already revealed. Formulas are in [docs/INDICATORS.md](docs/INDICATORS.md). Settings stay in this browser.
+Searchable catalog of about **36** indicators (37 entries including the volume histogram), computed only on bars already revealed. The original set: SMA / EMA (any periods), Bollinger, session VWAP, opening range (ORB), Donchian, RSI, MACD, ATR, Stochastic, ADX. Notable additions: Keltner Channel, Ichimoku Cloud, SuperTrend, CCI, OBV, CMF, Parabolic SAR, Williams %R, ZigZag, Awesome Oscillator, Envelope, DEMA, TEMA, WMA, Hull MA, Momentum, ROC, Aroon, VWAP deviation bands, Standard Error Bands, Balance of Power, KDJ, VWMA, Price Channel, Elder Ray. Formulas are in [docs/INDICATORS.md](docs/INDICATORS.md). Settings stay in this browser.
 
 ### Settings
 
@@ -420,7 +444,7 @@ One row per bar: timestamp, open, high, low, close, optional volume. The import 
 <details>
 <summary>How fills work (short)</summary>
 
-Orders fill only on bars revealed **after** placement. Market → next open ± slippage. Limit/stop gap through → fill at open (then slippage for stops). If one bar hits both SL and TP, **stop-loss first**. Full rules: [docs/FILL-MODEL.md](docs/FILL-MODEL.md).
+Orders fill only on bars revealed **after** placement. Market → next open ± slippage. Limit/stop gap through → fill at open (then slippage for stops). If one bar hits both SL and TP, **stop-loss first**. Full rules: [docs/FILL-MODEL.md](docs/FILL-MODEL.md). That is replay. Live sim fills on ticks and invents an intra-bar path (see above).
 
 </details>
 
