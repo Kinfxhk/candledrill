@@ -500,6 +500,15 @@ const enBase = {
   'journal.noMatch': 'No trades match these filters.',
   'journal.avgMae': 'Average MAE',
   'journal.avgMfe': 'Average MFE',
+  'sim.replay': 'Replay',
+  'sim.live': 'Live sim',
+  'sim.badge': 'SYNTHETIC',
+  'sim.note':
+    'Synthetic: this mode invents a path inside each bar. Replay never does. Trades here stay on this screen and are not saved to the replay session.',
+  'sim.unavailable':
+    'Live sim needs the next bar, so it is unavailable while a blind session hides the dataset.',
+  'sim.ended': 'Live sim reached the end of the data.',
+  'sim.toggle': 'Replay or synthetic live sim',
   shortcuts:
     'Keys: Space play/pause · → next bar · ↓ previous bar · Shift+→ +10 · [ or - slower · ] or = faster · B buy · S sell · F flatten · Esc cancel drawing',
 } as const;
@@ -979,6 +988,14 @@ const zhHantBase: Record<BaseKey, string> = {
   'journal.noMatch': '沒有符合篩選的交易。',
   'journal.avgMae': '平均 MAE',
   'journal.avgMfe': '平均 MFE',
+  'sim.replay': '重播',
+  'sim.live': '即時模擬',
+  'sim.badge': 'SYNTHETIC',
+  'sim.note':
+    '合成：此模式會在每根K線內編造路徑。重播從不編造K線內路徑。這裡的成交只留在這個畫面，不會寫入重播練習。',
+  'sim.unavailable': '即時模擬需要下一根K線，盲練隱藏數據時無法使用。',
+  'sim.ended': '即時模擬已到數據結尾。',
+  'sim.toggle': '重播或合成即時模擬',
   shortcuts:
     '快捷鍵：空白鍵 播放／暫停 · → 下一根 · ↓ 上一根 · Shift+→ +10 · [ 或 - 減速 · ] 或 = 加速 · B 買入 · S 沽出 · F 平倉 · Esc 取消畫線',
 };

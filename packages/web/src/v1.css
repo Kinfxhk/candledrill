@@ -111,6 +111,13 @@ footer.app {
   min-width: 0;
   font-size: 12px;
 }
+.toolbar .sim-note {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
 .pnl-chip {
   padding: 3px 10px;
   border: 1px solid var(--border);

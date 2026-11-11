@@ -325,3 +325,23 @@ export {
   type RBucket,
   type MonteCarloResult,
 } from './review.js';
+export {
+  DEFAULT_TICKS_PER_BAR,
+  formingBar,
+  generateTickPath,
+  tickPathSeed,
+  type Tick,
+  type TickPathInput,
+} from './tick-path.js';
+export {
+  createTickSim,
+  stepTick,
+  tickCancelOrder,
+  tickCosts,
+  tickFillPrice,
+  tickFlatten,
+  tickModifyOrder,
+  tickPlaceOrder,
+  tickSimFromSession,
+  type TickSimState,
+} from './tick-engine.js';

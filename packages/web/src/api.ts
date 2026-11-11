@@ -178,6 +178,9 @@ export const api = {
   deleteDataset: (id: number) => request<void>('DELETE', `/api/datasets/${id}`),
   previewBars: (id: number, limit = 5000) =>
     request<{ bars: Bar[] }>('GET', `/api/datasets/${id}/bars?limit=${limit}&last=true`),
+  /** Bars at or after `from` (unix seconds). Live sim uses this one bar at a time. */
+  barsFrom: (id: number, from: number, limit = 1) =>
+    request<{ bars: Bar[] }>('GET', `/api/datasets/${id}/bars?from=${from}&limit=${limit}`),
 };
 
 export interface PublicBlind {

@@ -421,6 +421,9 @@ input[type='datetime-local']::-webkit-date-and-time-value {
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .toolbar .sim-note {
+    display: none;
+  }
   .toolbar .pnl-chip,
   .toolbar .sheet-toggle,
   .toolbar [data-testid='blind-badge'],

@@ -9,6 +9,7 @@ import {
   BarAggregator,
   aggregateBars,
   bucketStart,
+  DEFAULT_TICKS_PER_BAR,
   forgetTapeAfter,
   noteTape,
   practiceFrames,
@@ -24,7 +25,14 @@ import {
   type SessionSettings as EngineSettings,
   type Trade,
 } from '@candledrill/core';
-import { sessionsApi, type SessionMeta, type SessionStateDto, type SessionViewDto } from './api.js';
+import {
+  sessionsApi,
+  ApiError,
+  api,
+  type SessionMeta,
+  type SessionStateDto,
+  type SessionViewDto,
+} from './api.js';
 import {
   PriceChart,
   readTheme,
@@ -67,6 +75,7 @@ import {
   type DrawingFlags,
 } from './settings.js';
 import { managedStop, protectiveStop } from './stops.js';
+import { LiveSim, liveSimSeed } from './live-sim.js';
 
 /** Steps kept for "Back" (rewind). Each entry is an engine state before one action. */
 const MAX_UNDO = 200;
@@ -200,6 +209,14 @@ export class PracticeView {
   private unsubscribeSettings: (() => void) | undefined;
   /** 3-2-1 on the first open of a new session. Absent on every later open. */
   private intro: SessionCountdown | undefined;
+  /** Synthetic tick playback. Off by default; replay is unchanged. */
+  private liveSim = false;
+  private sim: LiveSim | null = null;
+  private simFrom = 0;
+  private replaySnapshot: SessionStateDto | undefined;
+  private replayCursor = 0;
+  /** Last committed practice-bar OHLC per pane bucket, so a forming print does not erase it. */
+  private priorLive = new Map<string, Bar | null>();
 
   constructor(private readonly onChanged: () => void = () => {}) {
     document.addEventListener('keydown', (e) => this.onKey(e));
@@ -273,6 +290,10 @@ export class PracticeView {
     this.summary = undefined;
     this.generation++;
     this.pause();
+    this.liveSim = false;
+    this.sim = null;
+    this.replaySnapshot = undefined;
+    this.priorLive.clear();
     this.inFlight = false;
     for (const p of this.panes) p.chart.destroy();
     this.indicatorPanels.forEach((p) => p.close());
@@ -432,6 +453,7 @@ export class PracticeView {
           speed,
         ),
       ),
+      this.simToggle(),
       saveCp,
       el('span', { class: 'sep tb-wide' }),
       el('span', { class: 'tb-wide row' }, jumpLabel, jumpBtn),
@@ -488,9 +510,12 @@ export class PracticeView {
       replayState,
       saveCp,
       sheetBtn,
-      // Set while building the trade bar above; keep it (this literal replaces this.els).
+      // Set while building the trade bar and the live-sim toggle; this literal replaces this.els.
       ...(this.els.tbPlay ? { tbPlay: this.els.tbPlay } : {}),
       ...(this.els.tbBarBack ? { tbBarBack: this.els.tbBarBack } : {}),
+      ...(this.els.simToggle ? { simToggle: this.els.simToggle } : {}),
+      ...(this.els.simBadge ? { simBadge: this.els.simBadge } : {}),
+      ...(this.els.simNote ? { simNote: this.els.simNote } : {}),
     };
     split.addEventListener('click', () => this.toggleSplit());
     this.rulesView = new RulesView();
@@ -498,8 +523,8 @@ export class PracticeView {
     this.checkpoints = loadCheckpoints(m.id);
     this.side = new SidePanel(side, {
       place: (req) => this.placeOrder(req),
-      cancel: (oid) => this.mutate(() => sessionsApi.cancelOrder(m.id, oid)),
-      modify: (oid, change) => this.mutate(() => sessionsApi.modifyOrder(m.id, oid, change)),
+      cancel: (oid) => this.cancelWorking(oid),
+      modify: (oid, change) => this.modifyWorking(oid, change),
       flatten: () => this.flattenAll(),
       ticketChanged: () => this.decorate(),
       closeSheet: () => this.setSheet(false),
@@ -1091,6 +1116,15 @@ export class PracticeView {
   async placeOrder(req: OrderRequest): Promise<void> {
     this.flushPresent();
     if (!this.meta) return;
+    if (this.liveSim && this.sim) {
+      try {
+        this.sim.place(this.engineSettings(), req);
+        this.syncLive(false);
+      } catch (err) {
+        toast((err as Error).message, 'error');
+      }
+      return;
+    }
     if (this.inFlight) {
       toast(t('pr.busy'));
       return;
@@ -1106,6 +1140,16 @@ export class PracticeView {
 
   private async modifyOrderPrice(orderId: number, price: number): Promise<void> {
     if (!this.meta || !this.state) throw new Error('no session');
+    if (this.liveSim && this.sim) {
+      try {
+        this.sim.modify(this.engineSettings(), orderId, { price }, this.cursorTime);
+        this.syncLive(false);
+      } catch (err) {
+        toast((err as Error).message, 'error');
+        throw err;
+      }
+      return;
+    }
     const o = workingOrders(this.state.trading).find((x) => x.id === orderId);
     if (!o) throw new Error('order not found');
     const change: OrderChange = o.role === 'entry' ? { price } : { price };
@@ -1157,6 +1201,7 @@ export class PracticeView {
   // ---------------------------------------------------------------- rewind / save points
   private async restore(state: SessionStateDto): Promise<boolean> {
     if (!this.meta || this.inFlight) return false;
+    this.exitLiveSim();
     const generation = this.generation;
     this.cancelPresent();
     this.pause();
@@ -1384,6 +1429,16 @@ export class PracticeView {
   private async flattenAll(): Promise<void> {
     this.flushPresent();
     if (!this.meta) return;
+    if (this.liveSim && this.sim) {
+      if (getSettings().confirmFlatten && !confirm(`${t('pr.flatten')}?`)) return;
+      try {
+        this.sim.flatten(this.engineSettings());
+        this.syncLive(false);
+      } catch (err) {
+        toast((err as Error).message, 'error');
+      }
+      return;
+    }
     if (this.inFlight) {
       toast(t('pr.busy'));
       return;
@@ -1632,6 +1687,10 @@ export class PracticeView {
 
   /** Step `n` practice bars (the buttons, keys and play all count in practice bars). */
   async stepBars(n: number): Promise<void> {
+    if (this.liveSim) {
+      await this.advanceLive(n * DEFAULT_TICKS_PER_BAR);
+      return;
+    }
     await this.step(this.practiceSteps(n));
   }
 
@@ -1736,6 +1795,7 @@ export class PracticeView {
   }
 
   private async jump(): Promise<void> {
+    this.exitLiveSim();
     if (!this.meta || this.inFlight) return;
     const generation = this.generation;
     const id = this.meta.id;
@@ -1822,6 +1882,10 @@ export class PracticeView {
     // A click on Play, or the end of the intro, must not leave a second timer running.
     this.dismissCountdown();
     if (!this.meta || this.state?.status === 'finished') return;
+    if (this.liveSim) {
+      this.startLiveTimer();
+      return;
+    }
     this.playUndoTaken = false;
     this.playing = true;
     this.carry = 0;
@@ -1868,12 +1932,255 @@ export class PracticeView {
   private renderReplayState(): void {
     const node = this.els.replayState;
     if (!node) return;
+    if (this.liveSim) {
+      node.dataset.state = this.playing ? 'playing' : 'paused';
+      node.textContent = this.playing
+        ? `${t('sim.live')} · ${t('sim.badge')} · ${this.speed}×`
+        : `${t('sim.live')} · ${t('sim.badge')}`;
+      return;
+    }
     const ended = this.state?.status === 'finished';
     const mode = this.playing ? 'playing' : ended ? 'ended' : 'paused';
     node.dataset.state = mode;
     node.textContent = this.playing
       ? `${t('pr.replayStatePlaying')} · ${this.speed}×`
       : t(mode === 'ended' ? 'pr.replayStateEnded' : 'pr.replayStatePaused');
+  }
+
+  private simToggle(): HTMLElement {
+    const btn = el(
+      'button',
+      {
+        type: 'button',
+        class: 'ghost',
+        'data-testid': 'sim-toggle',
+        'aria-pressed': 'false',
+        'data-i18n': 'sim.live',
+        'data-i18n-title': 'sim.note',
+        title: t('sim.note'),
+      },
+      t('sim.live'),
+    );
+    btn.addEventListener('click', () => this.setLiveSim(!this.liveSim));
+    const badge = el(
+      'span',
+      { class: 'badge synth', 'data-testid': 'sim-badge', 'data-i18n': 'sim.badge' },
+      t('sim.badge'),
+    );
+    badge.hidden = true;
+    const note = el(
+      'span',
+      {
+        class: 'muted sim-note',
+        'data-testid': 'sim-note',
+        'data-i18n': 'sim.note',
+        title: t('sim.note'),
+      },
+      t('sim.note'),
+    );
+    note.hidden = true;
+    this.els.simToggle = btn;
+    this.els.simBadge = badge;
+    this.els.simNote = note;
+    return el(
+      'span',
+      { class: 'sim-toggle', role: 'group', 'aria-label': t('sim.toggle') },
+      btn,
+      badge,
+      note,
+    );
+  }
+
+  private renderSimChrome(): void {
+    const btn = this.els.simToggle as HTMLButtonElement | undefined;
+    if (btn) {
+      btn.setAttribute('aria-pressed', String(this.liveSim));
+      const key = this.liveSim ? 'sim.replay' : 'sim.live';
+      btn.dataset.i18n = key;
+      btn.textContent = t(key);
+      btn.title = t('sim.note');
+    }
+    const badge = this.els.simBadge;
+    if (badge) badge.hidden = !this.liveSim;
+    const note = this.els.simNote;
+    if (note) note.hidden = !this.liveSim;
+  }
+
+  private setLiveSim(on: boolean): void {
+    if (on === this.liveSim) return;
+    this.pause();
+    if (!on) {
+      this.exitLiveSim();
+      this.render();
+      return;
+    }
+    if (this.blindHidden || !this.state || !this.meta) {
+      toast(t('sim.unavailable'));
+      return;
+    }
+    this.replaySnapshot = structuredClone(this.state);
+    this.replayCursor = this.cursorTime;
+    this.sim = new LiveSim(
+      this.state,
+      liveSimSeed(this.meta.datasetId, this.meta.id),
+      this.cursorTime,
+    );
+    this.simFrom = this.cursorTime + 1;
+    this.priorLive.clear();
+    this.liveSim = true;
+    this.renderSimChrome();
+    this.render();
+  }
+
+  private exitLiveSim(): void {
+    if (!this.liveSim) return;
+    this.pause();
+    this.liveSim = false;
+    this.sim = null;
+    this.priorLive.clear();
+    if (this.replaySnapshot) {
+      this.state = this.replaySnapshot;
+      this.cursorTime = this.replayCursor;
+    }
+    this.replaySnapshot = undefined;
+    this.resetCharts();
+    this.renderSimChrome();
+  }
+
+  private startLiveTimer(): void {
+    if (!this.sim) return;
+    this.playing = true;
+    this.carry = 0;
+    this.timer = setInterval(() => {
+      if (this.inFlight) return;
+      const perSec = this.speed * DEFAULT_TICKS_PER_BAR;
+      this.carry += (perSec * TICK_MS) / 1000;
+      const n = Math.floor(this.carry);
+      if (n < 1) return;
+      this.carry -= n;
+      void this.advanceLive(n);
+    }, TICK_MS);
+    this.renderPlay();
+  }
+
+  private async fetchSimBar(): Promise<Bar | null> {
+    if (!this.meta) return null;
+    const revealedUntil = this.bars.at(-1)?.time ?? this.cursorTime;
+    const r = await api.barsFrom(this.meta.datasetId, this.simFrom, 1);
+    const bar = r.bars[0];
+    if (!bar) return null;
+    this.simFrom = bar.time + 1;
+    if (bar.time <= revealedUntil) return this.fetchSimBar();
+    return bar;
+  }
+
+  private paintLiveBar(source: Bar, commit: boolean): void {
+    if (!this.meta) return;
+    const opts = this.aggOpts();
+    for (const p of this.panes) {
+      const bucket = bucketStart(source.time, p.tf, opts);
+      const key = `${p.tf}:${bucket}`;
+      let prior = this.priorLive.get(key);
+      if (prior === undefined) {
+        prior =
+          aggregateBars(
+            this.bars.filter((b) => bucketStart(b.time, p.tf, opts) === bucket),
+            p.tf,
+            opts,
+          ).at(-1) ?? null;
+        this.priorLive.set(key, prior);
+      }
+      const merged: Bar = !prior
+        ? { ...source, time: bucket }
+        : {
+            time: bucket,
+            open: prior.open,
+            high: Math.max(prior.high, source.high),
+            low: Math.min(prior.low, source.low),
+            close: source.close,
+            volume: prior.volume + source.volume,
+          };
+      p.chart.updateBar(merged);
+      if (commit) this.priorLive.set(key, merged);
+    }
+  }
+
+  private syncLive(paint: boolean): void {
+    if (!this.sim) return;
+    this.state = this.sim.state;
+    const time = this.sim.lastTime;
+    if (time !== undefined) this.cursorTime = time;
+    if (paint) {
+      const forming = this.sim.forming();
+      if (forming) this.paintLiveBar(forming, false);
+    }
+    this.render();
+  }
+
+  private async advanceLive(n: number): Promise<void> {
+    if (!this.sim || !this.meta || this.inFlight || n < 1) return;
+    const generation = this.generation;
+    this.inFlight = true;
+    try {
+      let left = n;
+      while (left > 0 && this.sim && generation === this.generation) {
+        if (this.sim.idle) {
+          const bar = await this.fetchSimBar();
+          if (generation !== this.generation) return;
+          if (!bar) {
+            this.pause();
+            toast(t('sim.ended'));
+            return;
+          }
+          this.sim.loadBar(bar, this.baseTf, this.meta.settings.tickSize);
+        }
+        const completed = this.sim.step(this.engineSettings());
+        left--;
+        if (completed) this.paintLiveBar(completed, true);
+        if (this.sim.state.status !== 'active') {
+          this.pause();
+          this.syncLive(true);
+          return;
+        }
+      }
+      this.syncLive(true);
+    } catch (err) {
+      if (generation !== this.generation) return;
+      this.pause();
+      if (err instanceof ApiError && err.status === 423) toast(t('sim.unavailable'));
+      else toast((err as Error).message, 'error');
+    } finally {
+      if (generation === this.generation) this.inFlight = false;
+    }
+  }
+
+  private async cancelWorking(orderId: number): Promise<void> {
+    if (this.liveSim && this.sim) {
+      try {
+        this.sim.cancel(orderId);
+        this.syncLive(false);
+      } catch (err) {
+        toast((err as Error).message, 'error');
+      }
+      return;
+    }
+    if (!this.meta) return;
+    await this.mutate(() => sessionsApi.cancelOrder(this.meta!.id, orderId));
+  }
+
+  private async modifyWorking(orderId: number, change: OrderChange): Promise<void> {
+    if (this.liveSim && this.sim) {
+      try {
+        this.sim.modify(this.engineSettings(), orderId, change, this.cursorTime);
+        this.syncLive(false);
+      } catch (err) {
+        toast((err as Error).message, 'error');
+        throw err;
+      }
+      return;
+    }
+    if (!this.meta) return;
+    await this.mutate(() => sessionsApi.modifyOrder(this.meta!.id, orderId, change));
   }
 
   // ---------------------------------------------------------------- render
@@ -2000,6 +2307,7 @@ export class PracticeView {
       tbBar.setAttribute('aria-label', t('pr.barBackTitle'));
     }
     this.renderReplayState();
+    this.renderSimChrome();
     const cp = this.els.saveCp as HTMLButtonElement | undefined;
     if (cp) cp.hidden = this.blindHidden;
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);

@@ -488,6 +488,15 @@ export const ja: Record<MessageKey, string> = {
   'journal.noMatch': '条件に合う取引がありません。',
   'journal.avgMae': '平均 MAE',
   'journal.avgMfe': '平均 MFE',
+  'sim.replay': 'リプレイ',
+  'sim.live': 'ライブ模擬',
+  'sim.badge': 'SYNTHETIC',
+  'sim.note':
+    '合成：このモードは各足の中に架空のパスを作ります。リプレイは足の中を作りません。ここでの約定はこの画面だけに残り、リプレイの練習には保存されません。',
+  'sim.unavailable':
+    'ライブ模擬は次の足が必要なため、ブラインド練習でデータが隠れている間は使えません。',
+  'sim.ended': 'ライブ模擬はデータの終わりに達しました。',
+  'sim.toggle': 'リプレイまたは合成ライブ模擬',
   shortcuts:
     'ショートカット：スペース 再生／一時停止 · → 次の足 · ↓ 前の足 · Shift+→ +10 · [ または - 減速 · ] または = 加速 · B 買い · S 売り · F 全決済 · Esc 描画キャンセル',
 };

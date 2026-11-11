@@ -470,6 +470,14 @@ export const zhHans: Record<MessageKey, string> = {
   'journal.noMatch': '没有符合筛选的交易。',
   'journal.avgMae': '平均 MAE',
   'journal.avgMfe': '平均 MFE',
+  'sim.replay': '重播',
+  'sim.live': '即时模拟',
+  'sim.badge': 'SYNTHETIC',
+  'sim.note':
+    '合成：此模式会在每根K线内编造路径。重播从不编造K线内路径。这里的成交只留在这个画面，不会写入重播练习。',
+  'sim.unavailable': '即时模拟需要下一根K线，盲练隐藏数据时无法使用。',
+  'sim.ended': '即时模拟已到数据结尾。',
+  'sim.toggle': '重播或合成即时模拟',
   shortcuts:
     '快捷键：空格键 播放／暂停 · → 下一根 · ↓ 上一根 · Shift+→ +10 · [ 或 - 减速 · ] 或 = 加速 · B 买入 · S 卖出 · F 平仓 · Esc 取消画线',
 };

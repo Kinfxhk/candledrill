@@ -485,6 +485,15 @@ export const ko: Record<MessageKey, string> = {
   'journal.noMatch': '조건에 맞는 거래가 없습니다.',
   'journal.avgMae': '평균 MAE',
   'journal.avgMfe': '평균 MFE',
+  'sim.replay': '리플레이',
+  'sim.live': '라이브 시뮬',
+  'sim.badge': 'SYNTHETIC',
+  'sim.note':
+    '합성: 이 모드는 각 봉 안에 경로를 만들어 냅니다. 리플레이는 봉 안을 만들지 않습니다. 여기의 체결은 이 화면에만 남고 리플레이 연습에는 저장되지 않습니다.',
+  'sim.unavailable':
+    '라이브 시뮬은 다음 봉이 필요해서, 블라인드 연습이 데이터를 숨기는 동안에는 쓸 수 없습니다.',
+  'sim.ended': '라이브 시뮬이 데이터 끝에 도달했습니다.',
+  'sim.toggle': '리플레이 또는 합성 라이브 시뮬',
   shortcuts:
     '단축키: 스페이스 재생／일시정지 · → 다음 봉 · ↓ 이전 봉 · Shift+→ +10 · [ 또는 - 감속 · ] 또는 = 가속 · B 매수 · S 매도 · F 전량 청산 · Esc 그리기 취소',
 };

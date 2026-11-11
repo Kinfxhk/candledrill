@@ -6,6 +6,14 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-11
+
+### Added
+
+- Live simulation market: a tick-granularity engine that runs alongside bar replay. Deterministic
+  tick paths, tick-level fills (market / limit / stop / bracket with slippage), and rules (daily
+  loss, trailing drawdown, profit target) that fire in real time on tick instead of bar close.
+
 ## [1.3.0] - 2026-11-11
 
 ### Added
