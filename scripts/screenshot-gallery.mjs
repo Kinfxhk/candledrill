@@ -158,26 +158,38 @@ async function step(page, n = 1) {
   console.info('wrote docs/shot-multitf.png');
 }
 
-// 5) Indicators: enable SMA overlays + RSI pane, then screenshot with panel open
+/** Add one catalog indicator and wait until it appears in the active list. */
+async function addIndicator(page, query, kind) {
+  const search = page.getByTestId('indicator-search');
+  await search.fill(query);
+  const add = page.getByTestId(`indicator-add-${kind}`);
+  await add.waitFor({ state: 'visible', timeout: 5000 });
+  await add.click();
+  await page
+    .locator('.indicator-panel .indicator-row', { hasText: new RegExp(query, 'i') })
+    .first()
+    .waitFor({ state: 'visible' });
+  await search.fill('');
+}
+
+// 5) Indicators: SuperTrend + Keltner from the expanded catalog. Panel stays open.
 {
   const page = await freshPage();
   await startSession(page, { blind: false, name: 'Indicators' });
-  await step(page, 8); // enough bars for SMA/RSI
-  // Open Indicators button (first chart head)
+  await step(page, 8);
+  await page.waitForTimeout(1200);
   await page.locator('button.small.ghost', { hasText: 'Indicators' }).first().click();
-  await page.locator('.indicator-panel').waitFor({ state: 'visible' });
-  // Enable first three SMA checkboxes and RSI
-  const rows = page.locator('.indicator-panel .indicator-row');
-  const n = await rows.count();
-  for (let i = 0; i < n; i++) {
-    const text = await rows.nth(i).innerText();
-    if (/SMA 9|SMA 20|SMA 50|RSI/i.test(text)) {
-      const box = rows.nth(i).locator('input[type=checkbox]');
-      if (!(await box.isChecked())) await box.check();
-    }
-  }
-  await page.waitForTimeout(800);
-  // Keep panel open for the screenshot
+  await page.getByTestId('indicator-panel').waitFor({ state: 'visible' });
+  await addIndicator(page, 'SuperTrend', 'supertrend');
+  await addIndicator(page, 'Keltner', 'keltner');
+  await page.locator('.indicator-panel').evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await page
+    .locator('.indicator-panel .indicator-row', { hasText: /SuperTrend/i })
+    .first()
+    .waitFor({ state: 'visible' });
+  await page.waitForTimeout(600);
   await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-indicators.png' });
   await page.close();
@@ -243,13 +255,50 @@ async function v1Page(viewport, mobile) {
   await page.getByTestId('btn-buy').click();
   await step(page, 6);
   await page.waitForTimeout(4500);
-  await page.getByTestId('rule-check').scrollIntoViewIfNeeded();
+  // Rule check moved off the side card into a bottom tab.
+  await page.getByTestId('tab-rulecheck').click();
+  await page.getByTestId('rule-check').waitFor({ state: 'visible', timeout: 8000 });
   await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-rules.png' });
   console.info('wrote docs/shot-rules.png');
-  await page.getByTestId('tab-review').click();
-  await page.getByTestId('mc-run').click();
-  await page.waitForTimeout(400);
+  // Closed round-trips so the journal has trades, stats and a daily P&L cell.
+  for (let i = 0; i < 3; i++) {
+    await page.getByTestId('btn-buy').click();
+    await page.getByTestId('btn-step').click();
+    await page.waitForTimeout(700);
+    await page.getByTestId('btn-flatten').click();
+    await page.getByTestId('btn-step').click();
+    await page.waitForTimeout(700);
+  }
+  await page.getByTestId('tab-journal').click();
+  await page.getByTestId('journal-table').waitFor({ timeout: 15000 });
+  const saveField = async (prefix, value, select = false) => {
+    const input = page.locator(`[data-testid^="${prefix}-"]`).first();
+    await input.waitFor({ state: 'visible' });
+    if (select) await input.selectOption(value);
+    else {
+      await input.fill(value);
+      await input.blur().catch(() => {});
+      await input.dispatchEvent('change').catch(() => {});
+    }
+    await page.getByText('Journal saved.').waitFor({ timeout: 8000 });
+    await clearToasts(page);
+  };
+  await saveField('setup', 'ORB breakout');
+  await saveField('market', 'Trend');
+  await saveField('emotion', 'Calm');
+  await saveField('plan-note', 'Waited for the open');
+  await saveField('plan', 'yes', true);
+  // The tab strip is short; open it tall enough that the new columns are readable.
+  await page.evaluate(() => {
+    const bottom = globalThis.document.querySelector('.bottom');
+    if (bottom) bottom.style.height = '460px';
+  });
+  await page
+    .locator('[data-testid^="setup-"]')
+    .first()
+    .evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' }));
+  await page.waitForTimeout(300);
   await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-review.png' });
   console.info('wrote docs/shot-review.png');
@@ -275,6 +324,25 @@ async function v1Page(viewport, mobile) {
   await clearToasts(page);
   await page.screenshot({ path: 'docs/shot-tablet.png' });
   console.info('wrote docs/shot-tablet.png');
+  await ctx.close();
+}
+
+// Live sim: toolbar toggle, playing ticks, an open position, SYNTHETIC badge, rules strip.
+{
+  const { ctx, page } = await v1Page({ width: 1440, height: 900 }, false);
+  await step(page, 2);
+  await page.getByTestId('sim-toggle').click();
+  await page.getByTestId('sim-badge').waitFor({ state: 'visible', timeout: 8000 });
+  await page.getByTestId('rules-strip').waitFor({ state: 'visible' });
+  await page.getByTestId('btn-play').click();
+  await page.getByTestId('sl-ticks').fill('40');
+  await page.getByTestId('tp-ticks').fill('80');
+  await page.getByTestId('btn-buy').click();
+  await page.getByTestId('position').getByText('Long').waitFor({ timeout: 15000 });
+  await page.waitForTimeout(1200);
+  await clearToasts(page);
+  await page.screenshot({ path: 'docs/shot-live-sim.png' });
+  console.info('wrote docs/shot-live-sim.png');
   await ctx.close();
 }
 

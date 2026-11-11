@@ -85,6 +85,10 @@ npm start
 - **規則即時觸發：** 每日虧損、追蹤回撤、盈利目標在 tick 上計算，不必等到收棒。
 - 這裡的成交只留在這個畫面，不會寫回回放練習。盲練隱藏數據集時不能開（下一根 K 的高低收不可用）。
 
+![即時模擬：播放中、未平倉盈虧，以及 SYNTHETIC 標記](docs/shot-live-sim.png)
+
+<sub>**即時模擬** — 合成 tick 路徑，並非真實市價。畫面標 SYNTHETIC。</sub>
+
 ### 下單
 
 - 市價／限價／觸價單，括號單（止蝕／止賺以跳計），數量快捷，一鍵平倉。
@@ -131,7 +135,7 @@ npm start
 - **每日盈虧**日曆，以及搜尋／篩選（標籤、筆記、策略、方向、結果、日期）。
 - **檢討**分頁：按已平倉交易的權益曲線、R 分佈、**Monte Carlo**（同一批交易打亂次序，顯示最大回撤百分位及觸及回撤上限的比例；屬模擬，並非預測）。
 
-![檢討分頁：權益曲線、R 分佈、Monte Carlo](docs/shot-review.png)
+![日誌：策略、市況、情緒、是否按計劃、計劃與執行](docs/shot-review.png)
 
 <sub>**檢討** — 合成 `SYNTH-` 示範資料。</sub>
 
@@ -147,7 +151,7 @@ npm start
 
 可搜尋目錄約 **36** 項技術指標（連成交量直方圖共 37 項），只根據**已揭示**的 K 棒計算。原有：SMA／EMA（任意週期）、布林通道、盤中 VWAP、開盤區間（ORB）、唐奇安、RSI、MACD、ATR、隨機指標、ADX。新增包括：肯特納、一目均衡表、超級趨勢、CCI、OBV、蔡金資金流（CMF）、拋物線 SAR、威廉指標、之字轉折、動量震盪（Awesome Oscillator）、包絡線、DEMA、TEMA、WMA、赫爾均線、動量、ROC、阿隆、VWAP 偏差帶、標準誤帶、多空力道（Balance of Power）、KDJ、VWMA、價格通道、艾達射線。完整清單與公式見 [docs/INDICATORS.md](docs/INDICATORS.md)。設定留在本瀏覽器。
 
-![指標面板：已啟用 SMA 9/20/50 與 RSI](docs/shot-indicators.png)
+![指標面板：已啟用超級趨勢與肯特納](docs/shot-indicators.png)
 
 <sub>**指標** — 疊加線與下方視窗。合成 `SYNTH-` 示範資料。</sub>
 
@@ -331,6 +335,10 @@ A second practice mode beside bar replay. The toolbar switches to **Live sim**. 
 - **Tick-level fills:** market, limit, stop and bracket orders (with slippage) fill on a tick, not on the practice-timeframe close.
 - **Rules fire in real time:** daily loss, trailing drawdown and profit target are evaluated on each tick, not at bar close.
 - Fills stay on this screen and are not written back into the replay session. Live sim is unavailable while a blind session hides the dataset (the next bar's OHLC is not available).
+
+![Live sim: playing, an open position with live P&L, and the SYNTHETIC badge](docs/shot-live-sim.png)
+
+<sub>**Live sim** — synthetic tick path, not a real market price. The screen is marked SYNTHETIC.</sub>
 
 ### Orders
 
