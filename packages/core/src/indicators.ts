@@ -536,3 +536,40 @@ export function orbLevels(
   }
   return { high, low, complete };
 }
+
+export {
+  aroon,
+  awesomeOscillator,
+  balanceOfPower,
+  cci,
+  cmf,
+  dema,
+  elderRay,
+  envelope,
+  hull,
+  ichimoku,
+  kdj,
+  keltner,
+  momentum,
+  obv,
+  parabolicSar,
+  priceChannel,
+  roc,
+  standardErrorBands,
+  supertrend,
+  tema,
+  vwapBands,
+  vwma,
+  williamsR,
+  wma,
+  zigzag,
+} from './indicators-extra.js';
+export type {
+  AroonResult,
+  BandResult,
+  ElderRayResult,
+  IchimokuResult,
+  KdjResult,
+  SuperTrendResult,
+  VwapBandResult,
+} from './indicators-extra.js';

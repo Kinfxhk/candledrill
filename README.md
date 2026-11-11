@@ -10,7 +10,7 @@
 
 <sub>所有截圖使用產生的 `SYNTH-` 示範資料，並非真實市價。</sub>
 
-> **v1.1.0** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> **v1.2.0** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 完整教學（v0.2 實測稿）：[docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -133,7 +133,7 @@ npm start
 
 ### 技術指標
 
-可搜尋目錄：SMA／EMA（任意週期）、布林通道、盤中 VWAP、開盤區間（ORB）、唐奇安、RSI、MACD、ATR、隨機指標、ADX——只根據**已揭示**的 K 棒計算。設定留在本瀏覽器。
+可搜尋目錄：SMA／EMA（任意週期）、布林通道、盤中 VWAP、開盤區間（ORB）、唐奇安、RSI、MACD、ATR、隨機指標、ADX，以及肯特納、一目均衡表、超級趨勢等，目錄共 37 項（含成交量）——只根據**已揭示**的 K 棒計算。完整清單與公式見 [docs/INDICATORS.md](docs/INDICATORS.md)。設定留在本瀏覽器。
 
 ![指標面板：已啟用 SMA 9/20/50 與 RSI](docs/shot-indicators.png)
 
@@ -254,7 +254,7 @@ Phone, tablet or desktop browser. No install, no sign-in. Your data stays in you
 
 <sub>All screenshots use generated `SYNTH-` demo data, not real market prices.</sub>
 
-> **v1.1.0** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v1.2.0** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 Traditional Chinese guide (v0.2 field notes): [docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -352,7 +352,7 @@ Hide the real symbol, shift dates and prices so you cannot recognise the chart. 
 
 ### Indicators
 
-Searchable catalog: SMA / EMA (any periods), Bollinger, session VWAP, opening range (ORB), Donchian, RSI, MACD, ATR, Stochastic, ADX — computed only on bars already revealed. Settings stay in this browser.
+Searchable catalog: SMA / EMA (any periods), Bollinger, session VWAP, opening range (ORB), Donchian, RSI, MACD, ATR, Stochastic, ADX, plus Keltner, Ichimoku, SuperTrend and the rest — 37 entries including volume — computed only on bars already revealed. Formulas are in [docs/INDICATORS.md](docs/INDICATORS.md). Settings stay in this browser.
 
 ### Settings
 

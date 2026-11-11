@@ -28,16 +28,41 @@ import type { AggregateOptions } from '@candledrill/core';
 import { weekdayName } from './labels.js';
 import {
   adx,
+  aroon,
   atr,
+  awesomeOscillator,
+  balanceOfPower,
   bollinger,
+  cci,
+  cmf,
+  dema,
   donchian,
+  elderRay,
   ema,
+  envelope,
+  hull,
+  ichimoku,
+  kdj,
+  keltner,
   macd,
+  momentum,
+  obv,
   orbLevels,
+  parabolicSar,
+  priceChannel,
+  roc,
   rsi,
   sma,
+  standardErrorBands,
   stochastic,
+  supertrend,
+  tema,
   vwap,
+  vwapBands,
+  vwma,
+  williamsR,
+  wma,
+  zigzag,
 } from './indicators.js';
 import {
   isOverlayKind,
@@ -1668,19 +1693,40 @@ export class PriceChart {
     return bars.map((b, i) => ({ time: this.ts(b.time), value: values[i] ?? null }));
   }
 
-  private indicatorSeriesOptions(setting: IndicatorSetting) {
+  private indicatorSeriesOptions(setting: IndicatorSetting, lineStyle?: LineStyle) {
     return {
       color: setting.color ?? '#888888',
       lineWidth: 2 as const,
+      ...(lineStyle !== undefined ? { lineStyle } : {}),
       lastValueVisible: false,
       priceLineVisible: false,
     };
   }
 
   private overlayKeys(s: IndicatorSetting): string[] {
-    if (s.kind === 'bollinger') return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
+    if (
+      s.kind === 'bollinger' ||
+      s.kind === 'donchian' ||
+      s.kind === 'keltner' ||
+      s.kind === 'envelope' ||
+      s.kind === 'stderr' ||
+      s.kind === 'priceChannel'
+    ) {
+      return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
+    }
     if (s.kind === 'orb') return [`${s.id}:h`, `${s.id}:l`];
-    if (s.kind === 'donchian') return [`${s.id}:u`, `${s.id}:m`, `${s.id}:l`];
+    if (s.kind === 'ichimoku') {
+      return [
+        `${s.id}:tenkan`,
+        `${s.id}:kijun`,
+        `${s.id}:spanA`,
+        `${s.id}:spanB`,
+        `${s.id}:chikou`,
+      ];
+    }
+    if (s.kind === 'vwapBands') {
+      return [`${s.id}:vwap`, `${s.id}:u1`, `${s.id}:l1`, `${s.id}:u2`, `${s.id}:l2`];
+    }
     return [s.id];
   }
 
@@ -1688,6 +1734,9 @@ export class PriceChart {
     if (s.kind === 'macd') return [`${s.id}:macd`, `${s.id}:signal`, `${s.id}:hist`];
     if (s.kind === 'stochastic') return [`${s.id}:k`, `${s.id}:d`];
     if (s.kind === 'adx') return [`${s.id}:adx`, `${s.id}:pdi`, `${s.id}:mdi`];
+    if (s.kind === 'aroon') return [`${s.id}:up`, `${s.id}:down`];
+    if (s.kind === 'kdj') return [`${s.id}:k`, `${s.id}:d`, `${s.id}:j`];
+    if (s.kind === 'elder') return [`${s.id}:bull`, `${s.id}:bear`];
     return [s.id];
   }
 
@@ -1750,6 +1799,93 @@ export class PriceChart {
           this.ensureOverlayLine(`${s.id}:u`, s).setData(this.indicatorLineData(r.upper, bars));
           this.ensureOverlayLine(`${s.id}:m`, s).setData(this.indicatorLineData(r.middle, bars));
           this.ensureOverlayLine(`${s.id}:l`, s).setData(this.indicatorLineData(r.lower, bars));
+          break;
+        }
+        case 'keltner': {
+          const r = keltner(bars, s.period ?? 20, s.fast ?? 10, s.multiplier ?? 2, source);
+          this.paintBands(s, r, bars);
+          break;
+        }
+        case 'envelope': {
+          const r = envelope(bars, s.period ?? 20, s.percent ?? 10, source);
+          this.paintBands(s, r, bars);
+          break;
+        }
+        case 'stderr': {
+          const r = standardErrorBands(bars, s.period ?? 20, s.multiplier ?? 2, source);
+          this.paintBands(s, r, bars);
+          break;
+        }
+        case 'priceChannel': {
+          const r = priceChannel(bars, s.period ?? 20);
+          this.paintBands(s, r, bars);
+          break;
+        }
+        case 'ichimoku': {
+          const kijun = s.slow ?? 26;
+          const r = ichimoku(bars, s.fast ?? 9, kijun, s.signal ?? 52, kijun);
+          this.ensureOverlayLine(`${s.id}:tenkan`, s).setData(
+            this.indicatorLineData(r.tenkan, bars),
+          );
+          this.ensureOverlayLine(`${s.id}:kijun`, s).setData(this.indicatorLineData(r.kijun, bars));
+          this.ensureOverlayLine(`${s.id}:spanA`, s).setData(
+            this.indicatorLineData(r.senkouA, bars),
+          );
+          this.ensureOverlayLine(`${s.id}:spanB`, s).setData(
+            this.indicatorLineData(r.senkouB, bars),
+          );
+          this.ensureOverlayLine(`${s.id}:chikou`, s).setData(
+            this.indicatorLineData(r.chikou, bars),
+          );
+          break;
+        }
+        case 'supertrend': {
+          const r = supertrend(bars, s.period ?? 10, s.multiplier ?? 3);
+          this.ensureOverlayLine(s.id, s).setData(this.indicatorLineData(r.line, bars));
+          break;
+        }
+        case 'sar':
+          this.ensureOverlayLine(s.id, s, LineStyle.Dotted).setData(
+            this.indicatorLineData(parabolicSar(bars, s.step ?? 0.02, s.maxStep ?? 0.2), bars),
+          );
+          break;
+        case 'zigzag':
+          this.ensureOverlayLine(s.id, s).setData(
+            this.indicatorLineData(zigzag(bars, s.percent ?? 5), bars),
+          );
+          break;
+        case 'dema':
+          this.ensureOverlayLine(s.id, s).setData(
+            this.indicatorLineData(dema(bars, s.period ?? 20, source), bars),
+          );
+          break;
+        case 'tema':
+          this.ensureOverlayLine(s.id, s).setData(
+            this.indicatorLineData(tema(bars, s.period ?? 20, source), bars),
+          );
+          break;
+        case 'wma':
+          this.ensureOverlayLine(s.id, s).setData(
+            this.indicatorLineData(wma(bars, s.period ?? 20, source), bars),
+          );
+          break;
+        case 'hull':
+          this.ensureOverlayLine(s.id, s).setData(
+            this.indicatorLineData(hull(bars, s.period ?? 16, source), bars),
+          );
+          break;
+        case 'vwma':
+          this.ensureOverlayLine(s.id, s).setData(
+            this.indicatorLineData(vwma(bars, s.period ?? 20, source), bars),
+          );
+          break;
+        case 'vwapBands': {
+          const r = vwapBands(bars, this.indicatorAgg);
+          this.ensureOverlayLine(`${s.id}:vwap`, s).setData(this.indicatorLineData(r.vwap, bars));
+          this.ensureOverlayLine(`${s.id}:u1`, s).setData(this.indicatorLineData(r.upper1, bars));
+          this.ensureOverlayLine(`${s.id}:l1`, s).setData(this.indicatorLineData(r.lower1, bars));
+          this.ensureOverlayLine(`${s.id}:u2`, s).setData(this.indicatorLineData(r.upper2, bars));
+          this.ensureOverlayLine(`${s.id}:l2`, s).setData(this.indicatorLineData(r.lower2, bars));
           break;
         }
         default: {
@@ -1819,6 +1955,63 @@ export class PriceChart {
           this.ensurePaneLine(`${s.id}:mdi`, s, 1).setData(this.indicatorLineData(r.minusDi, bars));
           break;
         }
+        case 'cci':
+          this.ensurePaneLine(s.id, s, 1).setData(
+            this.indicatorLineData(cci(bars, s.period ?? 20, source), bars),
+          );
+          break;
+        case 'obv':
+          this.ensurePaneLine(s.id, s, 1).setData(this.indicatorLineData(obv(bars), bars));
+          break;
+        case 'cmf':
+          this.ensurePaneLine(s.id, s, 1).setData(
+            this.indicatorLineData(cmf(bars, s.period ?? 20), bars),
+          );
+          break;
+        case 'williams':
+          this.ensurePaneLine(s.id, s, 1).setData(
+            this.indicatorLineData(williamsR(bars, s.period ?? 14), bars),
+          );
+          break;
+        case 'ao':
+          this.ensurePaneHistogram(`${s.id}`, s, 1).setData(
+            this.indicatorLineData(awesomeOscillator(bars, s.fast ?? 5, s.slow ?? 34), bars),
+          );
+          break;
+        case 'momentum':
+          this.ensurePaneLine(s.id, s, 1).setData(
+            this.indicatorLineData(momentum(bars, s.period ?? 10, source), bars),
+          );
+          break;
+        case 'roc':
+          this.ensurePaneLine(s.id, s, 1).setData(
+            this.indicatorLineData(roc(bars, s.period ?? 10, source), bars),
+          );
+          break;
+        case 'aroon': {
+          const r = aroon(bars, s.period ?? 25);
+          this.ensurePaneLine(`${s.id}:up`, s, 1).setData(this.indicatorLineData(r.up, bars));
+          this.ensurePaneLine(`${s.id}:down`, s, 1).setData(this.indicatorLineData(r.down, bars));
+          break;
+        }
+        case 'bop':
+          this.ensurePaneLine(s.id, s, 1).setData(
+            this.indicatorLineData(balanceOfPower(bars, s.period ?? 14), bars),
+          );
+          break;
+        case 'kdj': {
+          const r = kdj(bars, s.period ?? 9);
+          this.ensurePaneLine(`${s.id}:k`, s, 1).setData(this.indicatorLineData(r.k, bars));
+          this.ensurePaneLine(`${s.id}:d`, s, 1).setData(this.indicatorLineData(r.d, bars));
+          this.ensurePaneLine(`${s.id}:j`, s, 1).setData(this.indicatorLineData(r.j, bars));
+          break;
+        }
+        case 'elder': {
+          const r = elderRay(bars, s.period ?? 13, source);
+          this.ensurePaneLine(`${s.id}:bull`, s, 1).setData(this.indicatorLineData(r.bull, bars));
+          this.ensurePaneLine(`${s.id}:bear`, s, 1).setData(this.indicatorLineData(r.bear, bars));
+          break;
+        }
         default: {
           const leftover: never = s.kind;
           void leftover;
@@ -1828,15 +2021,40 @@ export class PriceChart {
     }
   }
 
-  private ensureOverlayLine(key: string, setting: IndicatorSetting): ISeriesApi<'Line'> {
+  private ensureOverlayLine(
+    key: string,
+    setting: IndicatorSetting,
+    lineStyle?: LineStyle,
+  ): ISeriesApi<'Line'> {
     let s = this.overlaySeries.get(key);
+    const opts = this.indicatorSeriesOptions(setting, lineStyle);
     if (!s) {
-      s = this.chart.addSeries(LineSeries, this.indicatorSeriesOptions(setting));
+      s = this.chart.addSeries(LineSeries, opts);
       this.overlaySeries.set(key, s);
     } else {
-      s.applyOptions(this.indicatorSeriesOptions(setting));
+      s.applyOptions(opts);
     }
     return s;
+  }
+
+  private paintBands(
+    setting: IndicatorSetting,
+    r: {
+      upper: readonly (number | null)[];
+      middle: readonly (number | null)[];
+      lower: readonly (number | null)[];
+    },
+    bars: readonly Bar[],
+  ): void {
+    this.ensureOverlayLine(`${setting.id}:u`, setting).setData(
+      this.indicatorLineData(r.upper, bars),
+    );
+    this.ensureOverlayLine(`${setting.id}:m`, setting).setData(
+      this.indicatorLineData(r.middle, bars),
+    );
+    this.ensureOverlayLine(`${setting.id}:l`, setting).setData(
+      this.indicatorLineData(r.lower, bars),
+    );
   }
 
   private ensurePaneLine(key: string, setting: IndicatorSetting, pane: number): ISeriesApi<'Line'> {

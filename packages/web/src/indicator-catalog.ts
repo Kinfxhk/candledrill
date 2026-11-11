@@ -71,6 +71,106 @@ export const CATALOG: readonly CatalogItem[] = [
     aliases: ['orb', 'opening range', '30orb', 'session'],
     singleton: false,
   },
+  {
+    kind: 'keltner',
+    category: 'volatility',
+    aliases: ['keltner', 'kc', 'atr bands'],
+    singleton: false,
+  },
+  {
+    kind: 'ichimoku',
+    category: 'trend',
+    aliases: ['ichimoku', 'cloud', 'tenkan', 'kijun'],
+    singleton: false,
+  },
+  {
+    kind: 'supertrend',
+    category: 'trend',
+    aliases: ['supertrend', 'super trend', 'st'],
+    singleton: false,
+  },
+  {
+    kind: 'sar',
+    category: 'trend',
+    aliases: ['sar', 'parabolic', 'psar'],
+    singleton: false,
+  },
+  {
+    kind: 'zigzag',
+    category: 'trend',
+    aliases: ['zigzag', 'zig zag', 'pivot'],
+    singleton: false,
+  },
+  {
+    kind: 'envelope',
+    category: 'volatility',
+    aliases: ['envelope', 'percent bands'],
+    singleton: false,
+  },
+  { kind: 'dema', category: 'trend', aliases: ['dema', 'double exponential'], singleton: false },
+  { kind: 'tema', category: 'trend', aliases: ['tema', 'triple exponential'], singleton: false },
+  { kind: 'wma', category: 'trend', aliases: ['wma', 'weighted moving average'], singleton: false },
+  {
+    kind: 'hull',
+    category: 'trend',
+    aliases: ['hull', 'hma', 'hull moving average'],
+    singleton: false,
+  },
+  {
+    kind: 'vwma',
+    category: 'volume',
+    aliases: ['vwma', 'volume weighted moving average'],
+    singleton: false,
+  },
+  {
+    kind: 'vwapBands',
+    category: 'session',
+    aliases: ['vwap bands', 'vwap deviation', 'vwap std'],
+    singleton: false,
+  },
+  {
+    kind: 'stderr',
+    category: 'volatility',
+    aliases: ['standard error', 'stderr', 'regression bands'],
+    singleton: false,
+  },
+  {
+    kind: 'priceChannel',
+    category: 'volatility',
+    aliases: ['price channel', 'channel'],
+    singleton: false,
+  },
+  { kind: 'cci', category: 'momentum', aliases: ['cci', 'commodity channel'], singleton: false },
+  {
+    kind: 'obv',
+    category: 'volume',
+    aliases: ['obv', 'on balance', 'on-balance'],
+    singleton: false,
+  },
+  { kind: 'cmf', category: 'volume', aliases: ['cmf', 'chaikin', 'money flow'], singleton: false },
+  {
+    kind: 'williams',
+    category: 'momentum',
+    aliases: ['williams', 'williams %r', '%r'],
+    singleton: false,
+  },
+  {
+    kind: 'ao',
+    category: 'momentum',
+    aliases: ['ao', 'awesome', 'awesome oscillator'],
+    singleton: false,
+  },
+  { kind: 'momentum', category: 'momentum', aliases: ['momentum', 'mom'], singleton: false },
+  { kind: 'roc', category: 'momentum', aliases: ['roc', 'rate of change'], singleton: false },
+  { kind: 'aroon', category: 'trend', aliases: ['aroon'], singleton: false },
+  { kind: 'bop', category: 'momentum', aliases: ['bop', 'balance of power'], singleton: false },
+  { kind: 'kdj', category: 'momentum', aliases: ['kdj', 'kd'], singleton: false },
+  {
+    kind: 'elder',
+    category: 'momentum',
+    aliases: ['elder', 'elder ray', 'bull power', 'bear power'],
+    singleton: false,
+  },
 ];
 
 export function filterCatalog(query: string, category: IndicatorCategory | 'all'): CatalogItem[] {
@@ -80,6 +180,10 @@ export function filterCatalog(query: string, category: IndicatorCategory | 'all'
     if (!q) return true;
     if (item.aliases.some((a) => a.includes(q))) return true;
     if (item.kind.includes(q)) return true;
+    const words = q.replace(/\d+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (words && words !== q) {
+      if (item.aliases.some((a) => a.includes(words)) || item.kind.includes(words)) return true;
+    }
     const period = q.match(/(\d+)/);
     if (period && (item.kind === 'sma' || item.kind === 'ema' || item.kind === 'orb')) return true;
     return false;
@@ -98,7 +202,26 @@ export function periodFromQuery(query: string, kind: IndicatorKind): number | un
     kind === 'donchian' ||
     kind === 'rsi' ||
     kind === 'atr' ||
-    kind === 'adx'
+    kind === 'adx' ||
+    kind === 'keltner' ||
+    kind === 'supertrend' ||
+    kind === 'cci' ||
+    kind === 'cmf' ||
+    kind === 'williams' ||
+    kind === 'envelope' ||
+    kind === 'dema' ||
+    kind === 'tema' ||
+    kind === 'wma' ||
+    kind === 'hull' ||
+    kind === 'momentum' ||
+    kind === 'roc' ||
+    kind === 'aroon' ||
+    kind === 'stderr' ||
+    kind === 'bop' ||
+    kind === 'kdj' ||
+    kind === 'vwma' ||
+    kind === 'priceChannel' ||
+    kind === 'elder'
   ) {
     return n;
   }

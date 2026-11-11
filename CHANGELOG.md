@@ -6,6 +6,15 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-11
+
+### Added
+
+- 25 technical indicators: Keltner Channel, Ichimoku Cloud, SuperTrend, CCI, OBV, CMF,
+  Parabolic SAR, Williams %R, ZigZag, Awesome Oscillator, Envelope, DEMA, TEMA, WMA, Hull MA,
+  Momentum, ROC, Aroon, VWAP deviation bands, Standard Error Bands, Balance of Power, KDJ,
+  VWMA, Price Channel, Elder Ray. Each is a pure no-look-ahead function with its own unit test.
+
 ## [1.1.0] - 2026-11-11
 
 ### Removed

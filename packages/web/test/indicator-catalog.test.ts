@@ -26,6 +26,8 @@ describe('indicator catalog v2', () => {
   it('finds SMA by alias and keeps a second period after save', () => {
     expect(filterCatalog('moving', 'trend').some((item) => item.kind === 'sma')).toBe(true);
     expect(filterCatalog('orb', 'session').map((item) => item.kind)).toContain('orb');
+    expect(filterCatalog('keltner', 'all').map((item) => item.kind)).toContain('keltner');
+    expect(filterCatalog('hull 9', 'trend').map((item) => item.kind)).toContain('hull');
     stubStorage();
     const cfg = loadIndicatorConfig();
     cfg.overlays.push(createIndicator('sma', { period: 200, visible: true }));

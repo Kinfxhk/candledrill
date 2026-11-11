@@ -10,8 +10,45 @@
 
 import type { IndicatorSource } from './indicators.js';
 
-export type OverlayKind = 'volume' | 'sma' | 'ema' | 'bollinger' | 'vwap' | 'orb' | 'donchian';
-export type PaneKind = 'rsi' | 'macd' | 'atr' | 'stochastic' | 'adx';
+export type OverlayKind =
+  | 'volume'
+  | 'sma'
+  | 'ema'
+  | 'bollinger'
+  | 'vwap'
+  | 'orb'
+  | 'donchian'
+  | 'keltner'
+  | 'ichimoku'
+  | 'supertrend'
+  | 'sar'
+  | 'zigzag'
+  | 'envelope'
+  | 'dema'
+  | 'tema'
+  | 'wma'
+  | 'hull'
+  | 'vwma'
+  | 'vwapBands'
+  | 'stderr'
+  | 'priceChannel';
+export type PaneKind =
+  | 'rsi'
+  | 'macd'
+  | 'atr'
+  | 'stochastic'
+  | 'adx'
+  | 'cci'
+  | 'obv'
+  | 'cmf'
+  | 'williams'
+  | 'ao'
+  | 'momentum'
+  | 'roc'
+  | 'aroon'
+  | 'bop'
+  | 'kdj'
+  | 'elder';
 export type IndicatorKind = OverlayKind | PaneKind;
 
 export interface IndicatorSetting {
@@ -27,6 +64,14 @@ export interface IndicatorSetting {
   fast?: number;
   slow?: number;
   signal?: number;
+  /** Keltner / SuperTrend / standard-error band multiple. */
+  multiplier?: number;
+  /** Envelope width, or ZigZag reversal, in percent. */
+  percent?: number;
+  /** Parabolic SAR acceleration step. */
+  step?: number;
+  /** Parabolic SAR acceleration cap. */
+  maxStep?: number;
 }
 
 export interface PaneIndicatorConfig {
@@ -90,6 +135,114 @@ const EXTRA_TEMPLATES: Record<'orb' | 'donchian' | 'stochastic' | 'adx', Indicat
   adx: { id: 'adx', kind: 'adx', visible: true, period: 14, color: '#26a69a' },
 };
 
+type ExtraKind = Exclude<
+  IndicatorKind,
+  | 'volume'
+  | 'sma'
+  | 'ema'
+  | 'bollinger'
+  | 'vwap'
+  | 'rsi'
+  | 'macd'
+  | 'atr'
+  | 'orb'
+  | 'donchian'
+  | 'stochastic'
+  | 'adx'
+>;
+
+const MORE_TEMPLATES: Record<ExtraKind, IndicatorSetting> = {
+  keltner: {
+    id: 'keltner',
+    kind: 'keltner',
+    visible: true,
+    period: 20,
+    fast: 10,
+    multiplier: 2,
+    source: 'close',
+    color: '#5c6bc0',
+  },
+  ichimoku: {
+    id: 'ichimoku',
+    kind: 'ichimoku',
+    visible: true,
+    fast: 9,
+    slow: 26,
+    signal: 52,
+    color: '#26a69a',
+  },
+  supertrend: {
+    id: 'supertrend',
+    kind: 'supertrend',
+    visible: true,
+    period: 10,
+    multiplier: 3,
+    color: '#ef5350',
+  },
+  sar: { id: 'sar', kind: 'sar', visible: true, step: 0.02, maxStep: 0.2, color: '#ab47bc' },
+  zigzag: { id: 'zigzag', kind: 'zigzag', visible: true, percent: 5, color: '#8d6e63' },
+  envelope: {
+    id: 'envelope',
+    kind: 'envelope',
+    visible: true,
+    period: 20,
+    percent: 10,
+    source: 'close',
+    color: '#78909c',
+  },
+  dema: { id: 'dema', kind: 'dema', visible: true, period: 20, source: 'close', color: '#42a5f5' },
+  tema: { id: 'tema', kind: 'tema', visible: true, period: 20, source: 'close', color: '#1e88e5' },
+  wma: { id: 'wma', kind: 'wma', visible: true, period: 20, source: 'close', color: '#7e57c2' },
+  hull: { id: 'hull', kind: 'hull', visible: true, period: 16, source: 'close', color: '#ec407a' },
+  vwma: { id: 'vwma', kind: 'vwma', visible: true, period: 20, source: 'close', color: '#00897b' },
+  vwapBands: { id: 'vwapBands', kind: 'vwapBands', visible: true, color: '#f9a825' },
+  stderr: {
+    id: 'stderr',
+    kind: 'stderr',
+    visible: true,
+    period: 20,
+    multiplier: 2,
+    source: 'close',
+    color: '#8d95a6',
+  },
+  priceChannel: {
+    id: 'priceChannel',
+    kind: 'priceChannel',
+    visible: true,
+    period: 20,
+    color: '#6d4c41',
+  },
+  cci: { id: 'cci', kind: 'cci', visible: true, period: 20, source: 'hlc3', color: '#ff7043' },
+  obv: { id: 'obv', kind: 'obv', visible: true, color: '#26a69a' },
+  cmf: { id: 'cmf', kind: 'cmf', visible: true, period: 20, color: '#29b6f6' },
+  williams: { id: 'williams', kind: 'williams', visible: true, period: 14, color: '#ab47bc' },
+  ao: { id: 'ao', kind: 'ao', visible: true, fast: 5, slow: 34, color: '#66bb6a' },
+  momentum: {
+    id: 'momentum',
+    kind: 'momentum',
+    visible: true,
+    period: 10,
+    source: 'close',
+    color: '#ffa726',
+  },
+  roc: { id: 'roc', kind: 'roc', visible: true, period: 10, source: 'close', color: '#ef5350' },
+  aroon: { id: 'aroon', kind: 'aroon', visible: true, period: 25, color: '#5c6bc0' },
+  bop: { id: 'bop', kind: 'bop', visible: true, period: 14, color: '#8d6e63' },
+  kdj: { id: 'kdj', kind: 'kdj', visible: true, period: 9, color: '#f2a93b' },
+  elder: {
+    id: 'elder',
+    kind: 'elder',
+    visible: true,
+    period: 13,
+    source: 'close',
+    color: '#26c6da',
+  },
+};
+
+function isExtraKind(kind: IndicatorKind): kind is ExtraKind {
+  return Object.prototype.hasOwnProperty.call(MORE_TEMPLATES, kind);
+}
+
 function defaultConfig(): PaneIndicatorConfig {
   return {
     overlays: DEFAULT_OVERLAYS.map((o) => ({ ...o })),
@@ -98,6 +251,7 @@ function defaultConfig(): PaneIndicatorConfig {
 }
 
 export function templateFor(kind: IndicatorKind): IndicatorSetting {
+  if (isExtraKind(kind)) return { ...MORE_TEMPLATES[kind] };
   switch (kind) {
     case 'volume':
       return { ...DEFAULT_OVERLAYS[0]! };
@@ -132,6 +286,10 @@ function isValidSource(s: unknown): s is IndicatorSource {
 }
 
 function isValidKind(s: unknown): s is IndicatorKind {
+  return typeof s === 'string' && (isExtraKind(s as IndicatorKind) || isOriginalKind(s));
+}
+
+function isOriginalKind(s: unknown): s is IndicatorKind {
   return (
     s === 'volume' ||
     s === 'sma' ||
@@ -149,20 +307,61 @@ function isValidKind(s: unknown): s is IndicatorKind {
 }
 
 export function isOverlayKind(kind: IndicatorKind): kind is OverlayKind {
-  return (
-    kind === 'volume' ||
-    kind === 'sma' ||
-    kind === 'ema' ||
-    kind === 'bollinger' ||
-    kind === 'vwap' ||
-    kind === 'orb' ||
-    kind === 'donchian'
-  );
+  switch (kind) {
+    case 'volume':
+    case 'sma':
+    case 'ema':
+    case 'bollinger':
+    case 'vwap':
+    case 'orb':
+    case 'donchian':
+    case 'keltner':
+    case 'ichimoku':
+    case 'supertrend':
+    case 'sar':
+    case 'zigzag':
+    case 'envelope':
+    case 'dema':
+    case 'tema':
+    case 'wma':
+    case 'hull':
+    case 'vwma':
+    case 'vwapBands':
+    case 'stderr':
+    case 'priceChannel':
+      return true;
+    case 'rsi':
+    case 'macd':
+    case 'atr':
+    case 'stochastic':
+    case 'adx':
+    case 'cci':
+    case 'obv':
+    case 'cmf':
+    case 'williams':
+    case 'ao':
+    case 'momentum':
+    case 'roc':
+    case 'aroon':
+    case 'bop':
+    case 'kdj':
+    case 'elder':
+      return false;
+    default: {
+      const leftover: never = kind;
+      return leftover;
+    }
+  }
 }
 
 function sanitizeNumber(n: unknown, fallback: number): number {
   const v = Number(n);
   return Number.isFinite(v) && v > 0 ? Math.floor(v) : fallback;
+}
+
+function sanitizePositive(n: unknown, fallback: number): number {
+  const v = Number(n);
+  return Number.isFinite(v) && v > 0 ? v : fallback;
 }
 
 function sanitizeColor(c: unknown, fallback: string): string {
@@ -189,6 +388,10 @@ function sanitizeSetting(raw: unknown, fallback: IndicatorSetting): IndicatorSet
     fast: sanitizeNumber(r.fast, fallback.fast ?? 12),
     slow: sanitizeNumber(r.slow, fallback.slow ?? 26),
     signal: sanitizeNumber(r.signal, fallback.signal ?? 9),
+    multiplier: sanitizePositive(r.multiplier, fallback.multiplier ?? 2),
+    percent: sanitizePositive(r.percent, fallback.percent ?? 10),
+    step: sanitizePositive(r.step, fallback.step ?? 0.02),
+    maxStep: sanitizePositive(r.maxStep, fallback.maxStep ?? 0.2),
   };
 }
 

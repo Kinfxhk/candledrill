@@ -50,6 +50,59 @@ const KIND_KEY: Record<IndicatorKind, MessageKey> = {
   atr: 'ind.atr',
   stochastic: 'ind.stochastic',
   adx: 'ind.adx',
+  keltner: 'ind.keltner',
+  ichimoku: 'ind.ichimoku',
+  supertrend: 'ind.supertrend',
+  sar: 'ind.sar',
+  zigzag: 'ind.zigzag',
+  envelope: 'ind.envelope',
+  dema: 'ind.dema',
+  tema: 'ind.tema',
+  wma: 'ind.wma',
+  hull: 'ind.hull',
+  vwma: 'ind.vwma',
+  vwapBands: 'ind.vwapBands',
+  stderr: 'ind.stderr',
+  priceChannel: 'ind.priceChannel',
+  cci: 'ind.cci',
+  obv: 'ind.obv',
+  cmf: 'ind.cmf',
+  williams: 'ind.williams',
+  ao: 'ind.ao',
+  momentum: 'ind.momentum',
+  roc: 'ind.roc',
+  aroon: 'ind.aroon',
+  bop: 'ind.bop',
+  kdj: 'ind.kdj',
+  elder: 'ind.elder',
+};
+
+const DESC_KEY: Partial<Record<IndicatorKind, MessageKey>> = {
+  keltner: 'ind.keltnerDesc',
+  ichimoku: 'ind.ichimokuDesc',
+  supertrend: 'ind.supertrendDesc',
+  sar: 'ind.sarDesc',
+  zigzag: 'ind.zigzagDesc',
+  envelope: 'ind.envelopeDesc',
+  dema: 'ind.demaDesc',
+  tema: 'ind.temaDesc',
+  wma: 'ind.wmaDesc',
+  hull: 'ind.hullDesc',
+  vwma: 'ind.vwmaDesc',
+  vwapBands: 'ind.vwapBandsDesc',
+  stderr: 'ind.stderrDesc',
+  priceChannel: 'ind.priceChannelDesc',
+  cci: 'ind.cciDesc',
+  obv: 'ind.obvDesc',
+  cmf: 'ind.cmfDesc',
+  williams: 'ind.williamsDesc',
+  ao: 'ind.aoDesc',
+  momentum: 'ind.momentumDesc',
+  roc: 'ind.rocDesc',
+  aroon: 'ind.aroonDesc',
+  bop: 'ind.bopDesc',
+  kdj: 'ind.kdjDesc',
+  elder: 'ind.elderDesc',
 };
 
 export class IndicatorPanel {
@@ -186,7 +239,13 @@ export class IndicatorPanel {
         t('ind.add'),
       );
       add.addEventListener('click', () => this.add(item.kind));
-      const row = el('div', { class: 'catalog-hit' }, el('span', {}, t(KIND_KEY[item.kind])), add);
+      const desc = DESC_KEY[item.kind];
+      const row = el(
+        'div',
+        desc ? { class: 'catalog-hit', title: t(desc) } : { class: 'catalog-hit' },
+        el('span', {}, t(KIND_KEY[item.kind])),
+        add,
+      );
       box.append(row);
     }
     return box;
@@ -211,6 +270,10 @@ export class IndicatorPanel {
     if (drafted.slow !== undefined) patch.slow = drafted.slow;
     if (drafted.signal !== undefined) patch.signal = drafted.signal;
     if (drafted.source !== undefined) patch.source = drafted.source;
+    if (drafted.multiplier !== undefined) patch.multiplier = drafted.multiplier;
+    if (drafted.percent !== undefined) patch.percent = drafted.percent;
+    if (drafted.step !== undefined) patch.step = drafted.step;
+    if (drafted.maxStep !== undefined) patch.maxStep = drafted.maxStep;
     const inst = createIndicator(kind, patch);
     if (
       isOverlayKind(kind) &&
@@ -276,11 +339,40 @@ export class IndicatorPanel {
       return `${name} ${s.period}`;
     }
     if (s.kind === 'orb') return `${name} ${s.minutes ?? 30}`;
+    if (s.kind === 'zigzag') return `${name} ${s.percent ?? 5}`;
+    if (
+      s.period &&
+      (s.kind === 'wma' ||
+        s.kind === 'dema' ||
+        s.kind === 'tema' ||
+        s.kind === 'hull' ||
+        s.kind === 'vwma' ||
+        s.kind === 'keltner' ||
+        s.kind === 'envelope' ||
+        s.kind === 'priceChannel' ||
+        s.kind === 'cci' ||
+        s.kind === 'cmf' ||
+        s.kind === 'williams' ||
+        s.kind === 'momentum' ||
+        s.kind === 'roc' ||
+        s.kind === 'aroon' ||
+        s.kind === 'bop' ||
+        s.kind === 'kdj' ||
+        s.kind === 'elder' ||
+        s.kind === 'supertrend' ||
+        s.kind === 'stderr')
+    ) {
+      return `${name} ${s.period}`;
+    }
     return name;
   }
 
   private renderControls(s: IndicatorSetting): HTMLElement {
     const wrap = el('div', { class: 'indicator-controls' });
+    if (this.appendExtraControls(s, wrap)) {
+      wrap.append(this.colorControl(s));
+      return wrap;
+    }
     if (s.kind === 'orb') {
       wrap.append(
         this.numControl(t('ind.minutes'), s.minutes ?? 30, (v) => {
@@ -367,6 +459,215 @@ export class IndicatorPanel {
     return wrap;
   }
 
+  private colorControl(s: IndicatorSetting): HTMLElement {
+    const color = el('input', {
+      type: 'color',
+      value: s.color ?? '#888888',
+      'data-testid': `ind-color-${s.id}`,
+    }) as HTMLInputElement;
+    color.addEventListener('input', () => {
+      s.color = color.value;
+      saveIndicatorConfig(this.cfg);
+      this.onChange(this.cfg);
+    });
+    return el('label', { class: 'ind-ctrl' }, t('ind.color'), color);
+  }
+
+  /** Returns true when this kind has its own controls, so the original 11 stay untouched. */
+  private appendExtraControls(s: IndicatorSetting, wrap: HTMLElement): boolean {
+    const period = (label: MessageKey, value: number, set: (v: number) => void) => {
+      wrap.append(this.numControl(t(label), value, set));
+    };
+    const source = () => wrap.append(this.sourceControl(s));
+    switch (s.kind) {
+      case 'keltner':
+        period('ind.period', s.period ?? 20, (v) => {
+          s.period = v;
+          this.commit();
+        });
+        period('ind.atrPeriod', s.fast ?? 10, (v) => {
+          s.fast = v;
+          this.commit();
+        });
+        wrap.append(
+          this.numControl(
+            t('ind.multiplier'),
+            s.multiplier ?? 2,
+            (v) => {
+              s.multiplier = v;
+              this.commit();
+            },
+            true,
+          ),
+        );
+        source();
+        return true;
+      case 'ichimoku':
+        period('ind.tenkan', s.fast ?? 9, (v) => {
+          s.fast = v;
+          this.commit();
+        });
+        period('ind.kijun', s.slow ?? 26, (v) => {
+          s.slow = v;
+          this.commit();
+        });
+        period('ind.senkou', s.signal ?? 52, (v) => {
+          s.signal = v;
+          this.commit();
+        });
+        return true;
+      case 'supertrend':
+        period('ind.atrPeriod', s.period ?? 10, (v) => {
+          s.period = v;
+          this.commit();
+        });
+        wrap.append(
+          this.numControl(
+            t('ind.multiplier'),
+            s.multiplier ?? 3,
+            (v) => {
+              s.multiplier = v;
+              this.commit();
+            },
+            true,
+          ),
+        );
+        return true;
+      case 'sar':
+        wrap.append(
+          this.numControl(
+            t('ind.step'),
+            s.step ?? 0.02,
+            (v) => {
+              s.step = v;
+              this.commit();
+            },
+            true,
+          ),
+          this.numControl(
+            t('ind.maxStep'),
+            s.maxStep ?? 0.2,
+            (v) => {
+              s.maxStep = v;
+              this.commit();
+            },
+            true,
+          ),
+        );
+        return true;
+      case 'zigzag':
+        wrap.append(
+          this.numControl(
+            t('ind.deviation'),
+            s.percent ?? 5,
+            (v) => {
+              s.percent = v;
+              this.commit();
+            },
+            true,
+          ),
+        );
+        return true;
+      case 'envelope':
+        period('ind.period', s.period ?? 20, (v) => {
+          s.period = v;
+          this.commit();
+        });
+        wrap.append(
+          this.numControl(
+            t('ind.percent'),
+            s.percent ?? 10,
+            (v) => {
+              s.percent = v;
+              this.commit();
+            },
+            true,
+          ),
+        );
+        source();
+        return true;
+      case 'stderr':
+        period('ind.period', s.period ?? 20, (v) => {
+          s.period = v;
+          this.commit();
+        });
+        wrap.append(
+          this.numControl(
+            t('ind.multiplier'),
+            s.multiplier ?? 2,
+            (v) => {
+              s.multiplier = v;
+              this.commit();
+            },
+            true,
+          ),
+        );
+        source();
+        return true;
+      case 'ao':
+        period('ind.fast', s.fast ?? 5, (v) => {
+          s.fast = v;
+          this.commit();
+        });
+        period('ind.slow', s.slow ?? 34, (v) => {
+          s.slow = v;
+          this.commit();
+        });
+        return true;
+      case 'dema':
+      case 'tema':
+      case 'wma':
+      case 'hull':
+      case 'vwma':
+      case 'momentum':
+      case 'roc':
+      case 'elder':
+        period('ind.period', s.period ?? 14, (v) => {
+          s.period = v;
+          this.commit();
+        });
+        source();
+        return true;
+      case 'cci':
+        period('ind.period', s.period ?? 20, (v) => {
+          s.period = v;
+          this.commit();
+        });
+        source();
+        return true;
+      case 'cmf':
+      case 'williams':
+      case 'aroon':
+      case 'bop':
+      case 'kdj':
+      case 'priceChannel':
+        period('ind.period', s.period ?? 14, (v) => {
+          s.period = v;
+          this.commit();
+        });
+        return true;
+      case 'obv':
+      case 'vwapBands':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private sourceControl(s: IndicatorSetting): HTMLElement {
+    const sel = el('select', {}) as HTMLSelectElement;
+    for (const src of SOURCE_OPTIONS) {
+      sel.append(
+        el('option', s.source === src ? { value: src, selected: 'selected' } : { value: src }, src),
+      );
+    }
+    sel.addEventListener('change', () => {
+      s.source = sel.value as IndicatorSource;
+      this.commit();
+    });
+    return el('label', { class: 'ind-ctrl' }, t('ind.source'), sel);
+  }
+
   private renderQuick(): HTMLElement {
     const details = el('details', { class: 'ind-quick' });
     details.append(el('summary', {}, t('ind.quick')));
@@ -387,16 +688,22 @@ export class IndicatorPanel {
     return details;
   }
 
-  private numControl(label: string, value: number, set: (v: number) => void): HTMLElement {
+  private numControl(
+    label: string,
+    value: number,
+    set: (v: number) => void,
+    float = false,
+  ): HTMLElement {
     const input = el('input', {
       type: 'number',
-      min: '1',
-      step: '1',
+      min: float ? '0.01' : '1',
+      step: float ? '0.01' : '1',
       value: String(value),
     }) as HTMLInputElement;
     input.addEventListener('change', () => {
       const v = Number(input.value);
-      if (Number.isFinite(v) && v > 0) set(Math.floor(v));
+      if (!Number.isFinite(v) || v <= 0) return;
+      set(float ? v : Math.floor(v));
     });
     return el('label', { class: 'ind-ctrl' }, label, input);
   }
