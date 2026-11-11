@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Phone behaviour (user reports): panels close on an outside tap and the tap does nothing
-// else; play shows pause while playing; blind hides semi-auto; one "Next bar" reaches the
+// else; play shows pause while playing; one "Next bar" reaches the
 // next 1m close so a manual order fills; no sideways scrolling; the new-session form lines up.
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { generateDemo, sessionState } from './helpers.js';
@@ -203,12 +203,8 @@ test('play turns into pause while playing', async ({ browser }) => {
   await ctx.close();
 });
 
-test('blind: no semi-auto button or tab; a manual Buy fills on the next bar', async ({
-  browser,
-}) => {
+test('blind: a manual Buy fills on the next bar', async ({ browser }) => {
   const { ctx, page } = await phone(browser, true);
-  await expect(page.getByTestId('macro-open')).toBeHidden();
-  await expect(page.getByTestId('tab-macro')).toBeHidden();
   await page.getByTestId('tb-buy').click();
   await expect.poll(async () => (await sessionState(page)).state.trading.orders.length).toBe(1);
   // One "Next bar" press reaches the 1m close: the market order fills there.
@@ -311,9 +307,7 @@ test('the header keeps every control on screen down to 320px', async ({ browser 
   }
 });
 
-test('play steps whole practice bars; folding semi-auto brings the trade bar back', async ({
-  browser,
-}) => {
+test('play steps whole practice bars', async ({ browser }) => {
   const { ctx, page } = await phone(browser);
   // Every step request made by play covers at least one whole 1m bar of 20s data (3 bars).
   const counts: number[] = [];
@@ -325,13 +319,6 @@ test('play steps whole practice bars; folding semi-auto brings the trade bar bac
   await expect.poll(() => counts.length).toBeGreaterThanOrEqual(2);
   await page.getByTestId('tb-play').click();
   expect(Math.min(...counts), `play step counts ${counts}`).toBeGreaterThanOrEqual(3);
-
-  // Semi-auto opens tall; folding it (outside tap) restores the trade bar and the strip.
-  await page.getByTestId('macro-open').click();
-  await expect(page.getByTestId('bottom')).toHaveClass(/macro-open/);
-  await tapChart(page);
-  await expect(page.getByTestId('bottom')).not.toHaveClass(/macro-open|expanded/);
-  await expect(page.getByTestId('trade-bar')).toBeVisible();
   await ctx.close();
 });
 

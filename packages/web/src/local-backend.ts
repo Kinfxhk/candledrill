@@ -28,12 +28,10 @@ import {
   jumpSession,
   normalizeSettings,
   normalizeTags,
-  parseMacro,
   parseSessionFile,
   pickBlindParams,
   pickBlindStartIndex,
   reportHtml,
-  runMacro,
   sessionCancelOrder,
   sessionFlatten,
   sessionModifyOrder,
@@ -686,25 +684,6 @@ export class LocalBackend {
         const state = sessionFlatten(bars, row.state);
         await this.save(row, { state });
         return ok(sessionView(row, bars, state));
-      }
-      if (sub === '/macro-run' && method === 'POST') {
-        const { row, bars } = await this.load(id);
-        if (isBlindHidden(row.settings, row.state))
-          fail(423, 'blind session is hidden; macro backtest stays off until you reveal');
-        let macro;
-        try {
-          macro = parseMacro(b.macro);
-        } catch (err) {
-          return fail(400, err instanceof Error ? err.message : 'invalid macro');
-        }
-        const result = runMacro(bars, engineSettings(row.settings), row.state, macro, {
-          mode: (b.mode as 'to_end' | 'n_bars') ?? 'to_end',
-          from: (b.from as 'start' | 'cursor') ?? 'start',
-          ...(b.count !== undefined ? { count: Number(b.count) } : {}),
-        });
-        const { trades: _t, ...rest } = result;
-        void _t;
-        return ok({ ...rest, notice: CANDLEDRILL_RISK_NOTICE_EN, researchCopy: true });
       }
       if (sub === '/drawings' && method === 'PUT') {
         const { row } = await this.load(id);

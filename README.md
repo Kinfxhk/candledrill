@@ -10,7 +10,7 @@
 
 <sub>所有截圖使用產生的 `SYNTH-` 示範資料，並非真實市價。</sub>
 
-> **v1.0.24** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
+> **v1.1.0** · 兩種用法：**瀏覽器版**（開網址即用，資料只存於你的瀏覽器）或**本機版**（自架，資料存於本機 SQLite）。問題請開 [Issues](https://github.com/Kinfxhk/candledrill/issues)。[CHANGELOG](CHANGELOG.md)
 
 完整教學（v0.2 實測稿）：[docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -139,25 +139,6 @@ npm start
 
 <sub>**指標** — 疊加線與下方視窗。合成 `SYNTH-` 示範資料。</sub>
 
-### 半自動交易
-
-從圖上的 **半自動**，或底部分頁 **半自動交易** 開啟；須為**非盲練**場次。四步：**條件 → 進出場 → 執行 → 結果**。
-
-1. 選擇指標與反應，再按 **新增**。快速套用為選用。
-2. 設定數量、方向、止蝕與目標。
-3. 出現綠色就緒列後，可 **回測**（由開始｜由目前位置）或 **播放時跟隨**。按鈕呈灰色表示尚缺欄位。
-4. 結果卡一律顯示：統計、0 筆成交及原因，或尚未執行。
-
-只在本機模擬，不連接券商；右側手動下單票仍可使用。條件語法與 API 見 [docs/MACRO.md](docs/MACRO.md)。
-
-![半自動第 3 步：綠色就緒列，可回測或播放時跟隨](docs/shot-semi-run.png)
-
-<sub>**半自動 — 執行** — 合成 `SYNTH-` 資料。</sub>
-
-![半自動第 4 步：模擬跑完後的結果卡](docs/shot-semi-result.png)
-
-<sub>**半自動 — 結果** — 合成 `SYNTH-` 資料。此例為 0 筆成交，卡片會說明原因。</sub>
-
 ### 設定
 
 K 線顏色、格線、成交量、數量快捷、預設止蝕／止賺、「全部平倉」前確認、止蝕管理、落單前預覽、磁吸，以及**全部快捷鍵可自訂**（按該格再按新鍵；撞鍵會自動對調）。可匯出／匯入。
@@ -166,7 +147,7 @@ K 線顏色、格線、成交量、數量快捷、預設止蝕／止賺、「全
 
 #### 練習規則的兩個時鐘
 
-- **開市錨點**（`anchorMinutes`）：開盤區間（ORB）、盤中 VWAP 與半自動 `orb_break` 所用的開市時鐘。選擇資料集時，會依第一根棒的交易所本地時間填入。
+- **開市錨點**（`anchorMinutes`）：開盤區間（ORB）與盤中 VWAP 所用的開市時鐘。選擇資料集時，會依第一根棒的交易所本地時間填入。
 - **交易日開始**（`dayStartMinutes`）：每日虧損何時重置，亦是規則檔「交易日」的分界。
 
 **回撤計算方式**（`trailingDrawdownMode`）預設為 `close`，只影響最大虧損規則；每日虧損仍以該棒收盤權益為準。
@@ -273,7 +254,7 @@ Phone, tablet or desktop browser. No install, no sign-in. Your data stays in you
 
 <sub>All screenshots use generated `SYNTH-` demo data, not real market prices.</sub>
 
-> **v1.0.24** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
+> **v1.1.0** · Two ways to run it: the **browser version** (open a URL; data stays in your browser) or the **local version** (self-hosted; data in a local SQLite file). Bugs: [Issues](https://github.com/Kinfxhk/candledrill/issues). [CHANGELOG](CHANGELOG.md)
 
 Traditional Chinese guide (v0.2 field notes): [docs/guide.zh-Hant.md](docs/guide.zh-Hant.md)
 
@@ -373,17 +354,6 @@ Hide the real symbol, shift dates and prices so you cannot recognise the chart. 
 
 Searchable catalog: SMA / EMA (any periods), Bollinger, session VWAP, opening range (ORB), Donchian, RSI, MACD, ATR, Stochastic, ADX — computed only on bars already revealed. Settings stay in this browser.
 
-### Semi-auto
-
-Open the chart chip **Semi-auto**, or the bottom tab. Needs a **non-blind** session. Four steps: **Conditions → Entry & exit → Run → Result**.
-
-1. Pick an indicator, pick a reaction, then **Add**. Quick-apply chips are optional.
-2. Set quantity, side, stop, and target.
-3. A green ready line, then **Backtest** (**From start** | **From here**) or **Follow while playing**. Grey means a field is still missing.
-4. The result card is always there: stats, 0 trades and a reason, or not run yet.
-
-Simulated only — no broker. The manual ticket stays on the right. DSL and API: [docs/MACRO.md](docs/MACRO.md).
-
 ### Settings
 
 Candle colours, grid, volume, quantity presets, default SL / TP, confirm before Flatten all, stop management, bracket preview, magnet, and **every hotkey can be rebound** (click the cell, press a key; a clash swaps). Export / import.
@@ -392,7 +362,7 @@ Default keys: `→` next bar · `↓` previous bar · `Shift+→` +10 · `←` b
 
 #### The two practice clocks
 
-- **Market open anchor** (`anchorMinutes`) is the market-open clock for the opening range (ORB), session VWAP, and the semi-auto `orb_break` window. Picking a dataset fills it from the first bar's exchange-local time.
+- **Market open anchor** (`anchorMinutes`) is the market-open clock for the opening range (ORB) and session VWAP. Picking a dataset fills it from the first bar's exchange-local time.
 - **Trading day start** (`dayStartMinutes`) is when the daily loss limit resets; it is also the day boundary for rule profiles.
 
 **Drawdown mode** (`trailingDrawdownMode`) defaults to `close`. It only changes the max-loss rule. Daily loss still uses equity at the bar close.

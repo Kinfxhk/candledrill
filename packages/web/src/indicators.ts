@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Chart and macro share one indicator implementation in `@candledrill/core`.
+// Chart overlays use the indicator implementation in `@candledrill/core`.
 // This module re-exports it so existing web imports keep working.
 
 export {

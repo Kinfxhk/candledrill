@@ -9,7 +9,6 @@ async function setup(page: Page, name: string, blind = false) {
   if (blind) {
     await form.getByTestId('ns-blind').check();
     await expect(form.locator('input[name=name]')).toHaveValue(/^Blind /);
-    await expect(page.getByTestId('macro-blind-warn')).toBeVisible();
   }
   await form.locator('input[name=name]').fill(name);
   await form.locator('button[type=submit]').click();
@@ -92,7 +91,6 @@ test('trade and journal navigation preserves session state across pane/timeframe
 
 test('unrevealed blind sessions disable trade and journal navigation', async ({ page }) => {
   const read = await setup(page, 'Blind trade navigation', true);
-  await expect(page.getByTestId('macro-blind-notice')).toBeVisible();
   const before = await read();
   await expect(page.getByTestId('trades-view-1')).toBeDisabled();
   await expect(page.getByTestId('trades-view-1')).toHaveAttribute('title', /Reveal/);

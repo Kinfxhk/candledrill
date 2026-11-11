@@ -186,12 +186,9 @@ describe('default order ticket', () => {
     expect(byTestId(root, 'type-market').getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('keeps backtest, follow-along, and a new profile off a limit default', () => {
-    const macro = readFileSync(`${rootDir}/packages/core/src/macro.ts`, 'utf8');
+  it('keeps a new session ticket and a new profile off a limit default', () => {
     const practice = readFileSync(`${rootDir}/packages/web/src/practice.ts`, 'utf8');
     const side = readFileSync(`${rootDir}/packages/web/src/side.ts`, 'utf8');
-    expect(macro).toMatch(/sessionPlaceOrder\([\s\S]*?type: 'market'/);
-    expect(practice).toMatch(/type: 'market'/);
     expect(side).not.toContain("setType('limit')");
     expect(practice.match(/new SidePanel/g)).toHaveLength(1);
 

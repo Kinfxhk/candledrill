@@ -119,7 +119,7 @@ test('short landscape: the rules chip keeps the chart and leaves the head contro
     await expect(strip).toHaveClass(/is-short-chip/);
     await expect(strip).toHaveClass(/docked/);
     await expect(page.getByTestId('rules')).toBeHidden();
-    // Expanding would paint the metrics row over Semi-auto, Indicators, and OHLC.
+    // Expanding would paint the metrics row over Indicators and OHLC.
     await page.getByTestId('rules-strip-toggle').click();
     await expect(page.getByTestId('rules')).toBeHidden();
     await expect(strip).toHaveClass(/is-short-chip/);
@@ -161,11 +161,9 @@ test('short landscape: the rules chip keeps the chart and leaves the head contro
         stripH: stripBox?.h ?? 0,
         aboveChart: !!stripBox && !!chart && stripBox.y + stripBox.h <= chart.y + 1,
         coverTf: hits(stripBox, box('[data-testid=tf-0]')),
-        coverMacro: hits(stripBox, box('[data-testid=macro-open]')),
         coverInd: hits(stripBox, box('[data-testid=indicators-toggle]')),
         coverOhlc: hits(stripBox, box('[data-testid=ohlc-legend]')),
         hitTf: centerHit('[data-testid=tf-0]'),
-        hitMacro: centerHit('[data-testid=macro-open]'),
         hitInd: centerHit('[data-testid=indicators-toggle]'),
       };
     });
@@ -173,11 +171,9 @@ test('short landscape: the rules chip keeps the chart and leaves the head contro
     expect(fit.stripH, `${width}×${height} chip is one line`).toBeLessThanOrEqual(32);
     expect(fit.aboveChart, `${width}×${height} chip stays above the candles`).toBe(true);
     expect(fit.coverTf, `${width}×${height} timeframe`).toBe(false);
-    expect(fit.coverMacro, `${width}×${height} semi-auto`).toBe(false);
     expect(fit.coverInd, `${width}×${height} indicators`).toBe(false);
     expect(fit.coverOhlc, `${width}×${height} OHLC`).toBe(false);
     expect(fit.hitTf, `${width}×${height} timeframe clickable`).toBe(true);
-    expect(fit.hitMacro, `${width}×${height} semi-auto clickable`).toBe(true);
     expect(fit.hitInd, `${width}×${height} indicators clickable`).toBe(true);
     // Dragging must not unfold the metrics row over the chart head.
     const grip = page.getByTestId('rules-strip-drag');

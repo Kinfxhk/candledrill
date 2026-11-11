@@ -43,7 +43,7 @@ export interface BottomTab {
   id: string;
   /**
    * Mount once into a stable panel. Later session renders leave that DOM in place
-   * so inputs in the macro wizard keep focus while the chart steps.
+   * so inputs keep focus while the chart steps.
    */
   persistent?: boolean;
   render(
@@ -434,7 +434,7 @@ export class BottomPanel {
     this.refresh();
   }
 
-  /** Hide a tab (and leave it if it is active), e.g. semi-auto during a hidden blind session. */
+  /** Hide a tab (and leave it if it is active). */
   setTabHidden(id: string, hidden: boolean): void {
     const i = this.tabs.findIndex((tab) => tab.id === id);
     const b = this.bar.children[i] as HTMLElement | undefined;

@@ -194,26 +194,6 @@ export {
   type SessionClock,
 } from './indicators.js';
 export {
-  MACRO_SCHEMA_VERSION,
-  parseMacro,
-  exampleOrbSmaMacro,
-  macroSignal,
-  conditionHolds,
-  bracketPrices,
-  runMacro,
-  type Condition,
-  type MacroRule,
-  type MacroV1,
-  type MacroExit,
-  type MacroSignal,
-  type MacroRunOptions,
-  type MacroRunResult,
-  type MaKind,
-  type MaRef,
-  type StopMode,
-  type TargetMode,
-} from './macro.js';
-export {
   tradesToCsv,
   reportHtml,
   escapeHtml,

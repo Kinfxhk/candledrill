@@ -1,8 +1,7 @@
 # CandleDrill built-in indicators
 
 CandleDrill includes common technical indicators for visual reference while practising.
-They are computed from the **bars already in hand** — the chart uses revealed bars only,
-and a macro condition uses the same functions on the bar prefix up to the cursor.
+They are computed from the **bars already in hand** — the chart uses revealed bars only.
 No formula reads a later bar to draw an earlier point.
 
 Indicator choices are a local UI preference (`candledrill.indicators.v2` in
@@ -65,6 +64,3 @@ It is not shipped in this repository.
 - Order-flow, footprint, volume profile
 - Pine Script import
 - Live or broker order routing
-
-Simulated condition lists and backtests are documented in [MACRO.md](MACRO.md). They are
-not alerts and they do not place live orders.

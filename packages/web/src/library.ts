@@ -211,8 +211,6 @@ export class LibraryView {
     const start = this.form.elements.namedItem('start') as HTMLInputElement;
     start.disabled = blind;
     start.required = !blind;
-    const warn = document.getElementById('macro-blind-warn');
-    if (warn) warn.hidden = !blind;
   }
 
   get selectedDataset(): DatasetRow | undefined {

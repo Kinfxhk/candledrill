@@ -594,8 +594,7 @@ body.in-practice header.app select {
   height: 34px;
   transition: height 0.15s ease-out;
 }
-.bottom.expanded,
-.bottom.macro-open {
+.bottom.expanded {
   height: min(300px, 38vh);
 }
 .bottom .tabbar button[aria-selected='true'] {
@@ -760,8 +759,7 @@ body.in-practice header.app select {
     min-height: 40px;
     padding: 2px 8px;
   }
-  .status-banner:empty,
-  .macro-blind-notice[hidden] {
+  .status-banner:empty {
     display: none;
   }
 }
@@ -804,10 +802,10 @@ body.in-practice header.app select {
   right: 0;
   background: var(--panel);
 }
-.bottom:not(.expanded):not(.macro-open) {
+.bottom:not(.expanded) {
   height: calc(34px + env(safe-area-inset-bottom));
 }
-.bottom:not(.expanded):not(.macro-open) .tabpanel {
+.bottom:not(.expanded) .tabpanel {
   display: none;
 }
 /* Draw button sits left of the OHLC legend, not on top of it. */
@@ -951,7 +949,7 @@ body.in-practice header.app select {
   .bottom .tabbar .bottom-toggle {
     position: static;
   }
-  .bottom:not(.expanded):not(.macro-open) {
+  .bottom:not(.expanded) {
     height: auto;
   }
 }

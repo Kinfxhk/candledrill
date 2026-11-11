@@ -6,13 +6,13 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
-### Docs
+## [1.1.0] - 2026-11-11
 
-- README status lines say v1.0.24, matching `package.json` and the About “This build” string.
-- `docs/FILL-MODEL.md` says fill model v4. Daily loss still uses closing equity; trailing
-  drawdown follows the session mode.
-- The Traditional Chinese guide’s semi-auto link targets the README heading, and its v1.0
-  note matches the current right-hand column.
+### Removed
+
+- Semi-auto trading (macro): removed the condition DSL, entry/exit setup, backtest and
+  follow-while-playing UI, the related i18n strings, the server `/macro-run` route, and
+  their tests. The manual order ticket, replay and rule evaluation are unchanged.
 
 ## [1.0.24] - 2026-11-06
 

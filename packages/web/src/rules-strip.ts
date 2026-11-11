@@ -284,7 +284,7 @@ export class RulesStrip {
     this.grip.addEventListener('dblclick', () => this.dock());
     this.toggle.addEventListener('click', () => {
       // A short window keeps the strip as a chip, docked or floating. Expanding
-      // it would paint the metrics over Semi-auto, Indicators, and the OHLC legend.
+      // it would paint the metrics over Indicators and the OHLC legend.
       if (this.shortViewport()) return;
       this.setCollapsed(!this.collapsed);
     });

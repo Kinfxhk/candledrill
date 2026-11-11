@@ -25,9 +25,6 @@ async function newSession(page: Page, name: string, blind = false) {
   await form.getByTestId('ns-blind').setChecked(blind);
   if (blind) {
     await expect(form.locator('input[name=name]')).toHaveValue(/^Blind /);
-    await expect(page.getByTestId('macro-blind-warn')).toBeVisible();
-  } else {
-    await expect(page.getByTestId('macro-blind-warn')).toBeHidden();
   }
   await form.locator('input[name=name]').fill(name);
   await expect(form.locator('input[name=name]')).toHaveValue(name);
@@ -183,7 +180,6 @@ test('blind practice hides the period, symbol and preview until revealed', async
     .symbol as string;
   await newSession(page, 'Blind e2e', true);
   await expect(page.getByTestId('blind-badge')).toBeVisible();
-  await expect(page.getByTestId('macro-blind-notice')).toBeVisible();
   await expect(page.getByTestId('clock')).toHaveText(/^Day \d+ · \w{3} \d\d:\d\d$/);
   await expect(page.getByTestId('btn-jump')).toBeHidden();
   await page.getByTestId('btn-step10').click();

@@ -10,7 +10,6 @@ import {
   aggregateBars,
   bucketStart,
   forgetTapeAfter,
-  macroSignal,
   noteTape,
   practiceFrames,
   previousPracticeCursor,
@@ -38,7 +37,6 @@ import { IndicatorPanel } from './indicator-panel.js';
 import { loadIndicatorConfig, type PaneIndicatorConfig } from './indicator-prefs.js';
 import { DrawingPalette } from './drawing-palette.js';
 import type { PaletteTool } from './drawing-palette.js';
-import { MacroPanel } from './macro-panel.js';
 import { SidePanel } from './side.js';
 import { CompletionSummary } from './summary.js';
 import {
@@ -139,8 +137,6 @@ interface ChartPane {
   agg: BarAggregator;
   select: HTMLSelectElement;
   cell: HTMLElement;
-  /** Semi-auto button in the pane head (hidden while a blind session is hidden). */
-  macroBtn: HTMLButtonElement | undefined;
 }
 
 export class PracticeView {
@@ -185,8 +181,6 @@ export class PracticeView {
   private pendingPoint: { time: number; price: number } | null = null;
   private indicatorConfig: PaneIndicatorConfig = loadIndicatorConfig();
   private indicatorPanels: IndicatorPanel[] = [];
-  private macroPanel: MacroPanel | undefined;
-  private macroArmed = false;
   private palettes: DrawingPalette[] = [];
   /** Extra bottom tabs registered by later features (statistics, export). */
   static extraTabs: BottomTab[] = [];
@@ -283,8 +277,6 @@ export class PracticeView {
     for (const p of this.panes) p.chart.destroy();
     this.indicatorPanels.forEach((p) => p.close());
     this.indicatorPanels = [];
-    this.macroArmed = false;
-    this.macroPanel = undefined;
     this.palettes.forEach((p) => p.destroy());
     this.palettes = [];
     this.panes = [];
@@ -402,16 +394,6 @@ export class PracticeView {
     reveal.hidden = !this.blindHidden;
     reveal.addEventListener('click', () => void this.reveal());
     const revealBanner = el('div', { class: 'reveal-banner', 'data-testid': 'reveal-banner' });
-    const macroBlind = el(
-      'p',
-      {
-        class: 'notice macro-blind-notice',
-        'data-testid': 'macro-blind-notice',
-        'data-i18n': 'macro.blindStart',
-      },
-      t('macro.blindStart'),
-    );
-    macroBlind.hidden = !this.blindHidden;
     revealBanner.hidden = true;
     const jumpLabel = el(
       'label',
@@ -481,16 +463,7 @@ export class PracticeView {
     jumpLabel.hidden = this.blindHidden;
     jumpBtn.hidden = this.blindHidden;
     const tradeBar = this.buildTradeBar();
-    this.root.replaceChildren(
-      macroBlind,
-      banner,
-      revealBanner,
-      toolbar,
-      summary,
-      workspace,
-      tradeBar,
-      bottom,
-    );
+    this.root.replaceChildren(banner, revealBanner, toolbar, summary, workspace, tradeBar, bottom);
     this.els = {
       summary,
       banner,
@@ -508,7 +481,6 @@ export class PracticeView {
       split,
       reveal,
       revealBanner,
-      macroBlind,
       jumpLabel,
       link,
       back,
@@ -547,16 +519,6 @@ export class PracticeView {
       this.side?.applyDefaults();
     });
     this.side.applyDefaults();
-    this.macroPanel = new MacroPanel({
-      blind: () => this.blindHidden,
-      onArmed: (armed) => {
-        this.macroArmed = armed;
-      },
-      run: (macro, from) => {
-        if (!this.meta) throw new Error('no session');
-        return sessionsApi.macroRun(this.meta.id, { macro, mode: 'to_end', from });
-      },
-    });
     const ordersTab: BottomTab = {
       key: 'pr.orders',
       id: 'orders',
@@ -575,14 +537,6 @@ export class PracticeView {
         panel.replaceChildren(this.rulesView!.el);
       },
     };
-    const macroTab: BottomTab = {
-      key: 'macro.title',
-      id: 'macro',
-      persistent: true,
-      render: (panel) => {
-        panel.replaceChildren(this.macroPanel!.el);
-      },
-    };
     const generation = this.generation;
     this.bottom = new BottomPanel(
       bottom,
@@ -590,7 +544,6 @@ export class PracticeView {
         tradesTab,
         ordersTab,
         rulesTab,
-        macroTab,
         journalTab,
         statsTab,
         reviewTab,
@@ -604,16 +557,11 @@ export class PracticeView {
           if (generation === this.generation) this.focusTrade(id);
         },
       },
-      (id) => {
-        this.bottomTab = id;
-        this.syncMacroOpen();
-      },
     );
     // Only an actually open panel is an overlay (onSelect also runs on every render).
     this.bottom.onExpandedChange = (on) => {
       if (on) this.bottomOpened();
       else overlays.closed('bottom');
-      this.syncMacroOpen();
     };
     returnLive.addEventListener('click', () => this.returnToCurrent());
 
@@ -839,14 +787,6 @@ export class PracticeView {
     }
   }
 
-  /** Chart Macro button: open the bottom wizard and move focus there. */
-  private showMacro(): void {
-    this.macroPanel?.enable();
-    this.bottom?.select('macro');
-    this.macroPanel?.el.scrollIntoView({ block: 'nearest' });
-    this.macroPanel?.focus();
-  }
-
   private addPane(tf: number): void {
     const select = el('select', {
       'aria-label': t('pr.tf'),
@@ -860,28 +800,11 @@ export class PracticeView {
       { type: 'button', class: 'small ghost', 'data-i18n': 'pr.indicators' },
       t('pr.indicators'),
     );
-    const macroBtn = el(
-      'button',
-      {
-        type: 'button',
-        class: 'small ghost',
-        'data-i18n': 'macro.open',
-        'data-testid': 'macro-open',
-      },
-      t('macro.open'),
-    );
-    macroBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.showMacro();
-    });
-    // Semi-auto needs real dates; in a hidden blind session the button is not offered at all.
-    macroBtn.hidden = this.blindHidden;
     const head = el(
       'div',
       { class: 'chart-head' },
       select,
       el('span', { class: 'spacer' }),
-      macroBtn,
       indBtn,
     );
     const body = el('div', { class: 'chart-body' });
@@ -904,7 +827,6 @@ export class PracticeView {
       agg: new BarAggregator(tf, this.aggOpts()),
       select,
       cell,
-      macroBtn,
     };
     const panel = new IndicatorPanel(head, (cfg) => {
       this.indicatorConfig = cfg;
@@ -1133,7 +1055,7 @@ export class PracticeView {
       const view = await fn();
       if (!this.viewCurrent(seq, generation)) return;
       if (before && !this.blindHidden) {
-        // During Play, automatic changes (stop management, macro fills) fold into the one undo
+        // During Play, automatic changes (stop management) fold into the one undo
         // point taken when Play started, so Back undoes the whole run.
         if (!this.playing) {
           this.undo.push(before);
@@ -1164,28 +1086,6 @@ export class PracticeView {
       trailingDrawdownMode: s.trailingDrawdownMode,
       anchorMinutes: s.anchorMinutes,
     };
-  }
-
-  /** After a revealed bar closes, an armed macro may send one simulated market order. */
-  private async watchMacro(): Promise<void> {
-    if (!this.macroArmed || !this.meta || !this.state || this.blindHidden || !this.macroPanel)
-      return;
-    const macro = this.macroPanel.current();
-    // The browser holds a prefix (or the last 50k bars). Evaluate the last bar it has.
-    const cursor = this.bars.length - 1;
-    const local = cursor === this.state.cursor ? this.state : { ...this.state, cursor };
-    const signal = macroSignal(this.bars, this.engineSettings(), local, macro);
-    if (signal) this.macroPanel.noteSignal(signal.side);
-    if (!signal) return;
-    await this.mutate(() =>
-      sessionsApi.placeOrder(this.meta!.id, {
-        side: signal.side,
-        type: 'market',
-        qty: macro.qty,
-        stopLoss: signal.stopLoss,
-        takeProfit: signal.takeProfit,
-      }),
-    );
   }
 
   async placeOrder(req: OrderRequest): Promise<void> {
@@ -1549,13 +1449,6 @@ export class PracticeView {
     );
   }
 
-  /** Active bottom tab, and the tall semi-auto layout only while that panel is open. */
-  private bottomTab = '';
-  private syncMacroOpen(): void {
-    const on = this.bottomTab === 'macro' && !!this.bottom?.isExpanded;
-    this.els.bottom?.classList.toggle('macro-open', on);
-  }
-
   // ---------------------------------------------------------------- phone panels
   private sheetOpen = false;
   /** Rail drawer (phone / tablet portrait). Closes on a tap outside, Escape or its ✕. */
@@ -1750,7 +1643,7 @@ export class PracticeView {
     try {
       const r = await sessionsApi.step(this.meta.id, count);
       if (generation !== this.generation) return;
-      // This snapshot wins over edits still in flight. Stop management and the macro run
+      // This snapshot wins over edits still in flight. Stop management runs
       // before inFlight clears, and the forming timer never writes session state again.
       this.claimView();
       if (before && !this.blindHidden) this.pushUndoState(before);
@@ -1761,8 +1654,6 @@ export class PracticeView {
       this.presentChart(r.revealed);
       if (r.revealed.length > 0) {
         await this.manageStop();
-        if (generation !== this.generation) return;
-        if (this.macroArmed) await this.watchMacro();
       }
       if (generation !== this.generation) return;
       if (r.state.status === 'finished') this.pause();
@@ -1941,8 +1832,7 @@ export class PracticeView {
       // one. The paints already fill this bar's budget; fetching early would cut the build.
       if (n < 1 || this.inFlight || this.presentTimer) return;
       // Speed is practice bars per second (one 1m bar on 10s data), like Next and +10.
-      // An armed watch checks every closed practice bar, so it advances one per tick.
-      const bars = this.macroArmed ? 1 : n;
+      const bars = n;
       this.carry -= bars;
       // The step route accepts at most 5000 source bars per call.
       void this.step(Math.min(this.practiceSteps(bars), 5000));
@@ -2112,11 +2002,6 @@ export class PracticeView {
     this.renderReplayState();
     const cp = this.els.saveCp as HTMLButtonElement | undefined;
     if (cp) cp.hidden = this.blindHidden;
-    const macroBlind = this.els.macroBlind;
-    if (macroBlind) macroBlind.hidden = !this.blindHidden;
-    for (const p of this.panes) if (p.macroBtn) p.macroBtn.hidden = this.blindHidden;
-    this.bottom?.setTabHidden('macro', this.blindHidden);
-    this.macroPanel?.sync(this.blindHidden, getLang());
     this.bottom?.render(this.meta.settings, this.state, this.meta.id);
     for (const p of this.panes) p.chart.refreshLegend();
     this.onChanged();

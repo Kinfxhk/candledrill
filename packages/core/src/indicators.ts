@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Technical indicators. Pure functions over a bar prefix; no look-ahead.
-// The same formulas drive chart overlays and simulated macro conditions.
+// The same formulas drive chart overlays.
 
 import { bucketStart, type AggregateOptions } from './aggregate.js';
 import type { Bar } from './types.js';
