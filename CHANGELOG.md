@@ -6,6 +6,27 @@ All notable changes to CandleDrill are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-11-21
+
+### Added
+
+- Review bootstrap Monte Carlo. The Review Monte Carlo can resample closed trades with
+  replacement (`bootstrap`) as well as reorder them (`shuffle`, still the default). Bootstrap
+  reports final P&L percentiles (p05, p50, p95) in addition to the max-drawdown percentiles.
+- Optional `dailyLossBasis` (`close` or `intraday`, default `close` / bar close). `intraday`
+  checks the daily loss limit against the adverse high or low inside the bar. The setting
+  round-trips through session files, the settings API, and the new-session form. Files that
+  omit it stay close-only.
+
+### Changed
+
+- Review UI: a six-tile KPI strip (net P&L, win rate, profit factor, average R, expectancy,
+  max drawdown), a shuffle/bootstrap selector on the Monte Carlo card, an equity curve with a
+  trend-colored stroke, gradient fill, high/low/end labels and an end marker, and an R
+  histogram with rounded bar tops, a baseline and per-bucket counts. Review sections sit in
+  cards. Buy, sell and primary buttons get a short hover glow, and the rules-strip meter
+  animates its width.
+
 ## [1.4.1] - 2026-11-11
 
 ### Fixed
