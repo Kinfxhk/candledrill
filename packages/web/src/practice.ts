@@ -1104,6 +1104,7 @@ export class PracticeView {
       slippageTicks: s.slippageTicks,
       startingBalance: s.startingBalance,
       dailyLossLimit: s.dailyLossLimit,
+      ...(s.dailyLossBasis !== undefined ? { dailyLossBasis: s.dailyLossBasis } : {}),
       trailingDrawdown: s.trailingDrawdown,
       profitTarget: s.profitTarget,
       utcOffsetMinutes: s.utcOffsetMinutes,

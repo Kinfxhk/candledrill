@@ -199,6 +199,8 @@ export interface SessionSettings {
   slippageTicks: number;
   startingBalance: number;
   dailyLossLimit: number | null;
+  /** Omitted on older sessions. The engine treats that the same as 'close'. */
+  dailyLossBasis?: 'close' | 'intraday';
   trailingDrawdown: number | null;
   trailingDrawdownMode: 'close' | 'eod' | 'intraday' | 'static';
   profitTarget: number | null;

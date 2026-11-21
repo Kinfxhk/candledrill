@@ -218,6 +218,17 @@
                 ><input name="dailyLoss" type="number" min="0" step="any"
               /></label>
               <label class="field"
+                ><span data-i18n="ns.dailyLossBasis">Daily loss basis</span
+                ><select name="dailyLossBasis" data-testid="ns-daily-loss-basis">
+                  <option value="close" data-i18n="ns.dailyLossBasisClose" selected>
+                    Bar close
+                  </option>
+                  <option value="intraday" data-i18n="ns.dailyLossBasisIntraday">
+                    Intraday (adverse high/low)
+                  </option>
+                </select>
+              </label>
+              <label class="field"
                 ><span data-i18n="ns.trailing">Trailing drawdown</span
                 ><input name="trailing" type="number" min="0" step="any"
               /></label>

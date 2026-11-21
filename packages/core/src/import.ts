@@ -100,6 +100,7 @@ const SETTINGS_KEYS = [
   'slippageTicks',
   'startingBalance',
   'dailyLossLimit',
+  'dailyLossBasis',
   'trailingDrawdown',
   'trailingDrawdownMode',
   'profitTarget',
@@ -111,6 +112,7 @@ const SETTINGS_KEYS = [
 
 const LEGACY_OPTIONAL = new Set([
   'anchorMinutes',
+  'dailyLossBasis',
   'trailingDrawdownMode',
   'practiceTimeframeSeconds',
 ]);
@@ -138,6 +140,12 @@ function settingsIssues(s: unknown): string[] {
     if (k === 'practiceTimeframeSeconds') {
       if (k in s && s[k] !== undefined && typeof s[k] !== 'number')
         out.push('settings.practiceTimeframeSeconds: not a number');
+      continue;
+    }
+    if (k === 'dailyLossBasis') {
+      const m = s[k];
+      if (k in s && m !== undefined && m !== 'close' && m !== 'intraday')
+        out.push('settings.dailyLossBasis: invalid');
       continue;
     }
     const v = s[k];
