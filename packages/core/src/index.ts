@@ -126,6 +126,7 @@ export {
   validateSettings,
   MAX_STEPS_PER_ACTION,
   type SessionSettings,
+  type DailyLossBasis,
   type TrailingDrawdownMode,
   type SessionState,
   type SessionStatus,
@@ -323,6 +324,7 @@ export {
   monteCarlo,
   type EquityPoint,
   type RBucket,
+  type MonteCarloMode,
   type MonteCarloResult,
 } from './review.js';
 export {

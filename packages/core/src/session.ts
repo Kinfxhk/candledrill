@@ -27,6 +27,7 @@ import {
 import { computeStats, type SessionStats } from './stats.js';
 
 export type TrailingDrawdownMode = 'close' | 'eod' | 'intraday' | 'static';
+export type DailyLossBasis = 'close' | 'intraday';
 
 export const TRAILING_DRAWDOWN_MODES: readonly TrailingDrawdownMode[] = [
   'close',
@@ -47,6 +48,8 @@ export interface SessionSettings {
   readonly startingBalance: number;
   /** Practice rules (null = off). Currency amounts. */
   readonly dailyLossLimit: number | null;
+  /** How daily loss limit is evaluated: 'close' (default) or 'intraday' (adverse H/L). */
+  readonly dailyLossBasis?: DailyLossBasis;
   readonly trailingDrawdown: number | null;
   /**
    * How trailing drawdown (or a static max loss) is measured.
@@ -266,10 +269,22 @@ function applyRules(settings: SessionSettings, s: SessionState, bar: Bar): Sessi
   let status: SessionStatus | null = null;
   let reason: string | null = null;
   let closePrice = bar.close;
-  if (settings.dailyLossLimit !== null && s.dayStartEquity - eq >= settings.dailyLossLimit) {
-    status = 'breached';
-    reason = `daily loss limit ${settings.dailyLossLimit}`;
-  } else if (settings.trailingDrawdown !== null) {
+  if (settings.dailyLossLimit !== null) {
+    const dailyBasis = settings.dailyLossBasis ?? 'close';
+    if (dailyBasis === 'intraday') {
+      const trigger = adverseMarkPrice(s, bar);
+      const worst = equityAtPrice(settings, s, trigger);
+      if (s.dayStartEquity - worst >= settings.dailyLossLimit) {
+        status = 'breached';
+        reason = `daily loss limit ${settings.dailyLossLimit}`;
+        closePrice = trigger;
+      }
+    } else if (s.dayStartEquity - eq >= settings.dailyLossLimit) {
+      status = 'breached';
+      reason = `daily loss limit ${settings.dailyLossLimit}`;
+    }
+  }
+  if (!status && settings.trailingDrawdown !== null) {
     const amount = settings.trailingDrawdown;
     const mode = settings.trailingDrawdownMode;
     if (mode === 'intraday') {
@@ -383,6 +398,13 @@ export function validateSettings(s: SessionSettings): string[] {
     s.trailingDrawdownMode !== 'static'
   )
     errors.push("trailingDrawdownMode must be 'close' | 'eod' | 'intraday' | 'static'");
+  if (
+    s.dailyLossBasis !== undefined &&
+    s.dailyLossBasis !== 'close' &&
+    s.dailyLossBasis !== 'intraday'
+  ) {
+    errors.push("dailyLossBasis must be 'close' | 'intraday' when set");
+  }
   if (s.practiceTimeframeSeconds !== undefined) {
     const p = s.practiceTimeframeSeconds;
     if (!Number.isInteger(p) || p < 60 || p > 86400)

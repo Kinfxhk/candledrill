@@ -111,6 +111,10 @@ async function createSession(ds: DatasetRow, form: HTMLFormElement): Promise<voi
         slippageTicks: num(form, 'slippage') ?? 0,
         startingBalance: num(form, 'balance') ?? 50000,
         dailyLossLimit: num(form, 'dailyLoss'),
+        dailyLossBasis: (() => {
+          const v = (form.elements.namedItem('dailyLossBasis') as HTMLSelectElement | null)?.value;
+          return v === 'intraday' ? 'intraday' : 'close';
+        })(),
         trailingDrawdown: num(form, 'trailing'),
         trailingDrawdownMode: (() => {
           const v = (form.elements.namedItem('trailingMode') as HTMLSelectElement | null)?.value;

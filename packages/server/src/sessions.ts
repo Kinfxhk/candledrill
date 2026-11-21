@@ -214,6 +214,7 @@ export const settingsSchema = {
     slippageTicks: { type: 'integer', minimum: 0, maximum: 1000 },
     startingBalance: { type: 'number', exclusiveMinimum: 0 },
     dailyLossLimit: nullablePositive,
+    dailyLossBasis: { type: 'string', enum: ['close', 'intraday'] },
     trailingDrawdown: nullablePositive,
     trailingDrawdownMode: { type: 'string', enum: ['close', 'eod', 'intraday', 'static'] },
     profitTarget: nullablePositive,
