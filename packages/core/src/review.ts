@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Review analytics from closed trades only (no bars, so nothing can look ahead):
-// equity curve by trade, R distribution, and a Monte Carlo of the user's own trade order.
-// Monte Carlo results are a simulation of reordering past results, not a forecast.
+// equity curve by trade, R distribution, and a Monte Carlo of the user's own trades
+// (order shuffle or bootstrap resampling with replacement).
+// Monte Carlo results are a simulation of past results, not a forecast.
 
 import { createRng } from './rng.js';
 import type { Trade } from './orders.js';
@@ -56,55 +57,85 @@ export function rDistribution(trades: readonly Trade[]): {
   };
 }
 
+export type MonteCarloMode = 'shuffle' | 'bootstrap';
+
 export interface MonteCarloResult {
+  readonly mode: MonteCarloMode;
   readonly runs: number;
   readonly trades: number;
   /** Max drawdown (currency) percentiles across runs. */
   readonly maxDrawdown: Readonly<Record<'p50' | 'p90' | 'p95' | 'p99', number>>;
-  /** Final net result percentiles (same for every run: reordering keeps the sum). */
+  /** Final net P&L percentiles across runs (constant in shuffle mode, spread in bootstrap). */
+  readonly finalPnl: Readonly<Record<'p05' | 'p50' | 'p95', number>>;
+  /** Worst drawdown observed across all runs. */
   readonly worstRun: number;
   /** Share of runs whose drawdown reached `limit` (null when no limit). */
   readonly breachRate: number | null;
 }
 
 /**
- * Shuffle the order of the user's own trade results `runs` times (seeded, reproducible) and
- * report the spread of maximum drawdown. Only the order changes, so the total is fixed; this
- * shows how bad the same results could have felt in a different order.
+ * Run a seeded, reproducible Monte Carlo over the user's closed-trade net P&Ls.
+ * - `shuffle` (default): permutes trade order without replacement (same total P&L, order risk only).
+ * - `bootstrap`: samples trades with replacement, exposing final-P&L confidence intervals and ruin risk.
  */
 export function monteCarlo(
   pnls: readonly number[],
-  opts: { runs?: number; seed?: number; limit?: number | null } = {},
+  opts: { runs?: number; seed?: number; limit?: number | null; mode?: MonteCarloMode } = {},
 ): MonteCarloResult | null {
   if (pnls.length < 2) return null;
+  const mode: MonteCarloMode = opts.mode === 'bootstrap' ? 'bootstrap' : 'shuffle';
   const runs = Math.max(10, Math.min(20_000, Math.floor(opts.runs ?? 1000)));
   const rng = createRng((opts.seed ?? 1) >>> 0);
   const dds: number[] = [];
+  const finals: number[] = [];
   let breaches = 0;
   const arr = [...pnls];
+  const n = pnls.length;
   for (let r = 0; r < runs; r++) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(rng.next() * (i + 1));
-      [arr[i], arr[j]] = [arr[j]!, arr[i]!];
-    }
     let eq = 0;
     let peak = 0;
     let dd = 0;
-    for (const p of arr) {
-      eq += p;
-      peak = Math.max(peak, eq);
-      dd = Math.max(dd, peak - eq);
+    if (mode === 'bootstrap') {
+      for (let i = 0; i < n; i++) {
+        const p = pnls[Math.floor(rng.next() * n)]!;
+        eq += p;
+        peak = Math.max(peak, eq);
+        dd = Math.max(dd, peak - eq);
+      }
+    } else {
+      for (let i = n - 1; i > 0; i--) {
+        const j = Math.floor(rng.next() * (i + 1));
+        [arr[i], arr[j]] = [arr[j]!, arr[i]!];
+      }
+      for (const p of arr) {
+        eq += p;
+        peak = Math.max(peak, eq);
+        dd = Math.max(dd, peak - eq);
+      }
     }
     dds.push(dd);
+    finals.push(eq);
     if (opts.limit && dd >= opts.limit) breaches++;
   }
   dds.sort((a, b) => a - b);
-  const q = (p: number) =>
-    Math.round(dds[Math.min(dds.length - 1, Math.floor(p * dds.length))]! * 100) / 100;
+  finals.sort((a, b) => a - b);
+  const q = (sorted: number[], p: number) =>
+    Math.round(sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]! * 100) / 100;
   return {
+    mode,
     runs,
-    trades: pnls.length,
-    maxDrawdown: { p50: q(0.5), p90: q(0.9), p95: q(0.95), p99: q(0.99) },
+    trades: n,
+    maxDrawdown: {
+      p50: q(dds, 0.5),
+      p90: q(dds, 0.9),
+      p95: q(dds, 0.95),
+      p99: q(dds, 0.99),
+    },
+    finalPnl: {
+      p05: q(finals, 0.05),
+      p50: q(finals, 0.5),
+      p95: q(finals, 0.95),
+    },
     worstRun: Math.round(dds.at(-1)! * 100) / 100,
     breachRate: opts.limit ? breaches / runs : null,
   };

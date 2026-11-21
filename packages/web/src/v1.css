@@ -717,24 +717,112 @@ body.in-practice header.app select {
   font-family: ui-monospace, monospace;
 }
 
+/* ---------- interactive polish */
+button {
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease,
+    transform 80ms ease;
+}
+button:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+button.buy:hover:not(:disabled) {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--up) 65%, transparent),
+    0 2px 10px color-mix(in srgb, var(--up) 25%, transparent);
+}
+button.sell:hover:not(:disabled) {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--down) 65%, transparent),
+    0 2px 10px color-mix(in srgb, var(--down) 25%, transparent);
+}
+button.primary:hover:not(:disabled) {
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.rules-metric .meter {
+  height: 3px;
+  border-radius: 999px;
+}
+.rules-metric .meter > span {
+  transition: width 180ms ease;
+}
+
+/* ---------- review tab KPIs & cards */
+.review-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.review-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.review-kpi-k {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.review-kpi-v {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.review-kpi.up .review-kpi-v {
+  color: var(--up);
+}
+.review-kpi.down .review-kpi-v {
+  color: var(--down);
+}
 .review-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
+  gap: 10px;
+}
+.review-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
 }
 .review-grid h4 {
-  margin: 4px 0;
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   font-size: 12px;
+  font-weight: 600;
 }
 .review-svg {
   width: 100%;
   height: auto;
-  max-height: 160px;
+  max-height: 168px;
+  display: block;
 }
 .review-svg .equity {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 1.6;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.review-svg .equity.is-up {
+  stroke: var(--up);
+}
+.review-svg .equity.is-down {
+  stroke: var(--down);
+}
+.review-svg .eq-end {
+  fill: var(--text);
+  font-weight: 600;
 }
 .review-svg .base {
   stroke: var(--border);

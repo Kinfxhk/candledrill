@@ -1,7 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { equityCurve, monteCarlo, rDistribution, type Trade } from '../src/index.js';
+import {
+  createSession,
+  equityCurve,
+  monteCarlo,
+  rDistribution,
+  sessionPlaceOrder,
+  stepSession,
+  type Bar,
+  type SessionSettings,
+  type Trade,
+} from '../src/index.js';
 
 const trade = (id: number, closeTime: number, netPnl: number, r: number | null = null): Trade =>
   ({ id, closeTime, netPnl, rMultiple: r }) as unknown as Trade;
@@ -55,5 +65,61 @@ describe('review analytics', () => {
       ),
       { numRuns: 80 },
     );
+  });
+
+  it('Bootstrap Monte Carlo produces finalPnl spread and is reproducible', () => {
+    const pnls = [150, -80, 120, -60, 200, -90, 75, -50];
+    const a = monteCarlo(pnls, { runs: 400, seed: 42, limit: 200, mode: 'bootstrap' })!;
+    const b = monteCarlo(pnls, { runs: 400, seed: 42, limit: 200, mode: 'bootstrap' })!;
+    expect(a).toEqual(b);
+    expect(a.mode).toBe('bootstrap');
+    expect(a.finalPnl.p05).toBeLessThan(a.finalPnl.p95);
+    expect(a.finalPnl.p05).toBeLessThanOrEqual(a.finalPnl.p50);
+    expect(a.finalPnl.p50).toBeLessThanOrEqual(a.finalPnl.p95);
+    expect(a.maxDrawdown.p50).toBeLessThanOrEqual(a.maxDrawdown.p99);
+  });
+
+  it('dailyLossBasis intraday breaches on adverse intrabar low even if bar closes higher', () => {
+    const bars: Bar[] = [
+      { time: 0, open: 100, high: 100, low: 100, close: 100, volume: 100 },
+      { time: 60, open: 100, high: 101, low: 88, close: 99, volume: 100 },
+    ];
+    const base: SessionSettings = {
+      symbol: 'SYNTH',
+      tickSize: 1,
+      pointValue: 10,
+      commissionPerContract: 0,
+      slippageTicks: 0,
+      startingBalance: 1000,
+      dailyLossLimit: 100,
+      trailingDrawdown: null,
+      trailingDrawdownMode: 'close',
+      profitTarget: null,
+      utcOffsetMinutes: 0,
+      dayStartMinutes: 0,
+      anchorMinutes: 0,
+    };
+    const closeInit = sessionPlaceOrder(bars, base, createSession(bars, base, 0), {
+      side: 'buy',
+      type: 'market',
+      qty: 1,
+    });
+    const closeAfter = stepSession(bars, base, closeInit, 1).state;
+    expect(closeAfter.status).toBe('finished');
+
+    const intraSettings: SessionSettings = { ...base, dailyLossBasis: 'intraday' };
+    const intraInit = sessionPlaceOrder(
+      bars,
+      intraSettings,
+      createSession(bars, intraSettings, 0),
+      {
+        side: 'buy',
+        type: 'market',
+        qty: 1,
+      },
+    );
+    const intraAfter = stepSession(bars, intraSettings, intraInit, 1).state;
+    expect(intraAfter.status).toBe('breached');
+    expect(intraAfter.statusReason).toContain('daily loss limit');
   });
 });
